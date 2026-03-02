@@ -1,6 +1,8 @@
 // Sanity Schema: User (for Loyalty Program)
 // Copy this to your Sanity Studio schemas folder
 
+import { Rule } from "sanity";
+
 export const userSchema = {
   name: "user",
   title: "User",
@@ -10,7 +12,7 @@ export const userSchema = {
       name: "telegramId",
       title: "Telegram ID",
       type: "string",
-      validation: (Rule: any) => Rule.required(),
+      validation: (Rule: Rule) => Rule.required(),
     },
     {
       name: "username",
@@ -37,7 +39,7 @@ export const userSchema = {
       title: "Total Spent (USD)",
       type: "number",
       initialValue: 0,
-      validation: (Rule: any) => Rule.min(0),
+      validation: (Rule: Rule) => Rule.min(0),
     },
     {
       name: "status",
@@ -57,7 +59,7 @@ export const userSchema = {
       title: "Cashback Balance (USD)",
       type: "number",
       initialValue: 0,
-      validation: (Rule: any) => Rule.min(0),
+      validation: (Rule: Rule) => Rule.min(0),
     },
     {
       name: "orders",
@@ -100,7 +102,7 @@ export const userSchema = {
       subtitle: "status",
       telegramId: "telegramId",
     },
-    prepare(selection: any) {
+    prepare(selection: Record<string, unknown>) {
       const { title, subtitle, telegramId } = selection;
       return {
         title: title || `User ${telegramId}`,

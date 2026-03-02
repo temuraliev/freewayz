@@ -1,6 +1,8 @@
 // Sanity Schema: Category
 // Copy this to your Sanity Studio schemas folder
 
+import { Rule } from "sanity";
+
 export const categorySchema = {
   name: "category",
   title: "Category",
@@ -10,7 +12,7 @@ export const categorySchema = {
       name: "title",
       title: "Title",
       type: "string",
-      validation: (Rule: any) => Rule.required(),
+      validation: (Rule: Rule) => Rule.required(),
     },
     {
       name: "slug",
@@ -20,7 +22,7 @@ export const categorySchema = {
         source: "title",
         maxLength: 96,
       },
-      validation: (Rule: any) => Rule.required(),
+      validation: (Rule: Rule) => Rule.required(),
     },
     {
       name: "image",

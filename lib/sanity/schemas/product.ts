@@ -1,6 +1,8 @@
 // Sanity Schema: Product
 // Copy this to your Sanity Studio schemas folder
 
+import { Rule } from "sanity";
+
 export const productSchema = {
   name: "product",
   title: "Product",
@@ -10,7 +12,7 @@ export const productSchema = {
       name: "title",
       title: "Title",
       type: "string",
-      validation: (Rule: any) => Rule.required(),
+      validation: (Rule: Rule) => Rule.required(),
     },
     {
       name: "slug",
@@ -20,13 +22,13 @@ export const productSchema = {
         source: "title",
         maxLength: 96,
       },
-      validation: (Rule: any) => Rule.required(),
+      validation: (Rule: Rule) => Rule.required(),
     },
     {
       name: "price",
       title: "Price (USD)",
       type: "number",
-      validation: (Rule: any) => Rule.required().positive(),
+      validation: (Rule: Rule) => Rule.required().positive(),
     },
     {
       name: "originalPrice",
@@ -39,7 +41,7 @@ export const productSchema = {
       title: "Images",
       type: "array",
       of: [{ type: "image", options: { hotspot: true } }],
-      validation: (Rule: any) => Rule.required().min(1),
+      validation: (Rule: Rule) => Rule.required().min(1),
     },
     {
       name: "category",
@@ -60,7 +62,7 @@ export const productSchema = {
           { title: "Gorpcore", value: "Gorpcore" },
         ],
       },
-      validation: (Rule: any) => Rule.required(),
+      validation: (Rule: Rule) => Rule.required(),
     },
     {
       name: "brand",
@@ -80,7 +82,7 @@ export const productSchema = {
           { title: "Off-White", value: "Off-White" },
         ],
       },
-      validation: (Rule: any) => Rule.required(),
+      validation: (Rule: Rule) => Rule.required(),
     },
     {
       name: "sizes",
@@ -98,7 +100,7 @@ export const productSchema = {
           { title: "One Size", value: "One Size" },
         ],
       },
-      validation: (Rule: any) => Rule.required().min(1),
+      validation: (Rule: Rule) => Rule.required().min(1),
     },
     {
       name: "colors",
@@ -131,7 +133,7 @@ export const productSchema = {
       isHotDrop: "isHotDrop",
       isOnSale: "isOnSale",
     },
-    prepare(selection: any) {
+    prepare(selection: Record<string, unknown>) {
       const { title, brand, price, media, isHotDrop, isOnSale } = selection;
       const badges = [
         isHotDrop && "🔥",

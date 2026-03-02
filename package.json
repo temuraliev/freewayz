@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "next lint --dir .",
     "upload-images": "node --env-file=.env.local scripts/upload-images-to-sanity.mjs",
     "upload-images-from-url": "node --env-file=.env.local scripts/upload-images-from-url.mjs",
     "check-sanity-token": "node --env-file=.env.local scripts/check-sanity-token.mjs",

@@ -65,16 +65,10 @@ export default function HomePage() {
           client.fetch(freshArrivalsQuery),
         ]);
 
-        // Use mock data if Sanity returns empty (Hot Drops exclude sale items)
-        setHotDrops(
-          hotData?.length > 0
-            ? hotData
-            : MOCK_PRODUCTS.filter((p) => p.isHotDrop && !p.isOnSale)
-        );
-        setSaleProducts(
-          saleData?.length > 0 ? saleData : MOCK_PRODUCTS.filter((p) => p.isOnSale)
-        );
-        setFreshArrivals(freshData?.length > 0 ? freshData : MOCK_PRODUCTS);
+        // If Sanity succeeds, we trust its response (even if empty)
+        setHotDrops(hotData || []);
+        setSaleProducts(saleData || []);
+        setFreshArrivals(freshData || []);
       } catch (error) {
         console.log("Using mock data:", error);
         setHotDrops(MOCK_PRODUCTS.filter((p) => p.isHotDrop && !p.isOnSale));
@@ -106,16 +100,11 @@ export default function HomePage() {
           subtype: subtype || "",
         });
 
-        if (data && data.length > 0) {
+        // Only trust data if it's an array. If empty, the filter matched nothing.
+        if (Array.isArray(data)) {
           setFilteredProducts(data);
         } else {
-          let filtered = [...MOCK_PRODUCTS];
-          if (saleOnly) filtered = filtered.filter((p) => p.isOnSale);
-          if (style) filtered = filtered.filter((p) => p.style?.slug?.current === style || (typeof p.style === "string" && p.style === style));
-          if (brand) filtered = filtered.filter((p) => p.brand?.slug?.current === brand || (typeof p.brand === "string" && p.brand === brand));
-          if (category) filtered = filtered.filter((p) => p.category?.slug?.current === category);
-          if (subtype) filtered = filtered.filter((p) => (p as { subtype?: string }).subtype === subtype);
-          setFilteredProducts(filtered);
+          setFilteredProducts([]);
         }
       } catch (error) {
         console.log("Filter error:", error);
@@ -287,6 +276,10 @@ export default function HomePage() {
                       />
                     ))}
                   </div>
+                ) : filteredProducts && filteredProducts.length === 0 ? (
+                  <p className="px-4 py-8 text-center text-muted-foreground">
+                    {ru.searchNoResults}
+                  </p>
                 ) : (
                   <ProductGrid products={filteredProducts || []} />
                 )}

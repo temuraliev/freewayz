@@ -1,0 +1,17 @@
+{
+    "name": "FreeWayz Underground Streetwear",
+    "short_name": "FreeWayz",
+    "description": "Стритвир премиум-класса. Тёмный, андерграунд, стиль Opium.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0a0a0a",
+    "theme_color": "#0a0a0a",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/favicon.ico",
+            "sizes": "192x192",
+            "type": "image/x-icon"
+        }
+    ]
+}

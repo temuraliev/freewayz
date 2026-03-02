@@ -22,6 +22,22 @@ const productFields = `
   isNewArrival
 `;
 
+// Lighter projection for search (no 3d models, sizes, colors, description)
+const searchProductFields = `
+  _id,
+  title,
+  slug,
+  price,
+  originalPrice,
+  "images": images[0...1].asset->url,
+  "category": category->{ title, slug },
+  "style": style->{ title, slug },
+  "brand": brand->{ title, slug },
+  isHotDrop,
+  isOnSale,
+  isNewArrival
+`;
+
 // All products query (all products are order-only / под заказ)
 export const productsQuery = groq`
   *[_type == "product"] | order(_createdAt desc) {
@@ -70,10 +86,9 @@ export const freshArrivalsQuery = groq`
   }
 `;
 
-// Search - fetch products (filter by query on client for title/brand match), limit for perf
 export const searchProductsQuery = groq`
   *[_type == "product"] | order(_updatedAt desc) [0...50] {
-    ${productFields}
+    ${searchProductFields}
   }
 `;
 

@@ -24,6 +24,12 @@ const oswald = Oswald({
 export const metadata: Metadata = {
   title: "FreeWayz | Андерграунд стритвир",
   description: "Стритвир премиум-класса. Тёмный, андерграунд, стиль Opium. Цены в сумах (Узбекистан).",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "FreeWayz",
+  },
 };
 
 export const viewport: Viewport = {

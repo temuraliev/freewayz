@@ -6,7 +6,7 @@ import { ArrowLeft, ShoppingBag, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { ImageCarousel, type CarouselMediaItem } from "@/components/products/image-carousel";
-import { ModelViewer3d } from "@/components/products/model-viewer-3d";
+import dynamic from "next/dynamic";
 import { SizeSelector } from "@/components/products/size-selector";
 import { ColorSelector } from "@/components/products/color-selector";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,18 @@ import { toast } from "@/components/ui/use-toast";
 import { Product, Size, Color } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
 import { ru } from "@/lib/i18n/ru";
+
+const ModelViewer3d = dynamic(
+  () => import("@/components/products/model-viewer-3d").then((mod) => mod.ModelViewer3d),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex aspect-square items-center justify-center rounded-xl border border-border bg-secondary/50">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    ),
+  }
+);
 
 interface ProductPageClientProps {
   product: Product;
