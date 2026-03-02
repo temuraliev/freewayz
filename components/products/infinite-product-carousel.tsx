@@ -129,21 +129,22 @@ export function InfiniteProductCarousel({
                                 )}
 
                                 {/* Info */}
-                                <div className="p-2.5">
-                                    <h3 className="truncate text-[11px] font-semibold uppercase tracking-tight text-foreground">
-                                        {product.title}
-                                    </h3>
-                                    <div className="mt-1">
-                                        {(showSalePrice || product.isOnSale) && product.originalPrice != null ? (
-                                            <div className="flex items-baseline gap-1.5">
-                                                <span className="font-mono text-sm font-bold text-red-500">{formatPrice(product.price)}</span>
-                                                <span className="font-mono text-[10px] text-muted-foreground line-through">{formatPrice(product.originalPrice)}</span>
-                                            </div>
-                                        ) : (
-                                            <span className="font-mono text-sm font-bold text-foreground">{formatPrice(product.price)}</span>
-                                        )}
-                                    </div>
+                            </div>
+                            <div className="p-2.5">
+                                <h3 className="truncate text-[11px] font-semibold uppercase tracking-tight text-foreground">
+                                    {product.title}
+                                </h3>
+                                <div className="mt-1">
+                                    {(showSalePrice || product.isOnSale) && product.originalPrice != null ? (
+                                        <div className="flex items-baseline gap-1.5">
+                                            <span className="font-mono text-sm font-bold text-red-500">{formatPrice(product.price)}</span>
+                                            <span className="font-mono text-[10px] text-muted-foreground line-through">{formatPrice(product.originalPrice)}</span>
+                                        </div>
+                                    ) : (
+                                        <span className="font-mono text-sm font-bold text-foreground">{formatPrice(product.price)}</span>
+                                    )}
                                 </div>
+                            </div>
                         </Link>
                     </motion.div>
                 ))}
