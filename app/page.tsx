@@ -305,10 +305,7 @@ export default function HomePage() {
             {loading ? (
               <LoadingSkeleton />
             ) : (
-              <InfiniteProductGrid
-                initialProducts={hotDrops}
-                query={hotDropsPaginatedQuery}
-              />
+              <ProductCarousel products={hotDrops} cardSize="large" />
             )}
           </motion.section>
 
