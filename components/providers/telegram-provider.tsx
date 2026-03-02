@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { useUserStore } from "@/lib/store";
 import { TelegramUser } from "@/lib/types";
 
@@ -38,6 +39,7 @@ declare global {
           query_id?: string;
           auth_date?: number;
           hash?: string;
+          start_param?: string; // deep link param: t.me/bot/app?startapp=PARAM
         };
         colorScheme: "light" | "dark";
         themeParams: {
@@ -93,6 +95,7 @@ export function TelegramProvider({ children }: TelegramProviderProps) {
   const [isReady, setIsReady] = useState(false);
   const [webApp, setWebApp] = useState<typeof window.Telegram.WebApp | null>(null);
   const { setTelegramUser, setIsLoading, setIsInitialized } = useUserStore();
+  const router = useRouter();
 
   useEffect(() => {
     // Check if running in Telegram WebApp
@@ -123,10 +126,17 @@ export function TelegramProvider({ children }: TelegramProviderProps) {
 
         setWebApp(tg);
         setIsReady(true);
+
+        // Deep link handling — navigate to product if start_param is set
+        const startParam = tg.initDataUnsafe?.start_param;
+        if (startParam) {
+          // start_param is the product slug
+          router.push(`/product/${startParam}`);
+        }
       } else {
         // Running outside Telegram (for development)
         console.log("Running outside Telegram WebApp");
-        
+
         // Set mock user for development
         if (process.env.NODE_ENV === "development") {
           setTelegramUser({

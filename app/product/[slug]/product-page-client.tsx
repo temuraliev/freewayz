@@ -46,20 +46,27 @@ export function ProductPageClient({ product }: ProductPageClientProps) {
   const haptic = useHapticFeedback();
 
   const handleShare = async () => {
-    const url = typeof window !== "undefined" ? window.location.href : "";
+    const slug = product.slug.current;
+    // Deep link that opens the Mini App directly in Telegram (not the browser)
+    const miniAppUrl = `https://t.me/free_wayz_bot/shop?startapp=${slug}`;
     const text = `${brandName ? brandName + " " : ""}${product.title}`;
+
     try {
-      // Try Telegram WebApp share first
-      const tg = (window as Window & { Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } } }).Telegram?.WebApp;
+      const tg = (window as Window & {
+        Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } }
+      }).Telegram?.WebApp;
+
       if (tg?.openTelegramLink) {
-        tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`);
-      } else if (navigator.share) {
-        await navigator.share({ title: text, url });
+        // Share via Telegram native share sheet — link opens Mini App, not browser
+        tg.openTelegramLink(
+          `https://t.me/share/url?url=${encodeURIComponent(miniAppUrl)}&text=${encodeURIComponent(text)}`
+        );
       } else {
-        await navigator.clipboard.writeText(url);
+        // Outside Telegram — copy Mini App link to clipboard
+        await navigator.clipboard.writeText(miniAppUrl);
       }
     } catch {
-      try { await navigator.clipboard.writeText(url); } catch { /* ignore */ }
+      try { await navigator.clipboard.writeText(miniAppUrl); } catch { /* ignore */ }
     }
     setShareDone(true);
     haptic.notification("success");
