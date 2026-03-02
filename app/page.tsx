@@ -51,7 +51,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [categoriesForSubtypes, setCategoriesForSubtypes] = useState<Category[]>([]);
 
-  const { style, brand, category, subtype, setSubtype, saleOnly, searchQuery, hasActiveFilters } = useFilterStore();
+  const { style, brand, category, subtype, setSubtype, saleOnly, searchQuery, hasActiveFilters, minPrice, maxPrice } = useFilterStore();
   const filtersActive = hasActiveFilters();
   const searchActive = searchQuery.length >= 2;
 
@@ -101,6 +101,8 @@ export default function HomePage() {
           brand: brand || "",
           category: category || "",
           subtype: subtype || "",
+          minPrice: minPrice ?? 0,
+          maxPrice: maxPrice ?? 999_999_999,
         });
 
         // Only trust data if it's an array. If empty, the filter matched nothing.

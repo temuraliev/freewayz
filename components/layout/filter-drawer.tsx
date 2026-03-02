@@ -23,6 +23,10 @@ import { cn } from "@/lib/utils";
 import { client } from "@/lib/sanity/client";
 import { brandsQuery, categoriesQuery, stylesQuery } from "@/lib/sanity/queries";
 import { ru } from "@/lib/i18n/ru";
+import { PriceRangeSlider } from "@/components/products/price-range-slider";
+
+const PRICE_MIN = 0;
+const PRICE_MAX = 15_000_000;
 
 interface FilterDrawerProps {
   open: boolean;
@@ -30,8 +34,10 @@ interface FilterDrawerProps {
 }
 
 export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
-  const { style, brand, category, subtype, saleOnly, setStyle, setBrand, setCategory, setSubtype, setSaleOnly, clearFilters } =
-    useFilterStore();
+  const {
+    style, brand, category, subtype, saleOnly, minPrice, maxPrice,
+    setStyle, setBrand, setCategory, setSubtype, setSaleOnly, setPriceRange, clearFilters,
+  } = useFilterStore();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [styles, setStyles] = useState<Style[]>([]);
@@ -42,6 +48,8 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
   const [tempCategory, setTempCategory] = useState<string | null>(category);
   const [tempSubtype, setTempSubtype] = useState<string | null>(subtype);
   const [tempSaleOnly, setTempSaleOnly] = useState<boolean>(saleOnly);
+  const [tempMinPrice, setTempMinPrice] = useState<number | null>(minPrice);
+  const [tempMaxPrice, setTempMaxPrice] = useState<number | null>(maxPrice);
 
   // Sync temp state when drawer opens
   useEffect(() => {
@@ -51,8 +59,10 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
       setTempCategory(category);
       setTempSubtype(subtype);
       setTempSaleOnly(saleOnly);
+      setTempMinPrice(minPrice);
+      setTempMaxPrice(maxPrice);
     }
-  }, [open, style, brand, category, subtype, saleOnly]);
+  }, [open, style, brand, category, subtype, saleOnly, minPrice, maxPrice]);
 
   // Fetch categories
   useEffect(() => {
@@ -63,8 +73,6 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
           setCategories(data);
           return;
         }
-
-        // If Studio has no Category documents yet, keep UX usable
         setCategories([
           { _id: "1", title: "Hoodies", slug: { current: "hoodies" }, image: null },
           { _id: "2", title: "T-Shirts", slug: { current: "t-shirts" }, image: null },
@@ -73,9 +81,7 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
           { _id: "5", title: "Footwear", slug: { current: "footwear" }, image: null },
           { _id: "6", title: "Accessories", slug: { current: "accessories" }, image: null },
         ]);
-      } catch (error) {
-        console.log("Failed to fetch categories:", error);
-        // Mock categories for demo
+      } catch {
         setCategories([
           { _id: "1", title: "Hoodies", slug: { current: "hoodies" }, image: null },
           { _id: "2", title: "T-Shirts", slug: { current: "t-shirts" }, image: null },
@@ -99,8 +105,8 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
         ]);
         if (Array.isArray(styleData)) setStyles(styleData);
         if (Array.isArray(brandData)) setBrands(brandData);
-      } catch (error) {
-        console.log("Failed to fetch styles/brands:", error);
+      } catch {
+        // silent
       }
     };
     fetchTaxonomy();
@@ -112,6 +118,7 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
     setCategory(tempCategory);
     setSubtype(tempSubtype);
     setSaleOnly(tempSaleOnly);
+    setPriceRange(tempMinPrice, tempMaxPrice);
     onOpenChange(false);
   };
 
@@ -121,10 +128,16 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
     setTempCategory(null);
     setTempSubtype(null);
     setTempSaleOnly(false);
+    setTempMinPrice(null);
+    setTempMaxPrice(null);
     clearFilters();
   };
 
-  const activeFilterCount = [tempStyle, tempBrand, tempCategory, tempSubtype].filter(Boolean).length + (tempSaleOnly ? 1 : 0);
+  const hasPriceFilter = tempMinPrice !== null || tempMaxPrice !== null;
+  const activeFilterCount =
+    [tempStyle, tempBrand, tempCategory, tempSubtype].filter(Boolean).length +
+    (tempSaleOnly ? 1 : 0) +
+    (hasPriceFilter ? 1 : 0);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -142,9 +155,10 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
         </SheetHeader>
 
         {/* Scrollable Filter Content */}
-        <div className="flex-1 overflow-y-auto py-4">
+        <div className="flex-1 overflow-y-auto py-4 space-y-4">
+
           {/* Sale only toggle */}
-          <div className="mb-4 flex items-center justify-between rounded-xl border border-border bg-secondary/30 px-4 py-3">
+          <div className="flex items-center justify-between rounded-xl border border-border bg-secondary/30 px-4 py-3">
             <span className="text-sm font-medium">{ru.saleOnly}</span>
             <button
               type="button"
@@ -165,8 +179,36 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
             </button>
           </div>
 
+          {/* Price Range */}
+          <div className="rounded-xl border border-border bg-secondary/30 px-4 py-3">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                {ru.priceRange ?? "Цена"}
+              </span>
+              {hasPriceFilter && (
+                <button
+                  onClick={() => { setTempMinPrice(null); setTempMaxPrice(null); }}
+                  className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                >
+                  Сбросить
+                </button>
+              )}
+            </div>
+            <PriceRangeSlider
+              min={PRICE_MIN}
+              max={PRICE_MAX}
+              step={100_000}
+              valueMin={tempMinPrice}
+              valueMax={tempMaxPrice}
+              onChange={(min, max) => {
+                setTempMinPrice(min);
+                setTempMaxPrice(max);
+              }}
+            />
+          </div>
+
           <Accordion type="multiple" defaultValue={["categories", "styles", "brands"]} className="w-full">
-            {/* Categories + Subtypes in one section */}
+            {/* Categories */}
             <AccordionItem value="categories">
               <AccordionTrigger className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground">
                 {ru.categories}
@@ -201,7 +243,7 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
               </AccordionContent>
             </AccordionItem>
 
-            {/* Styles Filter */}
+            {/* Styles */}
             <AccordionItem value="styles">
               <AccordionTrigger className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground">
                 {ru.styles}
@@ -213,9 +255,7 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
                       key={s._id}
                       whileTap={{ scale: 0.95 }}
                       onClick={() =>
-                        setTempStyle(
-                          tempStyle === s.slug.current ? null : s.slug.current
-                        )
+                        setTempStyle(tempStyle === s.slug.current ? null : s.slug.current)
                       }
                       className={cn(
                         "rounded-full border px-3 py-1.5 text-sm transition-all",
@@ -231,7 +271,7 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
               </AccordionContent>
             </AccordionItem>
 
-            {/* Brands Filter */}
+            {/* Brands */}
             <AccordionItem value="brands">
               <AccordionTrigger className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground">
                 {ru.brands}
@@ -243,9 +283,7 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
                       key={b._id}
                       whileTap={{ scale: 0.95 }}
                       onClick={() =>
-                        setTempBrand(
-                          tempBrand === b.slug.current ? null : b.slug.current
-                        )
+                        setTempBrand(tempBrand === b.slug.current ? null : b.slug.current)
                       }
                       className={cn(
                         "rounded-full border px-3 py-1.5 text-sm transition-all",
@@ -263,7 +301,7 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
           </Accordion>
         </div>
 
-        {/* Footer Actions */}
+        {/* Footer */}
         <div className="border-t border-border pt-4 space-y-3">
           {activeFilterCount > 0 && (
             <button

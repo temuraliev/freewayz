@@ -60,6 +60,8 @@ export const productsByFilterQuery = groq`
     && ($brand == "" || brand->slug.current == $brand)
     && ($category == "" || category->slug.current == $category)
     && ($subtype == "" || subtype == $subtype)
+    && price >= $minPrice
+    && price <= $maxPrice
   ] | order(isHotDrop desc, isNewArrival desc, _createdAt desc) {
     ${productFields}
   }
