@@ -1,0 +1,227 @@
+"use client";
+
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { useUserStore } from "@/lib/store";
+import { TelegramUser } from "@/lib/types";
+
+interface TelegramContextType {
+  isReady: boolean;
+  webApp: typeof window.Telegram.WebApp | null;
+}
+
+const TelegramContext = createContext<TelegramContextType>({
+  isReady: false,
+  webApp: null,
+});
+
+export const useTelegram = () => useContext(TelegramContext);
+
+interface TelegramProviderProps {
+  children: ReactNode;
+}
+
+// Extend Window interface for Telegram
+declare global {
+  interface Window {
+    Telegram: {
+      WebApp: {
+        ready: () => void;
+        expand: () => void;
+        close: () => void;
+        enableClosingConfirmation: () => void;
+        disableClosingConfirmation: () => void;
+        setHeaderColor: (color: string) => void;
+        setBackgroundColor: (color: string) => void;
+        initData: string;
+        initDataUnsafe: {
+          user?: TelegramUser;
+          query_id?: string;
+          auth_date?: number;
+          hash?: string;
+        };
+        colorScheme: "light" | "dark";
+        themeParams: {
+          bg_color?: string;
+          text_color?: string;
+          hint_color?: string;
+          link_color?: string;
+          button_color?: string;
+          button_text_color?: string;
+        };
+        isExpanded: boolean;
+        viewportHeight: number;
+        viewportStableHeight: number;
+        MainButton: {
+          text: string;
+          color: string;
+          textColor: string;
+          isVisible: boolean;
+          isActive: boolean;
+          isProgressVisible: boolean;
+          setText: (text: string) => void;
+          onClick: (callback: () => void) => void;
+          offClick: (callback: () => void) => void;
+          show: () => void;
+          hide: () => void;
+          enable: () => void;
+          disable: () => void;
+          showProgress: (leaveActive?: boolean) => void;
+          hideProgress: () => void;
+        };
+        BackButton: {
+          isVisible: boolean;
+          onClick: (callback: () => void) => void;
+          offClick: (callback: () => void) => void;
+          show: () => void;
+          hide: () => void;
+        };
+        HapticFeedback: {
+          impactOccurred: (style: "light" | "medium" | "heavy" | "rigid" | "soft") => void;
+          notificationOccurred: (type: "error" | "success" | "warning") => void;
+          selectionChanged: () => void;
+        };
+        openLink: (url: string) => void;
+        openTelegramLink: (url: string) => void;
+        showAlert: (message: string) => void;
+        showConfirm: (message: string, callback: (confirmed: boolean) => void) => void;
+      };
+    };
+  }
+}
+
+export function TelegramProvider({ children }: TelegramProviderProps) {
+  const [isReady, setIsReady] = useState(false);
+  const [webApp, setWebApp] = useState<typeof window.Telegram.WebApp | null>(null);
+  const { setTelegramUser, setIsLoading, setIsInitialized } = useUserStore();
+
+  useEffect(() => {
+    // Check if running in Telegram WebApp
+    const initTelegram = async () => {
+      if (typeof window !== "undefined" && window.Telegram?.WebApp) {
+        const tg = window.Telegram.WebApp;
+
+        // Initialize WebApp
+        tg.ready();
+        tg.expand();
+
+        // Set theme colors
+        tg.setHeaderColor("#0a0a0a");
+        tg.setBackgroundColor("#0a0a0a");
+
+        // ── Server-side verification of initData ──────────────
+        const initData = tg.initData;
+        if (initData) {
+          try {
+            const res = await fetch("/api/auth/telegram", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ initData }),
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              if (data.ok && data.user) {
+                setTelegramUser({
+                  id: data.user.id,
+                  first_name: data.user.first_name,
+                  last_name: data.user.last_name,
+                  username: data.user.username,
+                  language_code: data.user.language_code,
+                  photo_url: data.user.photo_url,
+                });
+              }
+            } else {
+              console.warn("[TelegramProvider] Server auth failed, status:", res.status);
+              // Fallback: use the unverified data (for when BOT_TOKEN is not yet set)
+              const user = tg.initDataUnsafe?.user;
+              if (user) {
+                setTelegramUser({
+                  id: user.id,
+                  first_name: user.first_name,
+                  last_name: user.last_name,
+                  username: user.username,
+                  language_code: user.language_code,
+                  photo_url: user.photo_url,
+                });
+              }
+            }
+          } catch (error) {
+            console.warn("[TelegramProvider] Auth fetch failed:", error);
+            // Fallback to unverified data
+            const user = tg.initDataUnsafe?.user;
+            if (user) {
+              setTelegramUser({
+                id: user.id,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                username: user.username,
+                language_code: user.language_code,
+                photo_url: user.photo_url,
+              });
+            }
+          }
+        } else {
+          // No initData (e.g. opened directly, not via bot)
+          const user = tg.initDataUnsafe?.user;
+          if (user) {
+            setTelegramUser({
+              id: user.id,
+              first_name: user.first_name,
+              last_name: user.last_name,
+              username: user.username,
+              language_code: user.language_code,
+              photo_url: user.photo_url,
+            });
+          }
+        }
+
+        setWebApp(tg);
+        setIsReady(true);
+      } else {
+        // Running outside Telegram (for development)
+        console.log("Running outside Telegram WebApp");
+
+        // Set mock user for development
+        if (process.env.NODE_ENV === "development") {
+          setTelegramUser({
+            id: 123456789,
+            first_name: "Dev",
+            last_name: "User",
+            username: "devuser",
+          });
+        }
+      }
+
+      setIsLoading(false);
+      setIsInitialized(true);
+    };
+
+    // Small delay to ensure Telegram script is loaded
+    const timer = setTimeout(initTelegram, 100);
+
+    return () => clearTimeout(timer);
+  }, [setTelegramUser, setIsLoading, setIsInitialized]);
+
+  return (
+    <TelegramContext.Provider value={{ isReady, webApp }}>
+      {children}
+    </TelegramContext.Provider>
+  );
+}
+
+// Hook for haptic feedback
+export function useHapticFeedback() {
+  const { webApp } = useTelegram();
+
+  return {
+    impact: (style: "light" | "medium" | "heavy" | "rigid" | "soft" = "medium") => {
+      webApp?.HapticFeedback?.impactOccurred(style);
+    },
+    notification: (type: "error" | "success" | "warning") => {
+      webApp?.HapticFeedback?.notificationOccurred(type);
+    },
+    selection: () => {
+      webApp?.HapticFeedback?.selectionChanged();
+    },
+  };
+}
