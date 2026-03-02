@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { TopNav } from "@/components/layout/top-nav";
+import { HeroSection } from "@/components/layout/hero-section";
 import { ProductCarousel } from "@/components/products/product-carousel";
 import { ProductGrid } from "@/components/products/product-grid";
 import { InfiniteProductGrid } from "@/components/products/infinite-product-grid";
@@ -194,17 +195,11 @@ export default function HomePage() {
           animate={{ opacity: 1 }}
           className="py-4"
         >
-          <SectionHeader
-            eyebrow="SEARCH"
-            title={ru.sectionSearchResults}
-          />
+          <SectionHeader eyebrow="SEARCH" title={ru.sectionSearchResults} />
           {searchLoading ? (
             <div className="grid grid-cols-2 gap-3 px-4">
               {[...Array(4)].map((_, i) => (
-                <div
-                  key={i}
-                  className="aspect-[3/4] animate-pulse rounded-xl bg-secondary"
-                />
+                <div key={i} className="aspect-[3/4] animate-pulse rounded-xl bg-secondary" />
               ))}
             </div>
           ) : (() => {
@@ -212,11 +207,14 @@ export default function HomePage() {
               ? searchProducts.filter((p) => p.isOnSale)
               : searchProducts;
             return displaySearch.length === 0 ? (
-              <p className="px-4 py-8 text-center text-muted-foreground">
-                {ru.searchNoResults}
-              </p>
+              <p className="px-4 py-8 text-center text-muted-foreground">{ru.searchNoResults}</p>
             ) : (
-              <ProductGrid products={displaySearch} />
+              <>
+                <p className="px-4 pb-3 text-[11px] font-mono uppercase tracking-widest text-muted-foreground">
+                  {ru.found ?? "Найдено"}: <span className="text-foreground font-bold">{displaySearch.length}</span>
+                </p>
+                <ProductGrid products={displaySearch} />
+              </>
             );
           })()}
         </motion.div>
@@ -272,18 +270,20 @@ export default function HomePage() {
                 {loading ? (
                   <div className="grid grid-cols-2 gap-3 px-4">
                     {[...Array(4)].map((_, i) => (
-                      <div
-                        key={i}
-                        className="aspect-[3/4] animate-pulse rounded-xl bg-secondary"
-                      />
+                      <div key={i} className="aspect-[3/4] skeleton" />
                     ))}
                   </div>
                 ) : filteredProducts && filteredProducts.length === 0 ? (
-                  <p className="px-4 py-8 text-center text-muted-foreground">
-                    {ru.searchNoResults}
-                  </p>
+                  <p className="px-4 py-8 text-center text-muted-foreground">{ru.searchNoResults}</p>
                 ) : (
-                  <ProductGrid products={filteredProducts || []} />
+                  <>
+                    {filteredProducts && filteredProducts.length > 0 && (
+                      <p className="px-4 pb-3 text-[11px] font-mono uppercase tracking-widest text-muted-foreground">
+                        {ru.found ?? "Найдено"}: <span className="text-foreground font-bold">{filteredProducts.length}</span>
+                      </p>
+                    )}
+                    <ProductGrid products={filteredProducts || []} />
+                  </>
                 )}
               </>
             );
@@ -291,7 +291,10 @@ export default function HomePage() {
         </motion.div>
       ) : (
         // Curated Sections View
-        <div className="space-y-6 py-4">
+        <div className="space-y-2 py-2">
+          {/* Editorial Hero */}
+          <HeroSection />
+
           {/* Section 1: Hot Drops */}
           <motion.section
             initial={{ opacity: 0, y: 20 }}
@@ -302,7 +305,10 @@ export default function HomePage() {
             {loading ? (
               <LoadingSkeleton />
             ) : (
-              <ProductCarousel products={hotDrops} cardSize="large" />
+              <InfiniteProductGrid
+                initialProducts={hotDrops}
+                query={hotDropsPaginatedQuery}
+              />
             )}
           </motion.section>
 

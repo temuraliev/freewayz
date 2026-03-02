@@ -85,6 +85,9 @@ export const ru = {
   loading: "Загрузка...",
   allProductsLoaded: "Все товары загружены",
   priceRange: "Цена",
+  found: "Найдено",
+  share: "Поделиться",
+  linkCopied: "Ссылка скопирована",
   guest: "Гость",
 } as const;
 

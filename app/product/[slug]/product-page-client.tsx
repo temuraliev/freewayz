@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ShoppingBag, Check } from "lucide-react";
+import { ArrowLeft, ShoppingBag, Check, Share2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { ImageCarousel, type CarouselMediaItem } from "@/components/products/image-carousel";
@@ -40,9 +40,31 @@ export function ProductPageClient({ product }: ProductPageClientProps) {
   );
   const [isAdding, setIsAdding] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [shareDone, setShareDone] = useState(false);
 
   const addItem = useCartStore((state) => state.addItem);
   const haptic = useHapticFeedback();
+
+  const handleShare = async () => {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    const text = `${brandName ? brandName + " " : ""}${product.title}`;
+    try {
+      // Try Telegram WebApp share first
+      const tg = (window as Window & { Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } } }).Telegram?.WebApp;
+      if (tg?.openTelegramLink) {
+        tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`);
+      } else if (navigator.share) {
+        await navigator.share({ title: text, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+      }
+    } catch {
+      try { await navigator.clipboard.writeText(url); } catch { /* ignore */ }
+    }
+    setShareDone(true);
+    haptic.notification("success");
+    setTimeout(() => setShareDone(false), 2000);
+  };
 
   const handleAddToCart = async () => {
     if (!product || !selectedSize) {
@@ -92,18 +114,41 @@ export function ProductPageClient({ product }: ProductPageClientProps) {
           <ArrowLeft className="h-4 w-4 text-white" />
         </motion.button>
 
-        {/* Style tag */}
-        {styleName && (
-          <motion.span
+        <div className="flex items-center gap-2">
+          {/* Share button */}
+          <motion.button
             initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.15 }}
-            className="bg-black/50 px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-white/70 backdrop-blur-sm"
-            style={{ fontFamily: "var(--font-mono)" }}
+            transition={{ delay: 0.12 }}
+            onClick={handleShare}
+            className="flex h-9 w-9 items-center justify-center border border-white/20 bg-black/50 backdrop-blur-sm transition-colors"
           >
-            {styleName}
-          </motion.span>
-        )}
+            <AnimatePresence mode="wait">
+              {shareDone ? (
+                <motion.div key="done" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                  <Check className="h-4 w-4 text-green-400" />
+                </motion.div>
+              ) : (
+                <motion.div key="share" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                  <Share2 className="h-4 w-4 text-white" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.button>
+
+          {/* Style tag */}
+          {styleName && (
+            <motion.span
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.15 }}
+              className="bg-black/50 px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-white/70 backdrop-blur-sm"
+              style={{ fontFamily: "var(--font-mono)" }}
+            >
+              {styleName}
+            </motion.span>
+          )}
+        </div>
       </div>
 
       {/* Image Carousel — full bleed */}
