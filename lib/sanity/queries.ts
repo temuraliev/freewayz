@@ -88,9 +88,16 @@ export const freshArrivalsPaginatedQuery = groq`
   }
 `;
 
-// Sale products - products on sale
+// Sale products - first page
 export const saleProductsQuery = groq`
-  *[_type == "product" && isOnSale == true] | order(_createdAt desc) {
+  *[_type == "product" && isOnSale == true] | order(_createdAt desc) [0...20] {
+    ${productFields}
+  }
+`;
+
+// Sale products paginated
+export const saleProductsPaginatedQuery = groq`
+  *[_type == "product" && isOnSale == true] | order(_createdAt desc) [$offset...$limit] {
     ${productFields}
   }
 `;

@@ -16,6 +16,7 @@ import {
   hotDropsQuery,
   hotDropsPaginatedQuery,
   saleProductsQuery,
+  saleProductsPaginatedQuery,
   freshArrivalsQuery,
   freshArrivalsPaginatedQuery,
   productsByFilterQuery,
@@ -324,7 +325,12 @@ export default function HomePage() {
             {loading ? (
               <LoadingSkeleton />
             ) : (
-              <ProductCarousel products={saleProducts} showSalePrice cardSize="large" />
+              <InfiniteProductCarousel
+                initialProducts={saleProducts}
+                query={saleProductsPaginatedQuery}
+                showSalePrice
+                cardSize="large"
+              />
             )}
           </motion.section>
 
