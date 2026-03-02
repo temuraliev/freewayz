@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { formatPrice } from "@/lib/utils";
-import { ru } from "@/lib/i18n/ru";
 
 interface PriceRangeSliderProps {
     min?: number;

@@ -5,6 +5,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function optimizeImage(url: string, width: number = 800) {
+  if (!url) return url;
+  if (url.includes('cdn.sanity.io')) {
+    // Check if it already has query params
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}w=${width}&q=80&fit=max&auto=format`;
+  }
+  return url;
+}
+
 /** Uzbekistan so'm (UZS). Set NEXT_PUBLIC_PRICES_IN_USD=true if CMS stores prices in USD. */
 const UZS_LOCALE = "ru-UZ";
 const USD_TO_UZS = 12_500;

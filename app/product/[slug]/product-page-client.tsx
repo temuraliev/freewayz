@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ShoppingBag, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,73 +15,26 @@ import { useHapticFeedback } from "@/components/providers/telegram-provider";
 import { toast } from "@/components/ui/use-toast";
 import { Product, Size, Color } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
-import { client } from "@/lib/sanity/client";
 import { ru } from "@/lib/i18n/ru";
-import { productBySlugQuery } from "@/lib/sanity/queries";
-
-// Mock product for development
-const MOCK_PRODUCT: Product = {
-  _id: "1",
-  title: "Washed Black Hoodie",
-  slug: { current: "washed-black-hoodie" },
-  price: 280,
-  images: [
-    "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=800&q=80",
-    "https://images.unsplash.com/photo-1509942774463-acf339cf87d5?w=800&q=80",
-    "https://images.unsplash.com/photo-1578768079052-aa76e52ff62e?w=800&q=80",
-  ],
-  category: { title: "Hoodies", slug: { current: "hoodies" } },
-  style: { _id: "opium", title: "Opium", slug: { current: "opium" } },
-  brand: { _id: "hellstar", title: "Hellstar", slug: { current: "hellstar" } },
-  sizes: ["S", "M", "L", "XL"],
-  colors: ["Black", "Grey"],
-};
 
 interface ProductPageClientProps {
-  slug: string;
+  product: Product;
 }
 
-export function ProductPageClient({ slug }: ProductPageClientProps) {
+export function ProductPageClient({ product }: ProductPageClientProps) {
   const router = useRouter();
 
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Initialize selected color/size based on available options
   const [selectedSize, setSelectedSize] = useState<Size | null>(null);
-  const [selectedColor, setSelectedColor] = useState<Color | null>(null);
+  const [selectedColor, setSelectedColor] = useState<Color | null>(
+    product.colors && product.colors.length > 0 ? product.colors[0] : null
+  );
+
   const [isAdding, setIsAdding] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const addItem = useCartStore((state) => state.addItem);
   const haptic = useHapticFeedback();
-
-  useEffect(() => {
-    const fetchProduct = async () => {
-      setLoading(true);
-      try {
-        const data = await client.fetch(productBySlugQuery, { slug });
-        if (data) {
-          setProduct(data);
-          if (data.colors?.length > 0) {
-            setSelectedColor(data.colors[0]);
-          }
-        } else {
-          setProduct(MOCK_PRODUCT);
-          if (MOCK_PRODUCT.colors?.length > 0) {
-            setSelectedColor(MOCK_PRODUCT.colors[0]);
-          }
-        }
-      } catch (error) {
-        console.log("Using mock product:", error);
-        setProduct(MOCK_PRODUCT);
-        if (MOCK_PRODUCT.colors?.length > 0) {
-          setSelectedColor(MOCK_PRODUCT.colors[0]);
-        }
-      }
-      setLoading(false);
-    };
-
-    fetchProduct();
-  }, [slug]);
 
   const handleAddToCart = async () => {
     if (!product || !selectedSize) {
@@ -114,19 +67,6 @@ export function ProductPageClient({ slug }: ProductPageClientProps) {
       setShowSuccess(false);
     }, 1500);
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen animate-pulse">
-        <div className="aspect-square bg-secondary" />
-        <div className="space-y-4 p-4">
-          <div className="h-6 w-20 rounded bg-secondary" />
-          <div className="h-8 w-3/4 rounded bg-secondary" />
-          <div className="h-6 w-24 rounded bg-secondary" />
-        </div>
-      </div>
-    );
-  }
 
   if (!product) {
     return (

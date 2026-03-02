@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Product } from "@/lib/types";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, optimizeImage } from "@/lib/utils";
 import { ru } from "@/lib/i18n/ru";
 
 interface ProductCardProps {
@@ -25,7 +25,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           <div className="relative aspect-[3/4] overflow-hidden bg-secondary">
             {product.images?.[0] ? (
               <Image
-                src={product.images[0]}
+                src={optimizeImage(product.images[0], 400)}
                 alt={product.title}
                 fill
                 className="object-cover transition-transform duration-500 group-hover:scale-105"

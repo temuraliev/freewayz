@@ -4,6 +4,7 @@ import "./globals.css";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { Toaster } from "@/components/ui/toaster";
 import { TelegramProvider } from "@/components/providers/telegram-provider";
+import Script from "next/script";
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
@@ -41,7 +42,7 @@ export default function RootLayout({
   return (
     <html lang="ru" className="dark" suppressHydrationWarning>
       <head>
-        <script src="https://telegram.org/js/telegram-web-app.js" />
+        <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
       </head>
       <body
         suppressHydrationWarning

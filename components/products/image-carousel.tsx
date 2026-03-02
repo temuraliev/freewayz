@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { motion, useMotionValue, animate } from "framer-motion";
 import { ChevronLeft, ChevronRight, Play } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, optimizeImage } from "@/lib/utils";
 import { ru } from "@/lib/i18n/ru";
 
 export type CarouselMediaItem =
@@ -81,7 +81,7 @@ export function ImageCarousel({ media, alt }: ImageCarouselProps) {
               />
             ) : (
               <Image
-                src={current.url}
+                src={optimizeImage(current.url, 800)}
                 alt={`${alt} - 1`}
                 fill
                 className="object-cover"
@@ -121,7 +121,7 @@ export function ImageCarousel({ media, alt }: ImageCarouselProps) {
                   />
                 ) : (
                   <Image
-                    src={item.url}
+                    src={optimizeImage(item.url, 800)}
                     alt={`${alt} - ${index + 1}`}
                     fill
                     className="object-cover"
@@ -171,7 +171,7 @@ export function ImageCarousel({ media, alt }: ImageCarouselProps) {
                 </div>
               ) : (
                 <Image
-                  src={item.url}
+                  src={optimizeImage(item.url, 200)}
                   alt={`${alt} thumbnail ${index + 1}`}
                   fill
                   className="object-cover"

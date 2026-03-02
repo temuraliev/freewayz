@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { TopNav } from "@/components/layout/top-nav";
 import { ProductCarousel } from "@/components/products/product-carousel";
@@ -36,116 +36,7 @@ function filterBySearch(products: Product[], q: string): Product[] {
   });
 }
 
-// Mock products for development/demo (style/brand as refs)
-const mockStyle = (title: string, slug: string) => ({ _id: slug, title, slug: { current: slug } });
-const mockBrand = (title: string, slug: string) => ({ _id: slug, title, slug: { current: slug } });
-const MOCK_PRODUCTS: Product[] = [
-  {
-    _id: "1",
-    title: "Washed Black Hoodie",
-    slug: { current: "washed-black-hoodie" },
-    price: 280,
-    images: ["https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=800&q=80"],
-    category: { title: "Hoodies", slug: { current: "hoodies" } },
-    style: mockStyle("Opium", "opium"),
-    brand: mockBrand("Hellstar", "hellstar"),
-    sizes: ["S", "M", "L", "XL"],
-    colors: ["Black"],
-    isHotDrop: true,
-  },
-  {
-    _id: "2",
-    title: "Distressed Cargo Pants",
-    slug: { current: "distressed-cargo-pants" },
-    price: 320,
-    originalPrice: 420,
-    images: ["https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&q=80"],
-    category: { title: "Pants", slug: { current: "pants" } },
-    style: mockStyle("UK Drill", "uk-drill"),
-    brand: mockBrand("Corteiz", "corteiz"),
-    sizes: ["S", "M", "L"],
-    colors: ["Black", "Grey"],
-    isOnSale: true,
-  },
-  {
-    _id: "3",
-    title: "Oversized Graphic Tee",
-    slug: { current: "oversized-graphic-tee" },
-    price: 180,
-    images: ["https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800&q=80"],
-    category: { title: "T-Shirts", slug: { current: "t-shirts" } },
-    style: mockStyle("Y2K", "y2k"),
-    brand: mockBrand("Gallery Dept", "gallery-dept"),
-    sizes: ["M", "L", "XL", "XXL"],
-    colors: ["White", "Black"],
-    isHotDrop: true,
-  },
-  {
-    _id: "4",
-    title: "Leather Platform Boots",
-    slug: { current: "leather-platform-boots" },
-    price: 890,
-    originalPrice: 1200,
-    images: ["https://images.unsplash.com/photo-1608256246200-53e635b5b65f?w=800&q=80"],
-    category: { title: "Footwear", slug: { current: "footwear" } },
-    style: mockStyle("Opium", "opium"),
-    brand: mockBrand("Rick Owens", "rick-owens"),
-    sizes: ["S", "M", "L"],
-    colors: ["Black"],
-    isOnSale: true,
-  },
-  {
-    _id: "5",
-    title: "Cashmere Knit Sweater",
-    slug: { current: "cashmere-knit-sweater" },
-    price: 650,
-    images: ["https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=800&q=80"],
-    category: { title: "Knitwear", slug: { current: "knitwear" } },
-    style: mockStyle("Old Money", "old-money"),
-    brand: mockBrand("Represent", "represent"),
-    sizes: ["S", "M", "L", "XL"],
-    colors: ["Cream", "Grey", "Navy"],
-    isHotDrop: true,
-  },
-  {
-    _id: "6",
-    title: "Technical Windbreaker",
-    slug: { current: "technical-windbreaker" },
-    price: 380,
-    images: ["https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&q=80"],
-    category: { title: "Outerwear", slug: { current: "outerwear" } },
-    style: mockStyle("Gorpcore", "gorpcore"),
-    brand: mockBrand("Balenciaga", "balenciaga"),
-    sizes: ["M", "L", "XL"],
-    colors: ["Black", "Navy"],
-  },
-  {
-    _id: "7",
-    title: "Chrome Hearts Jeans",
-    slug: { current: "chrome-hearts-jeans" },
-    price: 690,
-    originalPrice: 890,
-    images: ["https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&q=80"],
-    category: { title: "Pants", slug: { current: "pants" } },
-    style: mockStyle("Opium", "opium"),
-    brand: mockBrand("Chrome Hearts", "chrome-hearts"),
-    sizes: ["S", "M", "L"],
-    colors: ["Black", "Grey"],
-    isOnSale: true,
-  },
-  {
-    _id: "8",
-    title: "Vintage Bomber Jacket",
-    slug: { current: "vintage-bomber-jacket" },
-    price: 520,
-    images: ["https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&q=80"],
-    category: { title: "Outerwear", slug: { current: "outerwear" } },
-    style: mockStyle("Old Money", "old-money"),
-    brand: mockBrand("Amiri", "amiri"),
-    sizes: ["S", "M", "L", "XL"],
-    colors: ["Black", "Brown"],
-  },
-];
+import { MOCK_PRODUCTS } from "@/lib/mock-data";
 
 export default function HomePage() {
   const [hotDrops, setHotDrops] = useState<Product[]>([]);
