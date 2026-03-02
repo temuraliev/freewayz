@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search, ShoppingBag, SlidersHorizontal } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore, useFilterStore } from "@/lib/store";
@@ -10,15 +11,24 @@ import { ru } from "@/lib/i18n/ru";
 import { cn } from "@/lib/utils";
 
 export function TopNav() {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const searchQuery = useFilterStore((s) => s.searchQuery);
   const setSearchQuery = useFilterStore((s) => s.setSearchQuery);
+  const clearFilters = useFilterStore((s) => s.clearFilters);
+  const clearSearch = useFilterStore((s) => s.clearSearch);
   const itemCount = useCartStore((state) => state.getItemCount());
 
   useEffect(() => { setMounted(true); }, []);
   const safeItemCount = mounted ? itemCount : 0;
+
+  const handleLogoClick = () => {
+    clearFilters();
+    clearSearch();
+    router.push("/");
+  };
 
   return (
     <>
@@ -26,14 +36,17 @@ export function TopNav() {
         <div className="flex h-14 items-center gap-3 px-4">
 
           {/* Logo */}
-          <Link href="/" className="shrink-0">
+          <button
+            onClick={handleLogoClick}
+            className="shrink-0 cursor-pointer"
+          >
             <span
               className="font-display text-[18px] font-bold uppercase tracking-[0.12em] text-foreground"
               style={{ fontFamily: "var(--font-display)" }}
             >
               FREEWAYZ
             </span>
-          </Link>
+          </button>
 
           {/* Search bar */}
           <div className="relative flex-1">

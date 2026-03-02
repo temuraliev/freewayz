@@ -82,6 +82,8 @@ export const ru = {
   tierLegendRange: "7 млн+ сўм",
 
   // Toast / generic
+  loading: "Загрузка...",
+  allProductsLoaded: "Все товары загружены",
   guest: "Гость",
 } as const;
 

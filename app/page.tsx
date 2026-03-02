@@ -5,14 +5,17 @@ import { motion } from "framer-motion";
 import { TopNav } from "@/components/layout/top-nav";
 import { ProductCarousel } from "@/components/products/product-carousel";
 import { ProductGrid } from "@/components/products/product-grid";
+import { InfiniteProductGrid } from "@/components/products/infinite-product-grid";
 import { SectionHeader } from "@/components/products/section-header";
 import { useFilterStore } from "@/lib/store";
 import { Product, Category } from "@/lib/types";
 import { client } from "@/lib/sanity/client";
 import {
   hotDropsQuery,
+  hotDropsPaginatedQuery,
   saleProductsQuery,
   freshArrivalsQuery,
+  freshArrivalsPaginatedQuery,
   productsByFilterQuery,
   searchProductsQuery,
   categoriesQuery,
@@ -325,14 +328,14 @@ export default function HomePage() {
             {loading ? (
               <div className="grid grid-cols-2 gap-3 px-4">
                 {[...Array(4)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="aspect-[3/4] skeleton"
-                  />
+                  <div key={i} className="aspect-[3/4] skeleton" />
                 ))}
               </div>
             ) : (
-              <ProductGrid products={freshArrivals} />
+              <InfiniteProductGrid
+                initialProducts={freshArrivals}
+                query={freshArrivalsPaginatedQuery}
+              />
             )}
           </motion.section>
         </div>

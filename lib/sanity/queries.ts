@@ -65,9 +65,23 @@ export const productsByFilterQuery = groq`
   }
 `;
 
-// Hot Drops - products marked as trending (exclude sale items so they only show in Sale section)
+// Hot Drops - first page
 export const hotDropsQuery = groq`
-  *[_type == "product" && isHotDrop == true && isOnSale != true] | order(_createdAt desc) [0...10] {
+  *[_type == "product" && isHotDrop == true && isOnSale != true] | order(_createdAt desc) [0...20] {
+    ${productFields}
+  }
+`;
+
+// Hot Drops paginated
+export const hotDropsPaginatedQuery = groq`
+  *[_type == "product" && isHotDrop == true && isOnSale != true] | order(_createdAt desc) [$offset...$limit] {
+    ${productFields}
+  }
+`;
+
+// Fresh Arrivals paginated
+export const freshArrivalsPaginatedQuery = groq`
+  *[_type == "product" && isNewArrival == true] | order(_createdAt desc) [$offset...$limit] {
     ${productFields}
   }
 `;
@@ -79,7 +93,7 @@ export const saleProductsQuery = groq`
   }
 `;
 
-// Fresh arrivals - products marked as new
+// Fresh Arrivals - products marked as new (first page)
 export const freshArrivalsQuery = groq`
   *[_type == "product" && isNewArrival == true] | order(_createdAt desc) [0...20] {
     ${productFields}
