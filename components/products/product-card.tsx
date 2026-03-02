@@ -40,14 +40,11 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               </div>
             )}
 
-            {/* Brand pill */}
-            {brandName && (
-              <span className="card-brand-pill">{brandName}</span>
-            )}
-
             {/* Badges */}
             {product.isOnSale && <span className="badge-sale">{ru.sale}</span>}
-            {product.isHotDrop && !product.isOnSale && <span className="badge-hot">🔥 {ru.hot}</span>}
+            {product.isHotDrop && !product.isOnSale && (
+              <span className="badge-hot">HOT</span>
+            )}
             {product.isNewArrival && !product.isOnSale && !product.isHotDrop && (
               <span className="badge-new">NEW</span>
             )}

@@ -111,13 +111,6 @@ export function InfiniteProductCarousel({
                                     </div>
                                 )}
 
-                                {/* Brand tag */}
-                                <div className="absolute left-2 top-2">
-                                    <span className="bg-black/70 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider text-white/80 backdrop-blur-sm">
-                                        {typeof product.brand === "string" ? product.brand : product.brand?.title}
-                                    </span>
-                                </div>
-
                                 {/* Badges */}
                                 {product.isOnSale && (
                                     <div className="absolute right-2 top-2">
@@ -126,27 +119,31 @@ export function InfiniteProductCarousel({
                                 )}
                                 {product.isHotDrop && !product.isOnSale && (
                                     <div className="absolute right-2 top-2">
-                                        <span className="bg-foreground px-1.5 py-0.5 text-[9px] font-bold uppercase text-background">HOT</span>
+                                        <span className="bg-orange-500 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">HOT</span>
                                     </div>
                                 )}
-                            </div>
+                                {product.isNewArrival && !product.isOnSale && !product.isHotDrop && (
+                                    <div className="absolute right-2 top-2">
+                                        <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase text-white" style={{ background: '#0ea5e9' }}>NEW</span>
+                                    </div>
+                                )}
 
-                            {/* Info */}
-                            <div className="p-2.5">
-                                <h3 className="truncate text-[11px] font-semibold uppercase tracking-tight text-foreground">
-                                    {product.title}
-                                </h3>
-                                <div className="mt-1">
-                                    {(showSalePrice || product.isOnSale) && product.originalPrice != null ? (
-                                        <div className="flex items-baseline gap-1.5">
-                                            <span className="font-mono text-sm font-bold text-red-500">{formatPrice(product.price)}</span>
-                                            <span className="font-mono text-[10px] text-muted-foreground line-through">{formatPrice(product.originalPrice)}</span>
-                                        </div>
-                                    ) : (
-                                        <span className="font-mono text-sm font-bold text-foreground">{formatPrice(product.price)}</span>
-                                    )}
+                                {/* Info */}
+                                <div className="p-2.5">
+                                    <h3 className="truncate text-[11px] font-semibold uppercase tracking-tight text-foreground">
+                                        {product.title}
+                                    </h3>
+                                    <div className="mt-1">
+                                        {(showSalePrice || product.isOnSale) && product.originalPrice != null ? (
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="font-mono text-sm font-bold text-red-500">{formatPrice(product.price)}</span>
+                                                <span className="font-mono text-[10px] text-muted-foreground line-through">{formatPrice(product.originalPrice)}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="font-mono text-sm font-bold text-foreground">{formatPrice(product.price)}</span>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
                         </Link>
                     </motion.div>
                 ))}

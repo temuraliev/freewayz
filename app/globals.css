@@ -207,7 +207,8 @@
 
   .badge-new {
     @apply absolute top-2 right-2 z-10 px-2 py-0.5;
-    @apply bg-white text-black text-[9px] font-extrabold uppercase tracking-wider;
+    background: #0ea5e9;
+    @apply text-white text-[9px] font-extrabold uppercase tracking-wider;
   }
 
   /* ─── Style Pills (filter tabs) ──────────────── */
