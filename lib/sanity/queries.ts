@@ -52,7 +52,7 @@ export const productBySlugQuery = groq`
   }
 `;
 
-// Products with filters (saleOnly, style, brand, category, subtype)
+// Products with filters — hot drops first, new arrivals second, then by date
 export const productsByFilterQuery = groq`
   *[_type == "product"
     && ($saleOnly == false || isOnSale == true)
@@ -60,7 +60,7 @@ export const productsByFilterQuery = groq`
     && ($brand == "" || brand->slug.current == $brand)
     && ($category == "" || category->slug.current == $category)
     && ($subtype == "" || subtype == $subtype)
-  ] | order(_createdAt desc) {
+  ] | order(isHotDrop desc, isNewArrival desc, _createdAt desc) {
     ${productFields}
   }
 `;
