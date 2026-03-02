@@ -14,8 +14,8 @@ interface PriceRangeSliderProps {
 
 export function PriceRangeSlider({
     min = 0,
-    max = 10_000_000,
-    step = 50_000,
+    max = 15_000_000,
+    step = 100_000,
     valueMin,
     valueMax,
     onChange,
@@ -23,66 +23,58 @@ export function PriceRangeSlider({
     const [localMin, setLocalMin] = useState(valueMin ?? min);
     const [localMax, setLocalMax] = useState(valueMax ?? max);
 
-    // Sync from parent
     useEffect(() => {
         setLocalMin(valueMin ?? min);
         setLocalMax(valueMax ?? max);
     }, [valueMin, valueMax, min, max]);
 
-    const handleMinChange = useCallback(
-        (e: React.ChangeEvent<HTMLInputElement>) => {
-            const val = Math.min(Number(e.target.value), localMax - step);
-            setLocalMin(val);
-        },
-        [localMax, step]
-    );
+    const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = Math.min(Number(e.target.value), localMax - step);
+        setLocalMin(val);
+    };
 
-    const handleMaxChange = useCallback(
-        (e: React.ChangeEvent<HTMLInputElement>) => {
-            const val = Math.max(Number(e.target.value), localMin + step);
-            setLocalMax(val);
-        },
-        [localMin, step]
-    );
+    const handleMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = Math.max(Number(e.target.value), localMin + step);
+        setLocalMax(val);
+    };
 
-    const handleCommit = useCallback(() => {
+    const commit = useCallback(() => {
         const newMin = localMin <= min ? null : localMin;
         const newMax = localMax >= max ? null : localMax;
         onChange(newMin, newMax);
     }, [localMin, localMax, min, max, onChange]);
 
-    // Percentage positions for the track highlight
     const minPercent = ((localMin - min) / (max - min)) * 100;
     const maxPercent = ((localMax - min) / (max - min)) * 100;
 
     return (
-        <div className="space-y-4 px-1">
-            {/* Labels */}
-            <div className="flex items-center justify-between text-sm">
-                <span className="font-mono text-muted-foreground">
+        <div className="space-y-3">
+            {/* Price labels */}
+            <div className="flex items-center justify-between">
+                <span className="rounded bg-secondary px-2 py-1 font-mono text-xs text-foreground">
                     {formatPrice(localMin)}
                 </span>
                 <span className="text-xs text-muted-foreground">—</span>
-                <span className="font-mono text-muted-foreground">
+                <span className="rounded bg-secondary px-2 py-1 font-mono text-xs text-foreground">
                     {formatPrice(localMax)}
                 </span>
             </div>
 
-            {/* Dual range slider */}
-            <div className="relative h-6">
-                {/* Track background */}
-                <div className="absolute top-1/2 left-0 right-0 h-1 -translate-y-1/2 rounded-full bg-secondary" />
+            {/* Slider track */}
+            <div className="relative h-5 w-full">
+                {/* Gray track bg */}
+                <div className="absolute top-1/2 h-1 w-full -translate-y-1/2 rounded-full bg-muted" />
 
-                {/* Active track */}
+                {/* Colored active track */}
                 <div
-                    className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-primary"
+                    className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-foreground"
                     style={{
                         left: `${minPercent}%`,
                         right: `${100 - maxPercent}%`,
                     }}
                 />
 
-                {/* Min slider */}
+                {/* MIN input */}
                 <input
                     type="range"
                     min={min}
@@ -90,14 +82,14 @@ export function PriceRangeSlider({
                     step={step}
                     value={localMin}
                     onChange={handleMinChange}
-                    onMouseUp={handleCommit}
-                    onTouchEnd={handleCommit}
-                    className="range-slider absolute top-0 left-0 h-6 w-full appearance-none bg-transparent pointer-events-none"
+                    onMouseUp={commit}
+                    onTouchEnd={commit}
+                    aria-label="Минимальная цена"
+                    className="price-thumb absolute inset-0 h-full w-full cursor-pointer opacity-0"
                     style={{ zIndex: localMin > max - step * 2 ? 5 : 3 }}
-                    aria-label="Мин. цена"
                 />
 
-                {/* Max slider */}
+                {/* MAX input */}
                 <input
                     type="range"
                     min={min}
@@ -105,11 +97,21 @@ export function PriceRangeSlider({
                     step={step}
                     value={localMax}
                     onChange={handleMaxChange}
-                    onMouseUp={handleCommit}
-                    onTouchEnd={handleCommit}
-                    className="range-slider absolute top-0 left-0 h-6 w-full appearance-none bg-transparent pointer-events-none"
+                    onMouseUp={commit}
+                    onTouchEnd={commit}
+                    aria-label="Максимальная цена"
+                    className="price-thumb absolute inset-0 h-full w-full cursor-pointer opacity-0"
                     style={{ zIndex: 4 }}
-                    aria-label="Макс. цена"
+                />
+
+                {/* Visual thumbs (non-interactive, positioned via CSS) */}
+                <div
+                    className="pointer-events-none absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-foreground bg-background shadow-md"
+                    style={{ left: `${minPercent}%` }}
+                />
+                <div
+                    className="pointer-events-none absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-foreground bg-background shadow-md"
+                    style={{ left: `${maxPercent}%` }}
                 />
             </div>
         </div>
