@@ -95,7 +95,7 @@ export function PriceRangeSlider({
                     onTouchEnd={handleCommit}
                     className="range-slider absolute top-0 left-0 h-6 w-full appearance-none bg-transparent pointer-events-none"
                     style={{ zIndex: localMin > max - step * 2 ? 5 : 3 }}
-                    aria-label={ru.priceMin}
+                    aria-label="Мин. цена"
                 />
 
                 {/* Max slider */}
@@ -110,7 +110,7 @@ export function PriceRangeSlider({
                     onTouchEnd={handleCommit}
                     className="range-slider absolute top-0 left-0 h-6 w-full appearance-none bg-transparent pointer-events-none"
                     style={{ zIndex: 4 }}
-                    aria-label={ru.priceMax}
+                    aria-label="Макс. цена"
                 />
             </div>
         </div>

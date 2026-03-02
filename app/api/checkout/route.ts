@@ -5,7 +5,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security-logger";
 import { client } from "@/lib/sanity/client";
 import { sanitizeInput } from "@/lib/sanitize";
-import { formatPrice, generateCheckoutMessage, getTelegramAdminUsername } from "@/lib/utils";
+import { generateCheckoutMessage, getTelegramCheckoutUrl } from "@/lib/utils";
 
 // Rate limiter: 5 checkout attempts per 60 seconds per IP
 const limiter = rateLimit({
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Rate limit ──────────────────────────────────────────────
-    const { success, remaining, reset } = limiter.check(5, ip);
+    const { success, reset } = limiter.check(5, ip);
     if (!success) {
         logSecurityEvent({ type: "RATE_LIMITED", ip, detail: "/api/checkout" });
         return NextResponse.json(
@@ -77,8 +77,6 @@ export async function POST(request: NextRequest) {
     const { username, items, total } = parsed.data;
 
     // ── Verify prices against Sanity ────────────────────────────
-    // Collect product IDs from item titles (we need to match by title since
-    // the client doesn't send _id). Fetch all products and build a price map.
     try {
         const productTitles = items.map((item) => item.title);
         const products = await client.fetch(
@@ -91,7 +89,6 @@ export async function POST(request: NextRequest) {
             priceMap.set(p.title, p.price);
         }
 
-        // Verify each item's price matches the server price
         const verifiedItems = items.map((item) => {
             const serverPrice = priceMap.get(item.title);
             if (serverPrice !== undefined && serverPrice !== item.price) {
@@ -100,25 +97,19 @@ export async function POST(request: NextRequest) {
                     ip,
                     detail: `"${item.title}": client=${item.price}, server=${serverPrice}`,
                 });
-                // Use the server price
                 return { ...item, price: serverPrice };
             }
             return item;
         });
 
-        // Recalculate total from server-verified prices
         const verifiedTotal = verifiedItems.reduce((sum, item) => sum + item.price, 0);
 
-        // Generate checkout message with verified data
         const message = generateCheckoutMessage(
             sanitizeInput(username),
             verifiedItems,
             verifiedTotal
         );
-
-        const adminUsername = getTelegramAdminUsername();
-        const encodedMessage = encodeURIComponent(message);
-        const checkoutUrl = `https://t.me/${adminUsername}?text=${encodedMessage}`;
+        const checkoutUrl = getTelegramCheckoutUrl(message);
 
         return NextResponse.json({
             ok: true,
@@ -128,16 +119,12 @@ export async function POST(request: NextRequest) {
         });
     } catch (error) {
         console.error("[checkout] Sanity fetch error:", error);
-        // Fallback: allow checkout with client prices (Sanity might be down)
         const message = generateCheckoutMessage(
             sanitizeInput(username),
             items,
             total
         );
-
-        const adminUsername = getTelegramAdminUsername();
-        const encodedMessage = encodeURIComponent(message);
-        const checkoutUrl = `https://t.me/${adminUsername}?text=${encodedMessage}`;
+        const checkoutUrl = getTelegramCheckoutUrl(message);
 
         return NextResponse.json({
             ok: true,

@@ -68,15 +68,7 @@ export interface User {
 
 export type Size = "XS" | "S" | "M" | "L" | "XL" | "XXL" | "One Size";
 
-export type Color =
-  | "Black"
-  | "White"
-  | "Grey"
-  | "Brown"
-  | "Navy"
-  | "Cream"
-  | "Red"
-  | "Green";
+export type Color = string;
 
 export type UserStatus = "ROOKIE" | "PRO" | "LEGEND";
 
