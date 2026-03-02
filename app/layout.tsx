@@ -5,6 +5,8 @@ import { BottomNav } from "@/components/layout/bottom-nav";
 import { Toaster } from "@/components/ui/toaster";
 import { TelegramProvider } from "@/components/providers/telegram-provider";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
@@ -61,6 +63,8 @@ export default function RootLayout({
           <BottomNav />
           <Toaster />
         </TelegramProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
