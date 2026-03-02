@@ -15,13 +15,13 @@
     --secondary: 0 0% 10%;
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 15%;
-    --muted-foreground: 240 5% 65%;
+    --muted-foreground: 240 5% 60%;
     --accent: 0 0% 15%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
+    --border: 0 0% 13%;
+    --input: 0 0% 13%;
     --ring: 0 0% 98%;
     --radius: 0.5rem;
   }
@@ -37,34 +37,33 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Telegram WebApp optimizations */
   html {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
 
-  /* Custom scrollbar for dark theme */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
   }
 
   ::-webkit-scrollbar-track {
-    background: #0a0a0a;
+    background: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #333;
-    border-radius: 3px;
+    background: #2a2a2a;
+    border-radius: 2px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #444;
+    background: #3a3a3a;
   }
 }
 
 @layer components {
-  /* Asphalt noise texture overlay */
+
+  /* ─── Noise texture overlay ──────────────────── */
   .asphalt-overlay {
     position: relative;
   }
@@ -72,54 +71,171 @@
   .asphalt-overlay::before {
     content: "";
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     background-image: url('/noise.svg');
-    opacity: 0.03;
+    opacity: 0.025;
     pointer-events: none;
     z-index: 1;
   }
 
-  /* Bold wide headlines (FreeWayz brand) – Cyrillic-safe */
+  /* ─── Typography ─────────────────────────────── */
   .font-headline {
     font-family: var(--font-display), var(--font-inter), system-ui, sans-serif;
     font-weight: 700;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
   }
 
-  /* Glass card effect */
+  /* ─── Hero Section ───────────────────────────── */
+  .hero-section {
+    @apply relative overflow-hidden;
+    aspect-ratio: 3/4;
+    max-height: 72vh;
+  }
+
+  .hero-content {
+    @apply absolute inset-0 flex flex-col justify-end p-5;
+    background: linear-gradient(to top,
+        rgba(0, 0, 0, 0.92) 0%,
+        rgba(0, 0, 0, 0.6) 40%,
+        rgba(0, 0, 0, 0.1) 75%,
+        transparent 100%);
+  }
+
+  .hero-tag {
+    @apply inline-flex items-center gap-1.5 mb-3;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #fff;
+    opacity: 0.55;
+    font-family: var(--font-mono), monospace;
+  }
+
+  .hero-title-xl {
+    font-family: var(--font-display), system-ui, sans-serif;
+    font-size: clamp(44px, 12vw, 64px);
+    font-weight: 700;
+    line-height: 0.92;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    color: #fff;
+  }
+
+  .hero-subtitle {
+    @apply mt-3 text-xs text-white/50;
+    letter-spacing: 0.06em;
+  }
+
+  /* ─── Section Headers ────────────────────────── */
+  .section-eyebrow {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: theme('colors.muted.foreground');
+    font-family: var(--font-mono), monospace;
+    margin-bottom: 2px;
+  }
+
+  .section-h {
+    font-family: var(--font-display), system-ui, sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    color: theme('colors.foreground');
+    line-height: 1;
+  }
+
+  /* ─── Product Card (Editorial) ───────────────── */
+  .product-card-editorial {
+    @apply relative overflow-hidden bg-card border border-border;
+    @apply transition-all duration-300 ease-out;
+    border-radius: 4px;
+  }
+
+  .product-card-editorial:hover {
+    @apply border-white/20;
+    transform: translateY(-4px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  }
+
+  .product-card-editorial:active {
+    transform: scale(0.98);
+  }
+
+  /* Card image */
+  .card-img-wrap {
+    @apply relative overflow-hidden;
+    aspect-ratio: 3 / 4;
+    background: theme('colors.secondary.DEFAULT');
+  }
+
+  .card-img-wrap img {
+    @apply transition-transform duration-700 ease-out;
+  }
+
+  .product-card-editorial:hover .card-img-wrap img {
+    transform: scale(1.06);
+  }
+
+  /* Card info area */
+  .card-info {
+    @apply p-3 pt-2.5;
+  }
+
+  /* Brand pill */
+  .card-brand-pill {
+    @apply absolute top-2 left-2 z-10;
+    @apply px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest;
+    @apply bg-black/65 text-white/75 backdrop-blur-sm;
+    letter-spacing: 0.12em;
+  }
+
+  /* ─── Status badges ──────────────────────────── */
+  .badge-sale {
+    @apply absolute top-2 right-2 z-10 px-2 py-0.5;
+    @apply bg-red-600 text-white text-[9px] font-extrabold uppercase tracking-wider;
+  }
+
+  .badge-hot {
+    @apply absolute top-2 right-2 z-10 px-2 py-0.5;
+    @apply bg-orange-500 text-white text-[9px] font-extrabold uppercase tracking-wider;
+  }
+
+  .badge-new {
+    @apply absolute top-2 right-2 z-10 px-2 py-0.5;
+    @apply bg-white text-black text-[9px] font-extrabold uppercase tracking-wider;
+  }
+
+  /* ─── Style Pills (filter tabs) ──────────────── */
+  .style-pill {
+    @apply flex-shrink-0 px-4 py-2 text-[10px] font-bold uppercase tracking-widest;
+    @apply border border-border bg-transparent text-muted-foreground;
+    @apply transition-all duration-200 cursor-pointer whitespace-nowrap;
+    border-radius: 2px;
+    font-family: var(--font-mono), monospace;
+    letter-spacing: 0.12em;
+  }
+
+  .style-pill:hover {
+    @apply border-foreground/30 text-foreground;
+  }
+
+  .style-pill.active {
+    @apply border-foreground bg-foreground text-background;
+  }
+
+  /* ─── Glass card ─────────────────────────────── */
   .glass-card {
-    background: rgba(17, 17, 17, 0.8);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(15, 15, 15, 0.8);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
   }
 
-  /* Product card hover effect */
-  .product-card {
-    @apply transition-all duration-300;
-  }
-
-  .product-card:hover {
-    @apply -translate-y-1;
-  }
-
-  /* Status badges */
-  .status-rookie {
-    @apply bg-zinc-700 text-zinc-200;
-  }
-
-  .status-pro {
-    @apply bg-gradient-to-r from-amber-600 to-amber-500 text-white;
-  }
-
-  .status-legend {
-    @apply bg-gradient-to-r from-purple-600 via-pink-500 to-red-500 text-white;
-  }
-
-  /* Filter chip */
+  /* ─── Filter chip ────────────────────────────── */
   .filter-chip {
     @apply px-4 py-2 rounded-full text-sm font-medium transition-all duration-200;
     @apply bg-secondary text-muted-foreground border border-border;
@@ -133,15 +249,15 @@
     @apply bg-primary text-primary-foreground;
   }
 
-  /* Size selector button */
+  /* ─── Size selector ──────────────────────────── */
   .size-btn {
-    @apply min-w-[48px] h-12 flex items-center justify-center;
-    @apply border border-border rounded-lg text-sm font-mono;
-    @apply transition-all duration-200;
+    @apply min-w-[44px] h-11 flex items-center justify-center;
+    @apply border border-border text-sm font-mono transition-all duration-200;
+    border-radius: 2px;
   }
 
   .size-btn:hover:not(:disabled) {
-    @apply border-foreground;
+    @apply border-foreground/50 text-foreground;
   }
 
   .size-btn.selected {
@@ -149,12 +265,29 @@
   }
 
   .size-btn:disabled {
-    @apply opacity-30 cursor-not-allowed;
+    @apply opacity-25 cursor-not-allowed;
+  }
+
+  /* ─── Status badges ──────────────────────────── */
+  .status-rookie {
+    @apply bg-zinc-700 text-zinc-200;
+  }
+
+  .status-pro {
+    @apply bg-gradient-to-r from-amber-600 to-amber-500 text-white;
+  }
+
+  .status-legend {
+    @apply bg-gradient-to-r from-purple-600 via-pink-500 to-red-500 text-white;
+  }
+
+  /* ─── Divider line ───────────────────────────── */
+  .editorial-divider {
+    @apply w-8 h-px bg-foreground/30;
   }
 }
 
 @layer utilities {
-  /* Hide scrollbar but keep functionality */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -164,7 +297,6 @@
     display: none;
   }
 
-  /* Safe area padding for mobile */
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
@@ -172,4 +304,63 @@
   .safe-top {
     padding-top: env(safe-area-inset-top, 0px);
   }
+
+  /* Text gradient */
+  .text-gradient {
+    background: linear-gradient(135deg, #fff 0%, #888 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+/* ─── Keyframes ───────────────────────────────── */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.45s ease forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease forwards;
+}
+
+/* Skeleton shimmer */
+.skeleton {
+  background: linear-gradient(90deg,
+      #1a1a1a 25%,
+      #252525 50%,
+      #1a1a1a 75%);
+  background-size: 200% auto;
+  animation: shimmer 1.6s linear infinite;
 }

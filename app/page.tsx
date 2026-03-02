@@ -190,8 +190,8 @@ export default function HomePage() {
           className="py-4"
         >
           <SectionHeader
+            eyebrow="SEARCH"
             title={ru.sectionSearchResults}
-            emoji="🔍"
           />
           {searchLoading ? (
             <div className="grid grid-cols-2 gap-3 px-4">
@@ -222,10 +222,7 @@ export default function HomePage() {
           animate={{ opacity: 1 }}
           className="py-4"
         >
-          <SectionHeader
-            title={ru.sectionFilteredResults}
-            emoji="🔍"
-          />
+          <SectionHeader eyebrow="FILTER" title={ru.sectionFilteredResults} />
           {(() => {
             const selectedCategory = categoriesForSubtypes.find((c) => c.slug?.current === category);
             const subtypeOptions = selectedCategory?.subtypes ?? [];
@@ -296,7 +293,7 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <SectionHeader title={ru.sectionHotDrops} emoji="🔥" />
+            <SectionHeader eyebrow="TRENDING" title={ru.sectionHotDrops} />
             {loading ? (
               <LoadingSkeleton />
             ) : (
@@ -310,7 +307,7 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <SectionHeader title={ru.sectionSaleSteal} emoji="💸" />
+            <SectionHeader eyebrow="SALE" title={ru.sectionSaleSteal} />
             {loading ? (
               <LoadingSkeleton />
             ) : (
@@ -324,13 +321,13 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <SectionHeader title={ru.sectionFreshArrivals} emoji="🆕" />
+            <SectionHeader eyebrow="JUST IN" title={ru.sectionFreshArrivals} />
             {loading ? (
               <div className="grid grid-cols-2 gap-3 px-4">
                 {[...Array(4)].map((_, i) => (
                   <div
                     key={i}
-                    className="aspect-[3/4] animate-pulse rounded-xl bg-secondary"
+                    className="aspect-[3/4] skeleton"
                   />
                 ))}
               </div>

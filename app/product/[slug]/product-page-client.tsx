@@ -9,7 +9,6 @@ import { ImageCarousel, type CarouselMediaItem } from "@/components/products/ima
 import dynamic from "next/dynamic";
 import { SizeSelector } from "@/components/products/size-selector";
 import { ColorSelector } from "@/components/products/color-selector";
-import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/lib/store";
 import { useHapticFeedback } from "@/components/providers/telegram-provider";
 import { toast } from "@/components/ui/use-toast";
@@ -22,8 +21,8 @@ const ModelViewer3d = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex aspect-square items-center justify-center rounded-xl border border-border bg-secondary/50">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      <div className="flex aspect-square items-center justify-center border border-border bg-secondary/50">
+        <div className="h-5 w-5 animate-spin border-2 border-primary border-t-transparent rounded-full" />
       </div>
     ),
   }
@@ -35,13 +34,10 @@ interface ProductPageClientProps {
 
 export function ProductPageClient({ product }: ProductPageClientProps) {
   const router = useRouter();
-
-  // Initialize selected color/size based on available options
   const [selectedSize, setSelectedSize] = useState<Size | null>(null);
   const [selectedColor, setSelectedColor] = useState<Color | null>(
     product.colors && product.colors.length > 0 ? product.colors[0] : null
   );
-
   const [isAdding, setIsAdding] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -51,58 +47,66 @@ export function ProductPageClient({ product }: ProductPageClientProps) {
   const handleAddToCart = async () => {
     if (!product || !selectedSize) {
       haptic.notification("error");
-      toast({
-        title: ru.pleaseSelectSize,
-        variant: "destructive",
-      });
+      toast({ title: ru.pleaseSelectSize, variant: "destructive" });
       return;
     }
-
     setIsAdding(true);
     haptic.impact("medium");
-
     await new Promise((resolve) => setTimeout(resolve, 300));
-
     addItem(product, selectedSize, selectedColor);
-
     setShowSuccess(true);
     haptic.notification("success");
-
     toast({
       title: ru.addedToCart,
-      description: `${typeof product.brand === 'string' ? product.brand : product.brand?.title} ${product.title}`,
+      description: `${typeof product.brand === "string" ? product.brand : product.brand?.title} ${product.title}`,
       variant: "success",
     });
-
-    setTimeout(() => {
-      setIsAdding(false);
-      setShowSuccess(false);
-    }, 1500);
+    setTimeout(() => { setIsAdding(false); setShowSuccess(false); }, 1500);
   };
+
+  const brandName = typeof product.brand === "string" ? product.brand : product.brand?.title;
+  const styleName = typeof product.style === "string" ? product.style : product.style?.title;
 
   if (!product) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4">
-        <p className="text-lg text-muted-foreground">{ru.productNotFound}</p>
-        <Button onClick={() => router.back()} variant="outline" className="mt-4">
+        <p className="text-muted-foreground">{ru.productNotFound}</p>
+        <button onClick={() => router.back()} className="mt-4 border border-border px-6 py-3 text-sm">
           {ru.goBack}
-        </Button>
+        </button>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen pb-32">
-      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg">
-        <button
+      {/* Floating back button */}
+      <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between p-4 pt-5">
+        <motion.button
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
           onClick={() => router.back()}
-          className="flex h-14 items-center gap-2 px-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="flex h-9 w-9 items-center justify-center border border-white/20 bg-black/50 backdrop-blur-sm"
         >
-          <ArrowLeft className="h-5 w-5" />
-          {ru.back}
-        </button>
+          <ArrowLeft className="h-4 w-4 text-white" />
+        </motion.button>
+
+        {/* Style tag */}
+        {styleName && (
+          <motion.span
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.15 }}
+            className="bg-black/50 px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-white/70 backdrop-blur-sm"
+            style={{ fontFamily: "var(--font-mono)" }}
+          >
+            {styleName}
+          </motion.span>
+        )}
       </div>
 
+      {/* Image Carousel — full bleed */}
       <ImageCarousel
         media={[
           ...(product.videos ?? []).map((url): CarouselMediaItem => ({ type: "video", url })),
@@ -111,57 +115,71 @@ export function ProductPageClient({ product }: ProductPageClientProps) {
         alt={product.title}
       />
 
+      {/* 3D model */}
       {product.model3d && (
-        <div className="px-4">
-          <p className="mb-2 font-mono text-xs uppercase tracking-wider text-muted-foreground">
+        <div className="px-4 pt-4">
+          <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground" style={{ fontFamily: "var(--font-mono)" }}>
             {ru.view3D}
           </p>
           <ModelViewer3d src={product.model3d} alt={product.title} />
         </div>
       )}
 
-      <div className="space-y-6 p-4">
+      {/* Product Info */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="space-y-6 px-4 pt-5"
+      >
+        {/* Brand + Name + Price */}
         <div>
-          <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-            {typeof product.brand === 'string' ? product.brand : product.brand?.title}
-          </p>
-          <h1 className="mt-1 text-2xl font-bold text-foreground">
+          {brandName && (
+            <p className="mb-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-muted-foreground" style={{ fontFamily: "var(--font-mono)" }}>
+              {brandName}
+            </p>
+          )}
+          <h1 className="text-[28px] font-bold uppercase leading-tight tracking-tight text-foreground" style={{ fontFamily: "var(--font-display)" }}>
             {product.title}
           </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              {product.isOnSale && product.originalPrice != null ? (
-                <>
-                  <span className="font-mono text-2xl font-bold text-red-500">
-                    {formatPrice(product.price)}
-                  </span>
-                  <span className="font-mono text-lg text-muted-foreground line-through">
-                    {formatPrice(product.originalPrice)}
-                  </span>
-                </>
-              ) : (
-                <span className="font-mono text-2xl font-bold">
+
+          {/* Divider */}
+          <div className="editorial-divider mt-3 mb-4" />
+
+          <div className="flex flex-wrap items-baseline gap-3">
+            {product.isOnSale && product.originalPrice != null ? (
+              <>
+                <span className="font-mono text-2xl font-bold text-red-500">
                   {formatPrice(product.price)}
                 </span>
-              )}
-            </div>
-            <span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">
-              {typeof product.style === 'string' ? product.style : product.style?.title}
-            </span>
+                <span className="font-mono text-base text-muted-foreground line-through">
+                  {formatPrice(product.originalPrice)}
+                </span>
+                <span className="bg-red-600 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-white">
+                  SALE
+                </span>
+              </>
+            ) : (
+              <span className="font-mono text-2xl font-bold text-foreground">
+                {formatPrice(product.price)}
+              </span>
+            )}
           </div>
         </div>
 
+        {/* Description */}
         {product.description && (
           <div>
-            <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground" style={{ fontFamily: "var(--font-mono)" }}>
               {ru.description}
             </p>
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               {product.description}
             </p>
           </div>
         )}
 
+        {/* Size */}
         <SizeSelector
           sizes={product.sizes}
           selectedSize={selectedSize}
@@ -171,6 +189,7 @@ export function ProductPageClient({ product }: ProductPageClientProps) {
           }}
         />
 
+        {/* Color */}
         {product.colors && product.colors.length > 0 && (
           <ColorSelector
             colors={product.colors}
@@ -181,14 +200,15 @@ export function ProductPageClient({ product }: ProductPageClientProps) {
             }}
           />
         )}
-      </div>
+      </motion.div>
 
-      <div className="fixed bottom-20 left-0 right-0 z-40 border-t border-border bg-background/95 p-4 backdrop-blur-lg safe-bottom">
-        <Button
+      {/* Fixed CTA */}
+      <div className="fixed bottom-[72px] left-0 right-0 z-40 border-t border-border bg-background/95 p-4 backdrop-blur-lg safe-bottom">
+        <button
           onClick={handleAddToCart}
-          size="lg"
-          className="w-full gap-2 text-base"
           disabled={isAdding}
+          className="flex w-full items-center justify-center gap-2 bg-foreground py-4 text-[13px] font-extrabold uppercase tracking-[0.12em] text-background transition-opacity disabled:opacity-70"
+          style={{ borderRadius: "2px" }}
         >
           <AnimatePresence mode="wait">
             {showSuccess ? (
@@ -199,7 +219,7 @@ export function ProductPageClient({ product }: ProductPageClientProps) {
                 exit={{ opacity: 0, scale: 0.8 }}
                 className="flex items-center gap-2"
               >
-                <Check className="h-5 w-5" />
+                <Check className="h-4 w-4" />
                 {ru.added}
               </motion.span>
             ) : (
@@ -210,12 +230,12 @@ export function ProductPageClient({ product }: ProductPageClientProps) {
                 exit={{ opacity: 0, scale: 0.8 }}
                 className="flex items-center gap-2"
               >
-                <ShoppingBag className="h-5 w-5" />
+                <ShoppingBag className="h-4 w-4" />
                 {isAdding ? ru.adding : ru.addToCart}
               </motion.span>
             )}
           </AnimatePresence>
-        </Button>
+        </button>
       </div>
     </div>
   );

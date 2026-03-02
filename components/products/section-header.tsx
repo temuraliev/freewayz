@@ -2,33 +2,38 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { ru } from "@/lib/i18n/ru";
 
 interface SectionHeaderProps {
   title: string;
-  emoji?: string;
+  eyebrow?: string;
   href?: string;
 }
 
-export function SectionHeader({ title, emoji, href }: SectionHeaderProps) {
+export function SectionHeader({ title, eyebrow, href }: SectionHeaderProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex items-center justify-between px-4 py-3"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className="flex items-end justify-between px-4 pb-3 pt-5"
     >
-      <h2 className="font-headline text-lg tracking-wide">
-        {emoji && <span className="mr-2">{emoji}</span>}
-        {title}
-      </h2>
+      <div>
+        {eyebrow && (
+          <p className="section-eyebrow mb-1">{eyebrow}</p>
+        )}
+        <h2 className="section-h">{title}</h2>
+      </div>
+
       {href && (
         <Link
           href={href}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          className="flex items-center gap-1 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+          style={{ fontFamily: "var(--font-mono)" }}
         >
           {ru.viewAll}
-          <ChevronRight className="h-4 w-4" />
+          <ArrowRight className="h-3 w-3" />
         </Link>
       )}
     </motion.div>

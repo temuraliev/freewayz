@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Menu, Search, ShoppingBag } from "lucide-react";
-import { motion } from "framer-motion";
+import { Search, ShoppingBag, SlidersHorizontal } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore, useFilterStore } from "@/lib/store";
 import { FilterDrawer } from "@/components/layout/filter-drawer";
 import { ru } from "@/lib/i18n/ru";
@@ -12,69 +12,92 @@ import { cn } from "@/lib/utils";
 export function TopNav() {
   const [mounted, setMounted] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
   const searchQuery = useFilterStore((s) => s.searchQuery);
   const setSearchQuery = useFilterStore((s) => s.setSearchQuery);
   const itemCount = useCartStore((state) => state.getItemCount());
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
+  useEffect(() => { setMounted(true); }, []);
   const safeItemCount = mounted ? itemCount : 0;
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur-xl">
-        <div className="relative flex h-14 items-center justify-between px-4">
-          {/* Left - Menu/Filter Button */}
+      <header className="sticky top-0 z-40 w-full border-b border-border bg-background/90 backdrop-blur-xl">
+        <div className="flex h-14 items-center gap-3 px-4">
+
+          {/* Logo */}
+          <Link href="/" className="shrink-0">
+            <span
+              className="font-display text-[18px] font-bold uppercase tracking-[0.12em] text-foreground"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              FREEWAYZ
+            </span>
+          </Link>
+
+          {/* Search bar */}
+          <div className="relative flex-1">
+            <Search
+              className={cn(
+                "absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 transition-colors duration-200 pointer-events-none",
+                searchFocused ? "text-foreground" : "text-muted-foreground"
+              )}
+            />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              placeholder={ru.searchPlaceholder}
+              className={cn(
+                "h-9 w-full border bg-secondary/40 pl-8.5 pr-3 text-[13px]",
+                "placeholder:text-muted-foreground/60 focus:outline-none transition-colors duration-200",
+                searchFocused
+                  ? "border-foreground/40 bg-secondary/70"
+                  : "border-border",
+                "rounded-none" // sharp corners for editorial feel
+              )}
+              style={{ paddingLeft: "2rem" }}
+              aria-label={ru.searchPlaceholder}
+            />
+          </div>
+
+          {/* Filter button */}
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => setFilterOpen(true)}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/50 transition-colors hover:bg-secondary"
+            className="flex h-9 w-9 shrink-0 items-center justify-center border border-border bg-secondary/40 transition-colors hover:bg-secondary"
           >
-            <Menu className="h-5 w-5" />
+            <SlidersHorizontal className="h-4 w-4" />
           </motion.button>
 
-          {/* Center - Search bar */}
-          <div className="absolute left-1/2 top-1/2 w-[calc(100%-7rem)] max-w-sm -translate-x-1/2 -translate-y-1/2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={ru.searchPlaceholder}
-                className={cn(
-                  "h-9 w-full rounded-full border border-border bg-secondary/50 pl-9 pr-3 text-sm",
-                  "placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                )}
-                aria-label={ru.searchPlaceholder}
-              />
-            </div>
-          </div>
-
-          {/* Right - Cart Icon */}
+          {/* Cart */}
           <Link href="/cart" className="shrink-0">
             <motion.div
               whileTap={{ scale: 0.9 }}
-              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-secondary/50 transition-colors hover:bg-secondary"
+              className="relative flex h-9 w-9 items-center justify-center border border-border bg-secondary/40 transition-colors hover:bg-secondary"
             >
-              <ShoppingBag className="h-5 w-5" />
-              {safeItemCount > 0 && (
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground"
-                >
-                  {safeItemCount > 9 ? "9+" : safeItemCount}
-                </motion.span>
-              )}
+              <ShoppingBag className="h-4 w-4" />
+              <AnimatePresence>
+                {safeItemCount > 0 && (
+                  <motion.span
+                    key="badge"
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0, opacity: 0 }}
+                    className="absolute -right-1.5 -top-1.5 flex h-4.5 w-4.5 items-center justify-center bg-foreground text-[9px] font-extrabold text-background"
+                    style={{ width: "18px", height: "18px", borderRadius: "1px" }}
+                  >
+                    {safeItemCount > 9 ? "9+" : safeItemCount}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </motion.div>
           </Link>
         </div>
       </header>
 
-      {/* Filter Drawer */}
       <FilterDrawer open={filterOpen} onOpenChange={setFilterOpen} />
     </>
   );
