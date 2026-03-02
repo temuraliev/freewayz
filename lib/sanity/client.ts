@@ -16,7 +16,7 @@ if (rawProjectId && projectId !== rawProjectId) {
   // Avoid crashing the app when env is placeholder like "your_project_id"
   console.warn(
     `[FreeWayz] Invalid NEXT_PUBLIC_SANITY_PROJECT_ID="${rawProjectId}". ` +
-    `Using "${projectId}" so the app can boot with mock data.`
+      `Using "${projectId}" so the app can boot with mock data.`
   );
 }
 
@@ -27,9 +27,14 @@ export const client = createClient({
   useCdn: true,
 });
 
-// For mutations (creating/updating users) use:
-// import { writeClient } from "@/lib/sanity/server-only-client";
-// ↑ server-only — will error at build time if imported in a "use client" module.
+// For mutations (creating/updating users)
+export const writeClient = createClient({
+  projectId,
+  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
+  apiVersion: "2024-01-01",
+  useCdn: false,
+  token: process.env.SANITY_API_TOKEN,
+});
 
 const builder = imageUrlBuilder(client);
 

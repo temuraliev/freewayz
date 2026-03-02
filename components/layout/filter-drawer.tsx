@@ -23,7 +23,6 @@ import { cn } from "@/lib/utils";
 import { client } from "@/lib/sanity/client";
 import { brandsQuery, categoriesQuery, stylesQuery } from "@/lib/sanity/queries";
 import { ru } from "@/lib/i18n/ru";
-import { PriceRangeSlider } from "@/components/products/price-range-slider";
 
 interface FilterDrawerProps {
   open: boolean;
@@ -31,7 +30,7 @@ interface FilterDrawerProps {
 }
 
 export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
-  const { style, brand, category, subtype, saleOnly, priceMin, priceMax, setStyle, setBrand, setCategory, setSubtype, setSaleOnly, setPriceRange, clearFilters } =
+  const { style, brand, category, subtype, saleOnly, setStyle, setBrand, setCategory, setSubtype, setSaleOnly, clearFilters } =
     useFilterStore();
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -43,8 +42,6 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
   const [tempCategory, setTempCategory] = useState<string | null>(category);
   const [tempSubtype, setTempSubtype] = useState<string | null>(subtype);
   const [tempSaleOnly, setTempSaleOnly] = useState<boolean>(saleOnly);
-  const [tempPriceMin, setTempPriceMin] = useState<number | null>(priceMin);
-  const [tempPriceMax, setTempPriceMax] = useState<number | null>(priceMax);
 
   // Sync temp state when drawer opens
   useEffect(() => {
@@ -54,10 +51,8 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
       setTempCategory(category);
       setTempSubtype(subtype);
       setTempSaleOnly(saleOnly);
-      setTempPriceMin(priceMin);
-      setTempPriceMax(priceMax);
     }
-  }, [open, style, brand, category, subtype, saleOnly, priceMin, priceMax]);
+  }, [open, style, brand, category, subtype, saleOnly]);
 
   // Fetch categories
   useEffect(() => {
@@ -117,7 +112,6 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
     setCategory(tempCategory);
     setSubtype(tempSubtype);
     setSaleOnly(tempSaleOnly);
-    setPriceRange(tempPriceMin, tempPriceMax);
     onOpenChange(false);
   };
 
@@ -127,12 +121,10 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
     setTempCategory(null);
     setTempSubtype(null);
     setTempSaleOnly(false);
-    setTempPriceMin(null);
-    setTempPriceMax(null);
     clearFilters();
   };
 
-  const activeFilterCount = [tempStyle, tempBrand, tempCategory, tempSubtype].filter(Boolean).length + (tempSaleOnly ? 1 : 0) + (tempPriceMin != null || tempPriceMax != null ? 1 : 0);
+  const activeFilterCount = [tempStyle, tempBrand, tempCategory, tempSubtype].filter(Boolean).length + (tempSaleOnly ? 1 : 0);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -173,24 +165,7 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
             </button>
           </div>
 
-          <Accordion type="multiple" defaultValue={["price", "categories", "styles", "brands"]} className="w-full">
-            {/* Price Range */}
-            <AccordionItem value="price">
-              <AccordionTrigger className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground">
-                {ru.priceRange}
-              </AccordionTrigger>
-              <AccordionContent>
-                <PriceRangeSlider
-                  valueMin={tempPriceMin}
-                  valueMax={tempPriceMax}
-                  onChange={(min, max) => {
-                    setTempPriceMin(min);
-                    setTempPriceMax(max);
-                  }}
-                />
-              </AccordionContent>
-            </AccordionItem>
-
+          <Accordion type="multiple" defaultValue={["categories", "styles", "brands"]} className="w-full">
             {/* Categories + Subtypes in one section */}
             <AccordionItem value="categories">
               <AccordionTrigger className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground">

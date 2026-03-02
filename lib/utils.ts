@@ -55,13 +55,9 @@ ${itemsList}
 Total: ${formatPrice(total)}`;
 }
 
-export function getTelegramAdminUsername(): string {
-  const raw = process.env.NEXT_PUBLIC_TELEGRAM_ADMIN_USERNAME || "timik_aliev";
-  return raw.replace(/^@/, "");
-}
-
 export function getTelegramCheckoutUrl(message: string): string {
-  const adminUsername = getTelegramAdminUsername();
+  const raw = process.env.NEXT_PUBLIC_TELEGRAM_ADMIN_USERNAME || "timik_aliev";
+  const adminUsername = raw.replace(/^@/, "");
   const encodedMessage = encodeURIComponent(message);
   return `https://t.me/${adminUsername}?text=${encodedMessage}`;
 }

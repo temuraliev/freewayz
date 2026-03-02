@@ -1,14 +1,8 @@
 import { create } from "zustand";
 import { FilterState } from "@/lib/types";
 
-export type SortBy = "default" | "price-asc" | "price-desc" | "name-asc" | "name-desc" | "newest";
-
 interface FilterStoreState extends FilterState {
   searchQuery: string;
-  sortBy: SortBy;
-  priceMin: number | null;
-  priceMax: number | null;
-
   setSearchQuery: (q: string) => void;
   clearSearch: () => void;
   setSaleOnly: (saleOnly: boolean) => void;
@@ -16,8 +10,6 @@ interface FilterStoreState extends FilterState {
   setBrand: (brand: string | null) => void;
   setCategory: (category: string | null) => void;
   setSubtype: (subtype: string | null) => void;
-  setSortBy: (sortBy: SortBy) => void;
-  setPriceRange: (min: number | null, max: number | null) => void;
   clearFilters: () => void;
   hasActiveFilters: () => boolean;
 }
@@ -29,9 +21,6 @@ export const useFilterStore = create<FilterStoreState>()((set, get) => ({
   subtype: null,
   saleOnly: false,
   searchQuery: "",
-  sortBy: "default",
-  priceMin: null,
-  priceMax: null,
 
   setSearchQuery: (searchQuery) => set({ searchQuery: searchQuery.trim() }),
 
@@ -47,10 +36,6 @@ export const useFilterStore = create<FilterStoreState>()((set, get) => ({
 
   setSubtype: (subtype) => set({ subtype }),
 
-  setSortBy: (sortBy) => set({ sortBy }),
-
-  setPriceRange: (priceMin, priceMax) => set({ priceMin, priceMax }),
-
   clearFilters: () =>
     set({
       style: null,
@@ -58,9 +43,6 @@ export const useFilterStore = create<FilterStoreState>()((set, get) => ({
       category: null,
       subtype: null,
       saleOnly: false,
-      sortBy: "default",
-      priceMin: null,
-      priceMax: null,
     }),
 
   hasActiveFilters: () => {
@@ -70,9 +52,7 @@ export const useFilterStore = create<FilterStoreState>()((set, get) => ({
       state.brand !== null ||
       state.category !== null ||
       state.subtype !== null ||
-      state.saleOnly === true ||
-      state.priceMin !== null ||
-      state.priceMax !== null
+      state.saleOnly === true
     );
   },
 }));

@@ -96,7 +96,7 @@ export function TelegramProvider({ children }: TelegramProviderProps) {
 
   useEffect(() => {
     // Check if running in Telegram WebApp
-    const initTelegram = async () => {
+    const initTelegram = () => {
       if (typeof window !== "undefined" && window.Telegram?.WebApp) {
         const tg = window.Telegram.WebApp;
 
@@ -108,71 +108,17 @@ export function TelegramProvider({ children }: TelegramProviderProps) {
         tg.setHeaderColor("#0a0a0a");
         tg.setBackgroundColor("#0a0a0a");
 
-        // ── Server-side verification of initData ──────────────
-        const initData = tg.initData;
-        if (initData) {
-          try {
-            const res = await fetch("/api/auth/telegram", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ initData }),
-            });
-
-            if (res.ok) {
-              const data = await res.json();
-              if (data.ok && data.user) {
-                setTelegramUser({
-                  id: data.user.id,
-                  first_name: data.user.first_name,
-                  last_name: data.user.last_name,
-                  username: data.user.username,
-                  language_code: data.user.language_code,
-                  photo_url: data.user.photo_url,
-                });
-              }
-            } else {
-              console.warn("[TelegramProvider] Server auth failed, status:", res.status);
-              // Fallback: use the unverified data (for when BOT_TOKEN is not yet set)
-              const user = tg.initDataUnsafe?.user;
-              if (user) {
-                setTelegramUser({
-                  id: user.id,
-                  first_name: user.first_name,
-                  last_name: user.last_name,
-                  username: user.username,
-                  language_code: user.language_code,
-                  photo_url: user.photo_url,
-                });
-              }
-            }
-          } catch (error) {
-            console.warn("[TelegramProvider] Auth fetch failed:", error);
-            // Fallback to unverified data
-            const user = tg.initDataUnsafe?.user;
-            if (user) {
-              setTelegramUser({
-                id: user.id,
-                first_name: user.first_name,
-                last_name: user.last_name,
-                username: user.username,
-                language_code: user.language_code,
-                photo_url: user.photo_url,
-              });
-            }
-          }
-        } else {
-          // No initData (e.g. opened directly, not via bot)
-          const user = tg.initDataUnsafe?.user;
-          if (user) {
-            setTelegramUser({
-              id: user.id,
-              first_name: user.first_name,
-              last_name: user.last_name,
-              username: user.username,
-              language_code: user.language_code,
-              photo_url: user.photo_url,
-            });
-          }
+        // Get user data
+        const user = tg.initDataUnsafe?.user;
+        if (user) {
+          setTelegramUser({
+            id: user.id,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            username: user.username,
+            language_code: user.language_code,
+            photo_url: user.photo_url,
+          });
         }
 
         setWebApp(tg);
@@ -180,7 +126,7 @@ export function TelegramProvider({ children }: TelegramProviderProps) {
       } else {
         // Running outside Telegram (for development)
         console.log("Running outside Telegram WebApp");
-
+        
         // Set mock user for development
         if (process.env.NODE_ENV === "development") {
           setTelegramUser({

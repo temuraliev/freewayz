@@ -1,6 +1,5 @@
 "use client";
 
-import { memo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -13,7 +12,7 @@ interface ProductCardProps {
   index?: number;
 }
 
-function ProductCardInner({ product, index = 0 }: ProductCardProps) {
+export function ProductCard({ product, index = 0 }: ProductCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -29,9 +28,8 @@ function ProductCardInner({ product, index = 0 }: ProductCardProps) {
                 src={product.images[0]}
                 alt={product.title}
                 fill
-                loading={index > 3 ? "lazy" : undefined}
                 className="object-cover transition-transform duration-500 group-hover:scale-105"
-                sizes="(max-width: 768px) 45vw, 220px"
+                sizes="(max-width: 768px) 50vw, 33vw"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-muted-foreground">
@@ -97,5 +95,3 @@ function ProductCardInner({ product, index = 0 }: ProductCardProps) {
     </motion.div>
   );
 }
-
-export const ProductCard = memo(ProductCardInner);

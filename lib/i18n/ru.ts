@@ -18,9 +18,6 @@ export const ru = {
   sectionSearchResults: "Результаты поиска",
   searchNoResults: "Ничего не найдено",
   viewAll: "Всё",
-  showing: "Показано",
-  of: "из",
-  loadMore: "Показать ещё",
 
   // Filters
   filters: "ФИЛЬТРЫ",
@@ -34,29 +31,6 @@ export const ru = {
   studio: "/studio",
   clearAllFilters: "Сбросить фильтры",
   applyFilters: "Применить",
-
-  // Sorting
-  sortDefault: "По умолчанию",
-  sortPriceAsc: "Цена ↑",
-  sortPriceDesc: "Цена ↓",
-  sortNameAsc: "А → Я",
-  sortNewest: "Новинки",
-
-  // Price range
-  priceRange: "Цена",
-  priceMin: "Мин. цена",
-  priceMax: "Макс. цена",
-
-  // Color
-  color: "Цвет",
-
-  // Promo codes
-  promoCodePlaceholder: "Промокод",
-  promoApply: "Ок",
-  promoApplied: "Применён",
-  promoInvalid: "Неверный промокод",
-  promoExpired: "Промокод истёк",
-  promoDiscount: "Скидка",
 
   // Cart
   cart: "КОРЗИНА",

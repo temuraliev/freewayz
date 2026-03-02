@@ -68,11 +68,9 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: "freewayz-user",
-      // Only persist display info (telegramUser).
-      // Do NOT persist `user` (status, cashback, totalSpent) — those
-      // must come from the server to prevent localStorage tampering.
       partialize: (state) => ({
         telegramUser: state.telegramUser,
+        user: state.user,
       }),
     }
   )

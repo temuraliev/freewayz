@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ShoppingBag, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import dynamic from "next/dynamic";
 
 import { ImageCarousel, type CarouselMediaItem } from "@/components/products/image-carousel";
+import { ModelViewer3d } from "@/components/products/model-viewer-3d";
 import { SizeSelector } from "@/components/products/size-selector";
 import { ColorSelector } from "@/components/products/color-selector";
 import { Button } from "@/components/ui/button";
@@ -18,19 +18,6 @@ import { formatPrice } from "@/lib/utils";
 import { client } from "@/lib/sanity/client";
 import { ru } from "@/lib/i18n/ru";
 import { productBySlugQuery } from "@/lib/sanity/queries";
-
-// Dynamic import for Three.js — only loaded when product has a 3D model
-const ModelViewer3d = dynamic(
-  () => import("@/components/products/model-viewer-3d").then((m) => m.ModelViewer3d),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-48 items-center justify-center rounded-xl bg-secondary">
-        <span className="text-sm text-muted-foreground">{ru.view3DLoading}</span>
-      </div>
-    ),
-  }
-);
 
 // Mock product for development
 const MOCK_PRODUCT: Product = {
@@ -52,14 +39,13 @@ const MOCK_PRODUCT: Product = {
 
 interface ProductPageClientProps {
   slug: string;
-  initialProduct?: Product | null;
 }
 
-export function ProductPageClient({ slug, initialProduct }: ProductPageClientProps) {
+export function ProductPageClient({ slug }: ProductPageClientProps) {
   const router = useRouter();
 
-  const [product, setProduct] = useState<Product | null>(initialProduct ?? null);
-  const [loading, setLoading] = useState(!initialProduct);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
   const [selectedSize, setSelectedSize] = useState<Size | null>(null);
   const [selectedColor, setSelectedColor] = useState<Color | null>(null);
   const [isAdding, setIsAdding] = useState(false);
@@ -69,14 +55,6 @@ export function ProductPageClient({ slug, initialProduct }: ProductPageClientPro
   const haptic = useHapticFeedback();
 
   useEffect(() => {
-    // Skip fetch if server already provided the product
-    if (initialProduct) {
-      if (initialProduct.colors?.length > 0 && !selectedColor) {
-        setSelectedColor(initialProduct.colors[0]);
-      }
-      return;
-    }
-
     const fetchProduct = async () => {
       setLoading(true);
       try {
@@ -86,15 +64,24 @@ export function ProductPageClient({ slug, initialProduct }: ProductPageClientPro
           if (data.colors?.length > 0) {
             setSelectedColor(data.colors[0]);
           }
+        } else {
+          setProduct(MOCK_PRODUCT);
+          if (MOCK_PRODUCT.colors?.length > 0) {
+            setSelectedColor(MOCK_PRODUCT.colors[0]);
+          }
         }
       } catch (error) {
-        console.error("Failed to fetch product:", error);
+        console.log("Using mock product:", error);
+        setProduct(MOCK_PRODUCT);
+        if (MOCK_PRODUCT.colors?.length > 0) {
+          setSelectedColor(MOCK_PRODUCT.colors[0]);
+        }
       }
       setLoading(false);
     };
 
     fetchProduct();
-  }, [slug, initialProduct, selectedColor]);
+  }, [slug]);
 
   const handleAddToCart = async () => {
     if (!product || !selectedSize) {

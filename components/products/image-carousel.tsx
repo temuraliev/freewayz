@@ -85,7 +85,6 @@ export function ImageCarousel({ media, alt }: ImageCarouselProps) {
                 alt={`${alt} - 1`}
                 fill
                 className="object-cover"
-                sizes="100vw"
                 priority
               />
             )}
@@ -126,9 +125,7 @@ export function ImageCarousel({ media, alt }: ImageCarouselProps) {
                     alt={`${alt} - ${index + 1}`}
                     fill
                     className="object-cover"
-                    sizes="100vw"
                     priority={index === 0}
-                    loading={index > 0 ? "lazy" : undefined}
                     draggable={false}
                   />
                 )}
@@ -178,8 +175,6 @@ export function ImageCarousel({ media, alt }: ImageCarouselProps) {
                   alt={`${alt} thumbnail ${index + 1}`}
                   fill
                   className="object-cover"
-                  sizes="64px"
-                  loading="lazy"
                 />
               )}
             </button>

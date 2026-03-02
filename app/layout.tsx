@@ -41,8 +41,7 @@ export default function RootLayout({
   return (
     <html lang="ru" className="dark" suppressHydrationWarning>
       <head>
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script src="https://telegram.org/js/telegram-web-app.js" crossOrigin="anonymous" />
+        <script src="https://telegram.org/js/telegram-web-app.js" />
       </head>
       <body
         suppressHydrationWarning

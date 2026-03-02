@@ -77,30 +77,6 @@ export const searchProductsQuery = groq`
   }
 `;
 
-// Paginated filter query (for large categories 500+)
-export const productsByFilterPaginatedQuery = groq`
-  *[_type == "product"
-    && ($saleOnly == false || isOnSale == true)
-    && ($style == "" || style->slug.current == $style)
-    && ($brand == "" || brand->slug.current == $brand)
-    && ($category == "" || category->slug.current == $category)
-    && ($subtype == "" || subtype == $subtype)
-  ] | order(_createdAt desc) [$offset...$end] {
-    ${productFields}
-  }
-`;
-
-// Count query for filtered products (to know total for pagination)
-export const productsByFilterCountQuery = groq`
-  count(*[_type == "product"
-    && ($saleOnly == false || isOnSale == true)
-    && ($style == "" || style->slug.current == $style)
-    && ($brand == "" || brand->slug.current == $brand)
-    && ($category == "" || category->slug.current == $category)
-    && ($subtype == "" || subtype == $subtype)
-  ])
-`;
-
 // Categories queries (with subtypes for filter drawer)
 export const categoriesQuery = groq`
   *[_type == "category"] | order(title asc) {
