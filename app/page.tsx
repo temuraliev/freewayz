@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { TopNav } from "@/components/layout/top-nav";
 import { HeroSection } from "@/components/layout/hero-section";
 import { ProductCarousel } from "@/components/products/product-carousel";
+import { InfiniteProductCarousel } from "@/components/products/infinite-product-carousel";
 import { ProductGrid } from "@/components/products/product-grid";
 import { InfiniteProductGrid } from "@/components/products/infinite-product-grid";
 import { SectionHeader } from "@/components/products/section-header";
@@ -305,7 +306,11 @@ export default function HomePage() {
             {loading ? (
               <LoadingSkeleton />
             ) : (
-              <ProductCarousel products={hotDrops} cardSize="large" />
+              <InfiniteProductCarousel
+                initialProducts={hotDrops}
+                query={hotDropsPaginatedQuery}
+                cardSize="large"
+              />
             )}
           </motion.section>
 
