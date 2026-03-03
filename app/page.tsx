@@ -158,10 +158,20 @@ export default function HomePage() {
     const t = setTimeout(async () => {
       setSearchLoading(true);
       try {
-        const data = await client.fetch(searchProductsQuery);
+        // Format query for GROQ match: "long sleeve" -> "*long* *sleeve*"
+        const formattedQuery = searchQuery
+          .trim()
+          .toLowerCase()
+          .split(/\s+/)
+          .filter(Boolean)
+          .map((word) => `*${word}*`)
+          .join(" ");
+
+        const data = await client.fetch(searchProductsQuery, {
+          searchQuery: formattedQuery,
+        });
         const list = Array.isArray(data) ? data : [];
-        const filtered = filterBySearch(list, searchQuery);
-        setSearchProducts(filtered);
+        setSearchProducts(list);
       } catch (error) {
         const filtered = filterBySearch(MOCK_PRODUCTS, searchQuery);
         setSearchProducts(filtered);
