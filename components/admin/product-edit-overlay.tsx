@@ -67,6 +67,8 @@ export function ProductEditOverlay({
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [imagesLoading, setImagesLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -136,6 +138,55 @@ export function ProductEditOverlay({
       [arr[index], arr[next]] = [arr[next], arr[index]];
       return arr;
     });
+  };
+
+  const reorderImageTo = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex || toIndex < 0 || toIndex >= imageRefs.length) return;
+    setImageRefs((prev) => {
+      const arr = [...prev];
+      const [removed] = arr.splice(fromIndex, 1);
+      arr.splice(toIndex, 0, removed);
+      return arr;
+    });
+    setImageUrls((prev) => {
+      const arr = [...prev];
+      const [removed] = arr.splice(fromIndex, 1);
+      arr.splice(toIndex, 0, removed);
+      return arr;
+    });
+  };
+
+  const handlePhotoPointerDown = (e: React.PointerEvent, index: number) => {
+    if (e.button !== 0 && e.pointerType !== "touch") return;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    setDragIndex(index);
+    setDropTargetIndex(index);
+  };
+
+  const handlePhotoPointerMove = (e: React.PointerEvent) => {
+    if (dragIndex === null) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const item = el?.closest("[data-photo-index]");
+    if (item) {
+      const idx = parseInt(item.getAttribute("data-photo-index") ?? "-1", 10);
+      if (idx >= 0 && idx < imageRefs.length) setDropTargetIndex(idx);
+    }
+  };
+
+  const handlePhotoPointerUp = (e: React.PointerEvent) => {
+    if (dragIndex === null) return;
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    if (dropTargetIndex !== null && dropTargetIndex !== dragIndex) {
+      reorderImageTo(dragIndex, dropTargetIndex);
+    }
+    setDragIndex(null);
+    setDropTargetIndex(null);
+  };
+
+  const handlePhotoPointerLeave = () => {
+    if (dragIndex !== null) {
+      setDropTargetIndex(dragIndex);
+    }
   };
 
   const removeImage = (index: number) => {
@@ -279,7 +330,7 @@ export function ProductEditOverlay({
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-2 block">Фото (порядок и новые)</label>
+            <label className="text-xs font-medium text-muted-foreground mb-2 block">Фото (зажмите и перетащите для смены порядка)</label>
             {imagesLoading ? (
               <div className="flex gap-2 flex-wrap">
                 <div className="w-20 h-20 bg-secondary animate-pulse rounded" />
@@ -288,41 +339,62 @@ export function ProductEditOverlay({
             ) : (
               <div className="flex flex-wrap gap-2">
                 {imageUrls.map((url, i) => (
-                  <div key={imageRefs[i] ?? i} className="relative group">
-                    <div className="w-20 h-20 relative rounded border border-border overflow-hidden bg-secondary">
-                      <Image src={url} alt="" fill className="object-cover" sizes="80px" unoptimized />
+                  <div
+                    key={imageRefs[i] ?? i}
+                    data-photo-index={i}
+                    className="relative group"
+                    style={{ touchAction: dragIndex === i ? "none" : "auto" }}
+                    onPointerDown={(e) => handlePhotoPointerDown(e, i)}
+                    onPointerMove={handlePhotoPointerMove}
+                    onPointerUp={handlePhotoPointerUp}
+                    onPointerCancel={handlePhotoPointerUp}
+                    onPointerLeave={handlePhotoPointerLeave}
+                  >
+                    <div
+                      className={`w-20 h-20 relative rounded border overflow-hidden bg-secondary transition-all ${
+                        dragIndex === i
+                          ? "opacity-60 scale-95 z-10 border-primary ring-2 ring-primary"
+                          : dropTargetIndex === i && dragIndex !== null
+                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                            : "border-border"
+                      }`}
+                    >
+                      <Image src={url} alt="" fill className="object-cover pointer-events-none select-none" sizes="80px" unoptimized draggable={false} />
                     </div>
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-0.5 rounded">
-                      <button
-                        type="button"
-                        onClick={() => moveImage(i, "up")}
-                        disabled={i === 0}
-                        className="p-1.5 bg-background/90 text-foreground rounded disabled:opacity-30"
-                        aria-label="Вверх"
-                      >
-                        <ChevronUp className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveImage(i, "down")}
-                        disabled={i === imageUrls.length - 1}
-                        className="p-1.5 bg-background/90 text-foreground rounded disabled:opacity-30"
-                        aria-label="Вниз"
-                      >
-                        <ChevronDown className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeImage(i)}
-                        className="p-1.5 bg-red-600/90 text-white rounded"
-                        aria-label="Удалить"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-0.5 rounded pointer-events-none">
+                      <span className="p-1.5 bg-background/90 text-foreground rounded text-[10px] font-mono">{i + 1}</span>
                     </div>
                     <span className="absolute left-1 bottom-1 text-[10px] font-mono bg-black/70 text-white px-1 rounded">
                       {i + 1}
                     </span>
+                    <div className="absolute right-1 top-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition" onPointerDown={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); moveImage(i, "up"); }}
+                        disabled={i === 0}
+                        className="p-1 bg-background/90 text-foreground rounded disabled:opacity-30"
+                        aria-label="Вверх"
+                      >
+                        <ChevronUp className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); moveImage(i, "down"); }}
+                        disabled={i === imageUrls.length - 1}
+                        className="p-1 bg-background/90 text-foreground rounded disabled:opacity-30"
+                        aria-label="Вниз"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removeImage(i); }}
+                        className="p-1 bg-red-600/90 text-white rounded"
+                        aria-label="Удалить"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
                 ))}
                 <label className="w-20 h-20 flex flex-col items-center justify-center border border-dashed border-border rounded cursor-pointer hover:bg-muted/50 transition bg-secondary/30">
