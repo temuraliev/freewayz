@@ -117,6 +117,33 @@ export const productSchema = {
       initialValue: false,
     },
     {
+      name: "description",
+      title: "Description",
+      type: "text",
+      description: "Product description (auto-filled by AI import)",
+      rows: 6,
+    },
+    {
+      name: "subtype",
+      title: "Subtype",
+      type: "string",
+      description: "Product subtype, e.g. Худи, Футболки, Джинсы",
+    },
+    {
+      name: "sourceUrl",
+      title: "Source URL",
+      type: "url",
+      description: "Original Yupoo album URL (used for deduplication)",
+      hidden: true,
+    },
+    {
+      name: "internalNotes",
+      title: "Internal Notes (Manager Only)",
+      type: "text",
+      description: "Cost breakdown, profit margins — NOT visible to customers",
+      rows: 8,
+    },
+    {
       name: "isOnSale",
       title: "On Sale",
       type: "boolean",

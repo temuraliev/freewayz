@@ -10,7 +10,7 @@ import { ProductGrid } from "@/components/products/product-grid";
 import { InfiniteProductGrid } from "@/components/products/infinite-product-grid";
 import { SectionHeader } from "@/components/products/section-header";
 import { useFilterStore } from "@/lib/store";
-import { Product, Category } from "@/lib/types";
+import { Product } from "@/lib/types";
 import { client } from "@/lib/sanity/client";
 import {
   hotDropsQuery,
@@ -21,7 +21,7 @@ import {
   freshArrivalsPaginatedQuery,
   productsByFilterQuery,
   searchProductsQuery,
-  categoriesQuery,
+  distinctSubtypesQuery,
 } from "@/lib/sanity/queries";
 import { cn } from "@/lib/utils";
 import { ru } from "@/lib/i18n/ru";
@@ -52,7 +52,7 @@ export default function HomePage() {
   const [searchProducts, setSearchProducts] = useState<Product[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [categoriesForSubtypes, setCategoriesForSubtypes] = useState<Category[]>([]);
+  const [availableSubtypes, setAvailableSubtypes] = useState<string[]>([]);
 
   const { style, brand, category, subtype, setSubtype, saleOnly, searchQuery, hasActiveFilters, minPrice, maxPrice } = useFilterStore();
   const filtersActive = hasActiveFilters();
@@ -131,22 +131,31 @@ export default function HomePage() {
     fetchFiltered();
   }, [style, brand, category, subtype, saleOnly, filtersActive]);
 
-  // Fetch categories (for subtype chips) when viewing filtered results with a category
+  // Fetch distinct subtypes for current filters (brand, style, category, saleOnly) for dynamic subtype chips
   useEffect(() => {
-    if (!filtersActive || !category) {
-      setCategoriesForSubtypes([]);
+    if (!filtersActive) {
+      setAvailableSubtypes([]);
       return;
     }
-    const fetchCategories = async () => {
+    const fetchSubtypes = async () => {
       try {
-        const data = await client.fetch(categoriesQuery);
-        setCategoriesForSubtypes(Array.isArray(data) ? data : []);
+        const data = await client.fetch(distinctSubtypesQuery, {
+          saleOnly: !!saleOnly,
+          style: style || "",
+          brand: brand || "",
+          category: category || "",
+          minPrice: minPrice ?? 0,
+          maxPrice: maxPrice ?? 999_999_999,
+        });
+        const raw = Array.isArray(data) ? data : [];
+        const unique = [...new Set(raw.map((p: { subtype?: string | null }) => p.subtype).filter(Boolean))] as string[];
+        setAvailableSubtypes(unique.sort((a, b) => a.localeCompare(b)));
       } catch {
-        setCategoriesForSubtypes([]);
+        setAvailableSubtypes([]);
       }
     };
-    fetchCategories();
-  }, [filtersActive, category]);
+    fetchSubtypes();
+  }, [filtersActive, style, brand, category, saleOnly, minPrice, maxPrice]);
 
   // Search: debounced fetch and filter by title/brand
   useEffect(() => {
@@ -239,8 +248,7 @@ export default function HomePage() {
         >
           <SectionHeader eyebrow="FILTER" title={ru.sectionFilteredResults} />
           {(() => {
-            const selectedCategory = categoriesForSubtypes.find((c) => c.slug?.current === category);
-            const subtypeOptions = selectedCategory?.subtypes ?? [];
+            const subtypeOptions = availableSubtypes;
             return (
               <>
                 {subtypeOptions.length > 0 && (

@@ -33,6 +33,7 @@ const searchProductFields = `
   "category": category->{ title, slug },
   "style": style->{ title, slug },
   "brand": brand->{ title, slug },
+  subtype,
   isHotDrop,
   isOnSale,
   isNewArrival
@@ -115,10 +116,23 @@ export const searchProductsQuery = groq`
     brand->title match $searchQuery || 
     category->title match $searchQuery || 
     style->title match $searchQuery ||
+    subtype match $searchQuery ||
     pt::text(description) match $searchQuery
   )] | order(_updatedAt desc) [0...50] {
     ${searchProductFields}
   }
+`;
+
+// Distinct subtypes for current filters (brand, style, category, saleOnly) — for dynamic subtype chips
+export const distinctSubtypesQuery = groq`
+  *[_type == "product"
+    && ($saleOnly == false || isOnSale == true)
+    && ($style == "" || style->slug.current == $style)
+    && ($brand == "" || brand->slug.current == $brand)
+    && ($category == "" || category->slug.current == $category)
+    && price >= $minPrice
+    && price <= $maxPrice
+  ] { subtype }
 `;
 
 // Categories queries (with subtypes for filter drawer)
