@@ -2,7 +2,9 @@
 /**
  * Admin Telegram Bot (grammY).
  * Only users listed in ADMIN_TELEGRAM_IDS can use the bot.
- * Requires: ADMIN_BOT_TOKEN, ADMIN_TELEGRAM_IDS (comma-separated), optional ADMIN_WEBAPP_URL.
+ * For a single deployment: set ADMIN_WEBAPP_URL (or NEXT_PUBLIC_APP_URL) to the same URL
+ * as your customer Mini App (e.g. https://your-store.vercel.app). Admins will see edit
+ * buttons and /admin when opening that URL from either bot.
  */
 import { Bot, session } from 'grammy';
 import { createClient } from '@sanity/client';
@@ -37,7 +39,7 @@ loadEnvLocal();
 
 const token = (process.env.ADMIN_BOT_TOKEN || '').replace(/\r\n?|\n/g, '').trim();
 const adminIdsStr = (process.env.ADMIN_TELEGRAM_IDS || '').replace(/\r\n?|\n/g, '').trim();
-const webAppUrl = (process.env.ADMIN_WEBAPP_URL || process.env.NEXT_PUBLIC_APP_URL || '').trim();
+const webAppUrl = (process.env.ADMIN_WEBAPP_URL || process.env.NEXT_PUBLIC_APP_URL || "").trim();
 
 const adminIds = new Set(
   adminIdsStr

@@ -20,20 +20,28 @@ export function isAdminTelegramId(userId: number): boolean {
 }
 
 /**
- * Validate Telegram WebApp initData from the Admin Mini App (opened via admin bot).
- * Uses ADMIN_BOT_TOKEN and ensures the user is in ADMIN_TELEGRAM_IDS.
- * Returns the validated user payload or null.
+ * Validate Telegram WebApp initData and check if user is admin.
+ * Accepts initData from either the customer bot (BOT_TOKEN) or the admin bot (ADMIN_BOT_TOKEN),
+ * so one deployment works: admins get admin UI when opening the same app URL from any bot.
+ * Returns the validated user payload if they are in ADMIN_TELEGRAM_IDS, else null.
  */
 export function validateAdminInitData(initData: string): { id: number; username?: string; first_name: string } | null {
-  const adminBotToken = process.env.ADMIN_BOT_TOKEN;
-  if (!adminBotToken) return null;
+  if (!initData.trim()) return null;
 
-  const result = validateTelegramInitData(initData, adminBotToken);
-  if (!result || !isAdminTelegramId(result.user.id)) return null;
+  const adminBotToken = (process.env.ADMIN_BOT_TOKEN || "").replace(/\r\n?|\n/g, "").trim();
+  const customerBotToken = (process.env.BOT_TOKEN || "").replace(/\r\n?|\n/g, "").trim();
 
-  return {
-    id: result.user.id,
-    username: result.user.username,
-    first_name: result.user.first_name,
-  };
+  for (const token of [adminBotToken, customerBotToken]) {
+    if (!token) continue;
+    const result = validateTelegramInitData(initData, token);
+    if (result && isAdminTelegramId(result.user.id)) {
+      return {
+        id: result.user.id,
+        username: result.user.username,
+        first_name: result.user.first_name,
+      };
+    }
+  }
+
+  return null;
 }
