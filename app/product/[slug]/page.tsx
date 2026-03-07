@@ -8,6 +8,7 @@ import { MOCK_PRODUCT } from "@/lib/mock-data";
 
 type Props = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ edit?: string }>;
 };
 
 export const revalidate = 60; // Revalidate every 60 seconds
@@ -43,8 +44,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function ProductPage({ params }: Props) {
+export default async function ProductPage({ params, searchParams }: Props) {
   const { slug } = await params;
+  const sp = await searchParams;
+  const editMode = sp?.edit === "1";
 
   let product: Product | null = null;
   try {
@@ -62,5 +65,5 @@ export default async function ProductPage({ params }: Props) {
     }
   }
 
-  return <ProductPageClient product={product} />;
+  return <ProductPageClient product={product} initialEditMode={editMode} />;
 }

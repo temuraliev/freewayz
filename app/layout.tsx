@@ -4,6 +4,7 @@ import "./globals.css";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { Toaster } from "@/components/ui/toaster";
 import { TelegramProvider } from "@/components/providers/telegram-provider";
+import { AdminProvider } from "@/components/admin/admin-provider";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -57,9 +58,11 @@ export default function RootLayout({
         className={`${inter.variable} ${mono.variable} ${oswald.variable} font-sans antialiased asphalt-overlay`}
       >
         <TelegramProvider>
-          <main className="min-h-screen pb-20 relative z-10">
-            {children}
-          </main>
+          <AdminProvider>
+            <main className="min-h-screen pb-20 relative z-10">
+              {children}
+            </main>
+          </AdminProvider>
           <BottomNav />
           <Toaster />
         </TelegramProvider>

@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Product } from "@/lib/types";
 import { formatPrice, optimizeImage } from "@/lib/utils";
 import { ru } from "@/lib/i18n/ru";
+import { AdminEditButton } from "@/components/admin/admin-edit-button";
 
 interface ProductCardProps {
   product: Product;
@@ -22,10 +23,11 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.06, ease: [0.22, 1, 0.36, 1] }}
     >
-      <Link href={`/product/${product.slug.current}`} className="group block">
+      <Link href={`/product/${product.slug.current}`} className="group block relative">
         <div className="product-card-editorial">
           {/* Image */}
           <div className="card-img-wrap">
+            <AdminEditButton product={product} />
             {product.images?.[0] ? (
               <Image
                 src={optimizeImage(product.images[0], 400)}

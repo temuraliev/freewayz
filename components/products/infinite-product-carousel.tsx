@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Product } from "@/lib/types";
 import { formatPrice, cn } from "@/lib/utils";
 import { client } from "@/lib/sanity/client";
+import { AdminEditButton } from "@/components/admin/admin-edit-button";
 
 const PAGE_SIZE = 20;
 
@@ -97,6 +98,7 @@ export function InfiniteProductCarousel({
                                     isLarge ? "aspect-[3/4]" : "aspect-square"
                                 )}
                             >
+                                <AdminEditButton product={product} className="left-2 top-2 right-auto" />
                                 {product.images?.[0] ? (
                                     <Image
                                         src={product.images[0]}

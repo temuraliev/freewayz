@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ShoppingBag, Check, Share2 } from "lucide-react";
+import { ArrowLeft, ShoppingBag, Check, Share2, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { ImageCarousel, type CarouselMediaItem } from "@/components/products/image-carousel";
@@ -10,8 +10,10 @@ import dynamic from "next/dynamic";
 import { SizeSelector } from "@/components/products/size-selector";
 import { ColorSelector } from "@/components/products/color-selector";
 import { useCartStore } from "@/lib/store";
+import { useAdminStore } from "@/lib/store";
 import { useHapticFeedback } from "@/components/providers/telegram-provider";
 import { toast } from "@/components/ui/use-toast";
+import { ProductEditOverlay } from "@/components/admin/product-edit-overlay";
 import { Product, Size, Color } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
 import { ru } from "@/lib/i18n/ru";
@@ -30,10 +32,13 @@ const ModelViewer3d = dynamic(
 
 interface ProductPageClientProps {
   product: Product;
+  initialEditMode?: boolean;
 }
 
-export function ProductPageClient({ product }: ProductPageClientProps) {
+export function ProductPageClient({ product, initialEditMode }: ProductPageClientProps) {
   const router = useRouter();
+  const isAdmin = useAdminStore((s) => s.isAdmin);
+  const [editOverlayOpen, setEditOverlayOpen] = useState(!!initialEditMode);
   const [selectedSize, setSelectedSize] = useState<Size | null>(null);
   const [selectedColor, setSelectedColor] = useState<Color | null>(
     product.colors && product.colors.length > 0 ? product.colors[0] : null
@@ -122,6 +127,19 @@ export function ProductPageClient({ product }: ProductPageClientProps) {
         </motion.button>
 
         <div className="flex items-center gap-2">
+          {/* Admin Edit button */}
+          {isAdmin === true && (
+            <motion.button
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.11 }}
+              onClick={() => setEditOverlayOpen(true)}
+              className="flex h-9 w-9 items-center justify-center border border-white/20 bg-black/50 backdrop-blur-sm"
+              aria-label="Edit product"
+            >
+              <Pencil className="h-4 w-4 text-white" />
+            </motion.button>
+          )}
           {/* Share button */}
           <motion.button
             initial={{ opacity: 0, x: 10 }}
@@ -289,6 +307,13 @@ export function ProductPageClient({ product }: ProductPageClientProps) {
           </AnimatePresence>
         </button>
       </div>
+
+      <ProductEditOverlay
+        product={product}
+        open={editOverlayOpen}
+        onOpenChange={setEditOverlayOpen}
+        onSaved={() => router.refresh()}
+      />
     </div>
   );
 }
