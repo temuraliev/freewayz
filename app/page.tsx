@@ -148,8 +148,13 @@ export default function HomePage() {
           maxPrice: maxPrice ?? 999_999_999,
         });
         const raw = Array.isArray(data) ? data : [];
-        const unique = [...new Set(raw.map((p: { subtype?: string | null }) => p.subtype).filter(Boolean))] as string[];
-        setAvailableSubtypes(unique.sort((a, b) => a.localeCompare(b)));
+        const subtypeCounts = new Map<string, number>();
+        for (const p of raw) {
+          const st = (p as { subtype?: string | null }).subtype;
+          if (st && typeof st === 'string') subtypeCounts.set(st, (subtypeCounts.get(st) ?? 0) + 1);
+        }
+        const sorted = [...subtypeCounts.keys()].sort((a, b) => (subtypeCounts.get(b) ?? 0) - (subtypeCounts.get(a) ?? 0));
+        setAvailableSubtypes(sorted);
       } catch {
         setAvailableSubtypes([]);
       }
