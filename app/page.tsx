@@ -10,6 +10,7 @@ import { ProductGrid } from "@/components/products/product-grid";
 import { InfiniteProductGrid } from "@/components/products/infinite-product-grid";
 import { SectionHeader } from "@/components/products/section-header";
 import { useFilterStore } from "@/lib/store";
+import { useAdminStore } from "@/lib/store";
 import { Product } from "@/lib/types";
 import { client } from "@/lib/sanity/client";
 import {
@@ -55,6 +56,7 @@ export default function HomePage() {
   const [availableSubtypes, setAvailableSubtypes] = useState<string[]>([]);
 
   const { style, brand, category, subtype, setSubtype, saleOnly, searchQuery, hasActiveFilters, minPrice, maxPrice } = useFilterStore();
+  const catalogInvalidated = useAdminStore((s) => s.catalogInvalidated);
   const filtersActive = hasActiveFilters();
   const searchActive = searchQuery.length >= 2;
 
@@ -86,7 +88,7 @@ export default function HomePage() {
     };
 
     fetchProducts();
-  }, []);
+  }, [catalogInvalidated]);
 
   // Fetch filtered products when filters change
   useEffect(() => {
@@ -129,7 +131,7 @@ export default function HomePage() {
     };
 
     fetchFiltered();
-  }, [style, brand, category, subtype, saleOnly, filtersActive]);
+  }, [style, brand, category, subtype, saleOnly, filtersActive, catalogInvalidated]);
 
   // Fetch distinct subtypes for current filters (brand, style, category, saleOnly) for dynamic subtype chips
   useEffect(() => {
@@ -160,7 +162,7 @@ export default function HomePage() {
       }
     };
     fetchSubtypes();
-  }, [filtersActive, style, brand, category, saleOnly, minPrice, maxPrice]);
+  }, [filtersActive, style, brand, category, saleOnly, minPrice, maxPrice, catalogInvalidated]);
 
   // Search: debounced fetch and filter by title/brand
   useEffect(() => {

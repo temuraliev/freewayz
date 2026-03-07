@@ -17,10 +17,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "initData is required" }, { status: 400 });
   }
 
-  const user = validateAdminInitData(parsed.data.initData);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const result = validateAdminInitData(parsed.data.initData);
+  if (!result.ok) {
+    return NextResponse.json(
+      { error: "Unauthorized", reason: result.reason },
+      { status: 401 }
+    );
   }
 
-  return NextResponse.json({ ok: true, user });
+  return NextResponse.json({ ok: true, user: result.user });
 }
