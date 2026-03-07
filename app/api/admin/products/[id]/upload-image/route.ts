@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@sanity/client";
+import imageUrlBuilder from "@sanity/image-url";
 import { validateAdminInitData } from "@/lib/admin-auth";
 
 export async function POST(
@@ -17,8 +18,8 @@ export async function POST(
     return NextResponse.json({ error: "initData required" }, { status: 400 });
   }
 
-  const user = validateAdminInitData(initData);
-  if (!user) {
+  const auth = validateAdminInitData(initData);
+  if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -56,7 +57,9 @@ export async function POST(
       asset: { _type: "reference", _ref: asset._id },
     });
     await client.patch(docId).set({ images }).commit();
-    return NextResponse.json({ ok: true, assetId: asset._id });
+    const builder = imageUrlBuilder(client);
+    const url = builder.image(asset._id).width(800).url();
+    return NextResponse.json({ ok: true, assetId: asset._id, url });
   } catch (e) {
     console.error("Upload error:", e);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
