@@ -32,6 +32,13 @@ export const yupooSupplierType = defineType({
       description: 'Number of albums at last check (used to detect new items)',
     }),
     defineField({
+      name: 'knownAlbumIds',
+      title: 'Known Album IDs',
+      type: 'array',
+      of: [{ type: 'string' }],
+      description: 'Album IDs already seen — only new ones trigger notifications',
+    }),
+    defineField({
       name: 'isActive',
       title: 'Active',
       type: 'boolean',

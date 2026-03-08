@@ -15,11 +15,6 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       typeof window !== "undefined" && window.Telegram?.WebApp?.initData
         ? window.Telegram.WebApp.initData
         : "";
-    if (!initData.trim()) {
-      setAdmin(false);
-      console.warn("[Admin] No initData — open the Mini App from Telegram (bot menu or link) to get edit access.");
-      return;
-    }
     fetch("/api/admin/auth", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -40,6 +40,15 @@ const DEFAULT_WEIGHT_BY_TYPE = {
   suit: 1.4, костюм: 1.4,
 };
 
+/** "зип-худи" is deprecated — always store as "зипки". */
+export function normalizeSubtype(subtype) {
+  if (subtype == null || typeof subtype !== "string") return subtype;
+  const s = String(subtype).trim();
+  const lower = s.toLowerCase();
+  if (lower === "зип-худи" || lower === "зип худи" || lower === "зип-худі") return "зипки";
+  return s;
+}
+
 /**
  * Round UZS price so the last digit of (price/10000) is 5 or 9 (e.g. 450000, 490000, 590000).
  */
@@ -299,7 +308,9 @@ export async function callGeminiForProduct(params) {
         if (!text) return null;
         let raw = text.trim();
         if (raw.startsWith('```')) raw = raw.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
-        return JSON.parse(raw);
+        const result = JSON.parse(raw);
+        if (result && result.subtype != null) result.subtype = normalizeSubtype(result.subtype);
+        return result;
       }
       const isQuota = res.status === 429;
       const isOverload = res.status === 503;
@@ -318,7 +329,9 @@ export async function callGeminiForProduct(params) {
             if (text2) {
               let raw2 = text2.trim();
               if (raw2.startsWith('```')) raw2 = raw2.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
-              return JSON.parse(raw2);
+              const result = JSON.parse(raw2);
+              if (result && result.subtype != null) result.subtype = normalizeSubtype(result.subtype);
+              return result;
             }
           }
           if (r2.status !== 503) break; // different error — stop retrying this key

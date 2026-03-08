@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, ShoppingBag, SlidersHorizontal } from "lucide-react";
+import { Search, ShoppingBag, SlidersHorizontal, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useCartStore, useFilterStore } from "@/lib/store";
+import { useCartStore, useFilterStore, useAdminStore } from "@/lib/store";
 import { FilterDrawer } from "@/components/layout/filter-drawer";
 import { ru } from "@/lib/i18n/ru";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ export function TopNav() {
   const clearFilters = useFilterStore((s) => s.clearFilters);
   const clearSearch = useFilterStore((s) => s.clearSearch);
   const itemCount = useCartStore((state) => state.getItemCount());
+  const isAdmin = useAdminStore((s) => s.isAdmin);
 
   useEffect(() => { setMounted(true); }, []);
   const safeItemCount = mounted ? itemCount : 0;
@@ -108,6 +109,18 @@ export function TopNav() {
               </AnimatePresence>
             </motion.div>
           </Link>
+
+          {/* Admin panel — только для админов */}
+          {mounted && isAdmin === true && (
+            <Link href="/admin" className="shrink-0" title="Админ-панель">
+              <motion.div
+                whileTap={{ scale: 0.9 }}
+                className="flex h-9 w-9 items-center justify-center border border-amber-500/40 bg-amber-500/10 transition-colors hover:bg-amber-500/20"
+              >
+                <Shield className="h-4 w-4 text-amber-500" />
+              </motion.div>
+            </Link>
+          )}
         </div>
       </header>
 

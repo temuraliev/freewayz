@@ -2,19 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@sanity/client";
 import { validateAdminInitData } from "@/lib/admin-auth";
 
-const orderFields = `
-  _id,
-  orderId,
-  total,
-  status,
-  trackNumber,
-  trackUrl,
-  trackingStatus,
-  notes,
-  createdAt,
-  "user": user->{ _id, telegramId, username, firstName }
-`;
-
 function makeSanityClient() {
   const token = process.env.SANITY_API_TOKEN;
   if (!token) return null;
@@ -39,41 +26,40 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
   }
 
-  const status = request.nextUrl.searchParams.get("status") || "";
   const search = request.nextUrl.searchParams.get("q") || "";
 
   try {
-    let filter = `_type == "order"`;
+    let filter = `_type == "user"`;
     const params: Record<string, string> = {};
 
-    if (status && status !== "all") {
-      filter += ` && status == $status`;
-      params.status = status;
-    }
-
     if (search) {
-      filter += ` && (orderId match $q || user->username match $q)`;
+      filter += ` && (username match $q || firstName match $q || telegramId == $exact)`;
       params.q = `*${search}*`;
+      params.exact = search;
     }
 
-    const orders = await client.fetch(
-      `*[${filter}] | order(createdAt desc) [0...200] { ${orderFields} }`,
+    const users = await client.fetch(
+      `*[${filter}] | order(totalSpent desc) [0...200] {
+        _id,
+        telegramId,
+        username,
+        firstName,
+        lastName,
+        phone,
+        address,
+        adminNotes,
+        totalSpent,
+        status,
+        cashbackBalance,
+        "orderCount": count(*[_type == "order" && user._ref == ^._id]),
+        "lastOrderDate": *[_type == "order" && user._ref == ^._id] | order(createdAt desc) [0].createdAt
+      }`,
       params
     );
 
-    const counts = await client.fetch(`{
-      "all": count(*[_type == "order"]),
-      "new": count(*[_type == "order" && status == "new"]),
-      "paid": count(*[_type == "order" && status == "paid"]),
-      "ordered": count(*[_type == "order" && status == "ordered"]),
-      "shipped": count(*[_type == "order" && status == "shipped"]),
-      "delivered": count(*[_type == "order" && status == "delivered"]),
-      "cancelled": count(*[_type == "order" && status == "cancelled"])
-    }`);
-
-    return NextResponse.json({ orders: orders ?? [], counts: counts ?? {} });
+    return NextResponse.json(users ?? []);
   } catch (e) {
-    console.error("Orders fetch error:", e);
+    console.error("Customers fetch error:", e);
     return NextResponse.json({ error: "Fetch failed" }, { status: 500 });
   }
 }

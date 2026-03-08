@@ -11,18 +11,13 @@ export async function POST(
   const docId = decodeURIComponent(id);
 
   const formData = await request.formData();
-  const initData = formData.get("initData");
-  const file = formData.get("image") as File | null;
-
-  if (!initData || typeof initData !== "string") {
-    return NextResponse.json({ error: "initData required" }, { status: 400 });
-  }
-
-  const auth = validateAdminInitData(initData);
+  const initData = (formData.get("initData") as string | null) ?? "";
+  const auth = validateAdminInitData(initData, request.headers.get("host"));
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const file = formData.get("image") as File | null;
   if (!file || !(file instanceof Blob)) {
     return NextResponse.json({ error: "image file required" }, { status: 400 });
   }

@@ -17,6 +17,7 @@
 # Misc
 .DS_Store
 *.pem
+.yupoo-progress.json
 
 # Debug
 npm-debug.log*

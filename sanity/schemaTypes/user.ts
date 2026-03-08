@@ -32,6 +32,22 @@ export const userType = defineType({
       type: 'url',
     }),
     defineField({
+      name: 'phone',
+      title: 'Phone',
+      type: 'string',
+    }),
+    defineField({
+      name: 'address',
+      title: 'Address',
+      type: 'text',
+    }),
+    defineField({
+      name: 'adminNotes',
+      title: 'Admin Notes',
+      type: 'text',
+      description: 'Internal notes about this customer',
+    }),
+    defineField({
       name: 'totalSpent',
       title: 'Total Spent (UZS)',
       type: 'number',
@@ -115,4 +131,3 @@ export const userType = defineType({
     },
   },
 })
-

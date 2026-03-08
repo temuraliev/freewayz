@@ -25,6 +25,7 @@ import {
   distinctSubtypesQuery,
 } from "@/lib/sanity/queries";
 import { cn } from "@/lib/utils";
+import { buildSearchTerms } from "@/lib/search-utils";
 import { ru } from "@/lib/i18n/ru";
 
 function filterBySearch(products: Product[], q: string): Product[] {
@@ -174,18 +175,13 @@ export default function HomePage() {
     const t = setTimeout(async () => {
       setSearchLoading(true);
       try {
-        // Format query for GROQ match: "long sleeve" -> "*long* *sleeve*"
-        const formattedQuery = searchQuery
-          .trim()
-          .toLowerCase()
-          .split(/\s+/)
-          .filter(Boolean)
-          .map((word) => `*${word}*`)
-          .join(" ");
-
-        const data = await client.fetch(searchProductsQuery, {
-          searchQuery: formattedQuery,
-        });
+        const searchTerms = buildSearchTerms(searchQuery);
+        if (searchTerms.length === 0) {
+          setSearchProducts([]);
+          setSearchLoading(false);
+          return;
+        }
+        const data = await client.fetch(searchProductsQuery, { searchTerms });
         const list = Array.isArray(data) ? data : [];
         setSearchProducts(list);
       } catch (error) {

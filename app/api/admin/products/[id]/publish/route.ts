@@ -3,7 +3,7 @@ import { createClient } from "@sanity/client";
 import { validateAdminInitData } from "@/lib/admin-auth";
 import { z } from "zod";
 
-const bodySchema = z.object({ initData: z.string().min(1) });
+const bodySchema = z.object({ initData: z.string() });
 
 export async function POST(
   request: NextRequest,
@@ -24,8 +24,8 @@ export async function POST(
     return NextResponse.json({ error: "initData required" }, { status: 400 });
   }
 
-  const user = validateAdminInitData(parsed.data.initData);
-  if (!user) {
+  const auth = validateAdminInitData(parsed.data.initData ?? "", request.headers.get("host"));
+  if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

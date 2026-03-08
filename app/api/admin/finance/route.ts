@@ -4,12 +4,9 @@ import { validateAdminInitData } from "@/lib/admin-auth";
 import { z } from "zod";
 
 export async function GET(request: NextRequest) {
-  const initData = request.headers.get("X-Telegram-Init-Data");
-  if (!initData) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = validateAdminInitData(initData);
-  if (!user) {
+  const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
+  const auth = validateAdminInitData(initData, request.headers.get("host"));
+  if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -69,7 +66,7 @@ export async function GET(request: NextRequest) {
 }
 
 const bodySchema = z.object({
-  initData: z.string().min(1),
+  initData: z.string(),
   date: z.string(),
   amount: z.number(),
   currency: z.enum(["UZS", "CNY", "USD"]),
@@ -90,8 +87,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Validation failed" }, { status: 400 });
   }
 
-  const user = validateAdminInitData(parsed.data.initData);
-  if (!user) {
+  const auth = validateAdminInitData(parsed.data.initData ?? "", request.headers.get("host"));
+  if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

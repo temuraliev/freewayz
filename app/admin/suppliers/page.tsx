@@ -21,10 +21,6 @@ export default function AdminSuppliersPage() {
       : "";
 
   useEffect(() => {
-    if (!initData) {
-      setLoading(false);
-      return;
-    }
     fetch("/api/admin/suppliers", {
       method: "GET",
       headers: { "X-Telegram-Init-Data": initData },

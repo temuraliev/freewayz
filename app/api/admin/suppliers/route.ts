@@ -3,12 +3,9 @@ import { createClient } from "@sanity/client";
 import { validateAdminInitData } from "@/lib/admin-auth";
 
 export async function GET(request: NextRequest) {
-  const initData = request.headers.get("X-Telegram-Init-Data");
-  if (!initData) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = validateAdminInitData(initData);
-  if (!user) {
+  const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
+  const auth = validateAdminInitData(initData, request.headers.get("host"));
+  if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -47,11 +44,9 @@ export async function POST(request: NextRequest) {
   }
 
   const initData = (body as Record<string, unknown>)?.initData;
-  if (!initData || typeof initData !== "string") {
-    return NextResponse.json({ error: "initData required" }, { status: 400 });
-  }
-  const user = validateAdminInitData(initData);
-  if (!user) {
+  const initDataStr = typeof initData === "string" ? initData : "";
+  const auth = validateAdminInitData(initDataStr, request.headers.get("host"));
+  if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

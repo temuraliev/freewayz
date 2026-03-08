@@ -74,6 +74,41 @@ export const orderType = defineType({
       description: 'e.g. 17track.net or Cainiao link',
     }),
     defineField({
+      name: 'carrier',
+      title: 'Carrier',
+      type: 'string',
+      description: 'Carrier code for 17track',
+    }),
+    defineField({
+      name: 'track17Registered',
+      title: '17track Registered',
+      type: 'boolean',
+      initialValue: false,
+    }),
+    defineField({
+      name: 'trackingStatus',
+      title: 'Tracking Status',
+      type: 'string',
+      description: 'Latest status from 17track',
+    }),
+    defineField({
+      name: 'trackingEvents',
+      title: 'Tracking Events',
+      type: 'array',
+      of: [
+        defineArrayMember({
+          type: 'object',
+          name: 'trackingEvent',
+          fields: [
+            defineField({ name: 'date', type: 'datetime', title: 'Date' }),
+            defineField({ name: 'status', type: 'string', title: 'Status' }),
+            defineField({ name: 'description', type: 'string', title: 'Description' }),
+            defineField({ name: 'location', type: 'string', title: 'Location' }),
+          ],
+        }),
+      ],
+    }),
+    defineField({
       name: 'shippingMethod',
       title: 'Shipping Method',
       type: 'string',

@@ -21,14 +21,24 @@ export function isAdminTelegramId(userId: number): boolean {
 
 /**
  * Validate Telegram WebApp initData and check if user is admin.
- * Accepts initData from either the customer bot (BOT_TOKEN) or the admin bot (ADMIN_BOT_TOKEN),
- * so one deployment works: admins get admin UI when opening the same app URL from any bot.
- * Returns { ok: true, user } if admin, or { ok: false, reason } for debugging.
+ * In development, when host is localhost and initData is empty, returns admin (for local testing).
  */
-export function validateAdminInitData(initData: string):
+export function validateAdminInitData(
+  initData: string,
+  host?: string | null
+):
   | { ok: true; user: { id: number; username?: string; first_name: string } }
   | { ok: false; reason: string } {
-  if (!initData.trim()) {
+  const trimmed = (initData ?? "").trim();
+
+  if (!trimmed) {
+    if (
+      process.env.NODE_ENV === "development" &&
+      host &&
+      (host.includes("localhost") || host.startsWith("127.0.0.1"))
+    ) {
+      return { ok: true, user: { id: 0, first_name: "Local Dev" } };
+    }
     return { ok: false, reason: "missing_init_data" };
   }
 
@@ -37,7 +47,7 @@ export function validateAdminInitData(initData: string):
 
   for (const token of [adminBotToken, customerBotToken]) {
     if (!token) continue;
-    const result = validateTelegramInitData(initData, token);
+    const result = validateTelegramInitData(trimmed, token);
     if (result) {
       if (isAdminTelegramId(result.user.id)) {
         return {

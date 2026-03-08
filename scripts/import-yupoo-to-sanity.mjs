@@ -43,6 +43,7 @@ import {
   calculatePriceUzs,
   guessWeightKg,
   roundPriceToNiceUzs,
+  normalizeSubtype,
 } from './lib/gemini-enrich.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -863,7 +864,7 @@ async function main() {
       };
       if (docDescription != null) doc.description = docDescription;
       if (docInternalNotes != null) doc.internalNotes = docInternalNotes;
-      if (docSubtype != null) doc.subtype = docSubtype;
+      if (docSubtype != null) doc.subtype = normalizeSubtype(docSubtype);
       if (docBrandRef?._id) doc.brand = { _type: 'reference', _ref: docBrandRef._id };
       if (docCategoryRef?._id) doc.category = { _type: 'reference', _ref: docCategoryRef._id };
       if (docStyleRef?._id) doc.style = { _type: 'reference', _ref: docStyleRef._id };

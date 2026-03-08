@@ -112,13 +112,13 @@ export const freshArrivalsQuery = groq`
 
 export const searchProductsQuery = groq`
   *[_type == "product" && (
-    title match $searchQuery || 
-    brand->title match $searchQuery || 
-    category->title match $searchQuery || 
-    style->title match $searchQuery ||
-    subtype match $searchQuery ||
-    pt::text(description) match $searchQuery
-  )] | order(_updatedAt desc) [0...50] {
+    title match $searchTerms || 
+    brand->title match $searchTerms || 
+    category->title match $searchTerms || 
+    style->title match $searchTerms ||
+    subtype match $searchTerms ||
+    pt::text(description) match $searchTerms
+  )] | order(_updatedAt desc) [0...80] {
     ${searchProductFields}
   }
 `;
