@@ -1,16 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Crown, Star, Flame, Gift, TrendingUp } from "lucide-react";
+import { ArrowLeft, Crown, Star, Flame, Gift, TrendingUp, Tag, Loader2, Check } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { useUserStore } from "@/lib/store";
 import { formatPrice, getStatusProgress, getUserStatusEmoji } from "@/lib/utils";
 import { ru } from "@/lib/i18n/ru";
+import { Button } from "@/components/ui/button";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { telegramUser, user, getDisplayName, getStatusLabel } = useUserStore();
+  const { telegramUser, user, getDisplayName, getStatusLabel, setUser } = useUserStore();
 
   const status = user?.status || "ROOKIE";
   const totalSpent = user?.totalSpent || 0;
@@ -151,6 +153,9 @@ export default function ProfilePage() {
           </motion.div>
         </div>
 
+        {/* Promo Code Section */}
+        <PromoSection user={user} setUser={setUser} />
+
         {/* Status Tiers Info */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -205,5 +210,109 @@ export default function ProfilePage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+function PromoSection({
+  user,
+  setUser,
+}: {
+  user: ReturnType<typeof useUserStore>["user"];
+  setUser: ReturnType<typeof useUserStore>["setUser"];
+}) {
+  const [code, setCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const handleApply = async () => {
+    if (!code.trim()) return;
+    setLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+
+    const initData =
+      typeof window !== "undefined" && window.Telegram?.WebApp?.initData
+        ? window.Telegram.WebApp.initData
+        : "";
+
+    try {
+      const res = await fetch("/api/promo/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initData, code: code.trim(), context: "profile" }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setError(data.error || "Ошибка");
+        return;
+      }
+
+      if (data.type === "balance_topup") {
+        setSuccessMsg(
+          `Баланс пополнен на ${formatPrice(data.value)}! Новый баланс: ${formatPrice(data.newBalance)}`
+        );
+        if (user) {
+          setUser({ ...user, cashbackBalance: data.newBalance });
+        }
+        setCode("");
+      } else {
+        setSuccessMsg(
+          "Промокод сохранён! Примените его в корзине при оформлении заказа."
+        );
+        setCode("");
+      }
+    } catch {
+      setError("Ошибка сети");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.35 }}
+      className="rounded-2xl border border-border bg-card p-6"
+    >
+      <h3 className="mb-3 flex items-center gap-2 font-headline text-sm uppercase tracking-wider text-muted-foreground">
+        <Tag className="h-4 w-4" />
+        Промокод
+      </h3>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={code}
+          onChange={(e) => {
+            setCode(e.target.value);
+            setError(null);
+            setSuccessMsg(null);
+          }}
+          placeholder="Введите промокод"
+          className="h-10 flex-1 rounded border border-border bg-secondary px-3 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-primary"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-10 shrink-0"
+          disabled={loading || !code.trim()}
+          onClick={handleApply}
+        >
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            "Активировать"
+          )}
+        </Button>
+      </div>
+      {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
+      {successMsg && (
+        <div className="mt-2 flex items-start gap-1.5 text-xs text-green-500">
+          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+    </motion.div>
   );
 }

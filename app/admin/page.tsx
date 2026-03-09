@@ -30,10 +30,9 @@ export default function AdminDashboardPage() {
           newOrders: data.counts.new || 0,
           activeTracking: data.counts.shipped || 0,
           totalRevenue: Array.isArray(data.orders)
-            ? data.orders.reduce(
-                (s: number, o: { total?: number }) => s + (o.total || 0),
-                0
-              )
+            ? data.orders
+                .filter((o: { status?: string }) => o.status !== "cancelled")
+                .reduce((s: number, o: { total?: number }) => s + (o.total || 0), 0)
             : 0,
         });
       })

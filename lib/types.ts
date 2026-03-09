@@ -62,6 +62,9 @@ export interface User {
   totalSpent: number;
   status: UserStatus;
   cashbackBalance: number;
+  onboardingDone?: boolean;
+  preferredBrands?: { _id: string; title: string; slug: { current: string } }[];
+  preferredStyles?: { _id: string; title: string; slug: { current: string } }[];
 }
 
 // Note: Styles/Brands are now controlled in Sanity as documents.

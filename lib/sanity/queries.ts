@@ -152,9 +152,13 @@ export const userByTelegramIdQuery = groq`
     _id,
     telegramId,
     username,
+    firstName,
     totalSpent,
     status,
-    cashbackBalance
+    cashbackBalance,
+    onboardingDone,
+    "preferredBrands": preferredBrands[]->{ _id, title, slug },
+    "preferredStyles": preferredStyles[]->{ _id, title, slug }
   }
 `;
 

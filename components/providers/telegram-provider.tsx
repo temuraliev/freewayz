@@ -1,9 +1,11 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/lib/store";
 import { TelegramUser } from "@/lib/types";
+import { client } from "@/lib/sanity/client";
+import { userByTelegramIdQuery } from "@/lib/sanity/queries";
 
 interface TelegramContextType {
   isReady: boolean;
@@ -157,6 +159,22 @@ export function TelegramProvider({ children }: TelegramProviderProps) {
 
     return () => clearTimeout(timer);
   }, [setTelegramUser, setIsLoading, setIsInitialized]);
+
+  const fetchedRef = useRef(false);
+  const telegramUser = useUserStore((s) => s.telegramUser);
+  const setUser = useUserStore((s) => s.setUser);
+
+  useEffect(() => {
+    if (!telegramUser?.id || fetchedRef.current) return;
+    fetchedRef.current = true;
+
+    client
+      .fetch(userByTelegramIdQuery, { telegramId: String(telegramUser.id) })
+      .then((doc) => {
+        if (doc) setUser(doc);
+      })
+      .catch((err) => console.error("Failed to fetch user from Sanity:", err));
+  }, [telegramUser, setUser]);
 
   return (
     <TelegramContext.Provider value={{ isReady, webApp }}>

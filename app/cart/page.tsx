@@ -1,7 +1,10 @@
 "use client";
 
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ShoppingBag } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { ArrowLeft, ShoppingBag, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { CartItem } from "@/components/cart/cart-item";
@@ -9,10 +12,72 @@ import { CartSummary } from "@/components/cart/cart-summary";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/lib/store";
 import { ru, itemsCount } from "@/lib/i18n/ru";
+import { Product } from "@/lib/types";
+import { formatPrice } from "@/lib/utils";
+
+interface CrossSellProduct {
+  _id: string;
+  title: string;
+  slug: { current: string };
+  price: number;
+  images?: string[];
+  brand?: { title: string; slug: { current: string } };
+  subtype?: string;
+  isOnSale?: boolean;
+}
 
 export default function CartPage() {
   const router = useRouter();
-  const { items, clearCart } = useCartStore();
+  const { items, clearCart, addItem } = useCartStore();
+  const [crossSell, setCrossSell] = useState<CrossSellProduct[]>([]);
+
+  const fetchCrossSell = useCallback(async () => {
+    if (items.length === 0) {
+      setCrossSell([]);
+      return;
+    }
+
+    const subtypes = [
+      ...new Set(
+        items
+          .map((i) => i.product.subtype?.toLowerCase())
+          .filter(Boolean) as string[]
+      ),
+    ];
+    const brands = [
+      ...new Set(
+        items
+          .map((i) => i.product.brand?.slug?.current)
+          .filter(Boolean) as string[]
+      ),
+    ];
+    const excludeIds = items.map((i) => i.product._id);
+    const maxPrice = Math.max(...items.map((i) => i.product.price));
+
+    const params = new URLSearchParams();
+    if (subtypes.length) params.set("subtypes", subtypes.join(","));
+    if (brands.length) params.set("brands", brands.join(","));
+    if (excludeIds.length) params.set("exclude", excludeIds.join(","));
+    params.set("maxPrice", String(maxPrice));
+
+    try {
+      const res = await fetch(`/api/cross-sell?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCrossSell(data.products || []);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [items]);
+
+  useEffect(() => {
+    fetchCrossSell();
+  }, [fetchCrossSell]);
+
+  const handleQuickAdd = (p: CrossSellProduct) => {
+    addItem(p as unknown as Product, "One Size", null);
+  };
 
   return (
     <div className="min-h-screen pb-48">
@@ -27,7 +92,7 @@ export default function CartPage() {
             {ru.back}
           </button>
           <h1 className="font-headline text-lg tracking-wider">{ru.cart}</h1>
-          <div className="w-16" /> {/* Spacer for alignment */}
+          <div className="w-16" />
         </div>
       </div>
 
@@ -78,6 +143,54 @@ export default function CartPage() {
                 />
               ))}
             </AnimatePresence>
+
+            {/* Cross-sell section */}
+            {crossSell.length > 0 && (
+              <div className="mt-6">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Дополни заказ
+                </h3>
+                <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2">
+                  {crossSell.map((p) => (
+                    <div
+                      key={p._id}
+                      className="w-32 shrink-0 overflow-hidden rounded-lg border border-border bg-card"
+                    >
+                      <Link href={`/product/${p.slug.current}`}>
+                        <div className="relative aspect-square bg-secondary">
+                          {p.images?.[0] ? (
+                            <Image
+                              src={p.images[0]}
+                              alt={p.title}
+                              fill
+                              className="object-cover"
+                              sizes="128px"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                              Нет фото
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                      <div className="p-2">
+                        <p className="line-clamp-1 text-xs">{p.title}</p>
+                        <p className="mt-0.5 text-xs font-semibold">
+                          {formatPrice(p.price)}
+                        </p>
+                        <button
+                          onClick={() => handleQuickAdd(p)}
+                          className="mt-1.5 flex w-full items-center justify-center gap-1 rounded border border-border py-1 text-xs text-muted-foreground transition-colors hover:bg-secondary"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Добавить
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

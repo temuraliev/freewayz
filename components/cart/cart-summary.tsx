@@ -5,8 +5,14 @@ import { useCartStore, useUserStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { ShoppingBag, Check, Loader2 } from "lucide-react";
+import { ShoppingBag, Check, Loader2, Tag, X } from "lucide-react";
 import { ru, itemsCount } from "@/lib/i18n/ru";
+
+interface AppliedPromo {
+  code: string;
+  type: "discount_percent" | "discount_fixed";
+  value: number;
+}
 
 export function CartSummary() {
   const { items, getTotal, clearCart } = useCartStore();
@@ -15,6 +21,62 @@ export function CartSummary() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [promoInput, setPromoInput] = useState("");
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
+
+  const discountAmount = appliedPromo
+    ? appliedPromo.type === "discount_percent"
+      ? Math.round(total * (appliedPromo.value / 100))
+      : Math.min(appliedPromo.value, total)
+    : 0;
+
+  const finalTotal = total - discountAmount;
+
+  const handleApplyPromo = async () => {
+    const code = promoInput.trim();
+    if (!code) return;
+
+    setPromoLoading(true);
+    setPromoError(null);
+
+    const initData =
+      typeof window !== "undefined" && window.Telegram?.WebApp?.initData
+        ? window.Telegram.WebApp.initData
+        : "";
+
+    try {
+      const res = await fetch("/api/promo/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initData, code, context: "cart" }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setPromoError(data.error || "Ошибка");
+        return;
+      }
+      if (data.type === "balance_topup") {
+        setPromoError("Этот промокод для пополнения баланса. Активируйте его в профиле.");
+        return;
+      }
+      if (data.minOrderTotal && total < data.minOrderTotal) {
+        setPromoError(`Минимальная сумма заказа: ${formatPrice(data.minOrderTotal)}`);
+        return;
+      }
+      setAppliedPromo({
+        code: data.code || code,
+        type: data.type,
+        value: data.value,
+      });
+    } catch {
+      setPromoError("Ошибка сети");
+    } finally {
+      setPromoLoading(false);
+    }
+  };
 
   const handleCheckout = async () => {
     const initData =
@@ -47,7 +109,13 @@ export function CartSummary() {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ initData, items: cartItems, total }),
+        body: JSON.stringify({
+          initData,
+          items: cartItems,
+          total: finalTotal,
+          promoCode: appliedPromo?.code || undefined,
+          discount: discountAmount || undefined,
+        }),
       });
 
       const data = await res.json();
@@ -58,6 +126,7 @@ export function CartSummary() {
 
       setSuccess(data.orderId);
       clearCart();
+      setAppliedPromo(null);
     } catch {
       setError("Ошибка сети. Попробуйте ещё раз.");
     } finally {
@@ -96,6 +165,64 @@ export function CartSummary() {
       className="fixed bottom-20 left-0 right-0 z-40 border-t border-border bg-background/95 p-4 backdrop-blur-lg safe-bottom"
     >
       <div className="space-y-3">
+        {/* Promo code input */}
+        {!appliedPromo ? (
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Tag className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={promoInput}
+                onChange={(e) => {
+                  setPromoInput(e.target.value);
+                  setPromoError(null);
+                }}
+                placeholder="Промокод"
+                className="h-9 w-full rounded border border-border bg-secondary pl-8 pr-3 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-primary"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 shrink-0"
+              disabled={promoLoading || !promoInput.trim()}
+              onClick={handleApplyPromo}
+            >
+              {promoLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                "Применить"
+              )}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between rounded border border-green-500/30 bg-green-500/10 px-3 py-2">
+            <div className="flex items-center gap-2 text-sm">
+              <Tag className="h-3.5 w-3.5 text-green-500" />
+              <span className="font-medium text-green-500">
+                {appliedPromo.code}
+              </span>
+              <span className="text-muted-foreground">
+                −{appliedPromo.type === "discount_percent"
+                  ? `${appliedPromo.value}%`
+                  : formatPrice(appliedPromo.value)}
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                setAppliedPromo(null);
+                setPromoInput("");
+              }}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+        {promoError && (
+          <p className="text-xs text-red-500">{promoError}</p>
+        )}
+
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-muted-foreground">
             <ShoppingBag className="h-4 w-4" />
@@ -103,7 +230,20 @@ export function CartSummary() {
           </div>
           <div className="text-right">
             <p className="text-xs text-muted-foreground">{ru.total}</p>
-            <p className="font-mono text-xl font-bold">{formatPrice(total)}</p>
+            {discountAmount > 0 ? (
+              <>
+                <p className="text-xs text-muted-foreground line-through">
+                  {formatPrice(total)}
+                </p>
+                <p className="font-mono text-xl font-bold text-green-500">
+                  {formatPrice(finalTotal)}
+                </p>
+              </>
+            ) : (
+              <p className="font-mono text-xl font-bold">
+                {formatPrice(total)}
+              </p>
+            )}
           </div>
         </div>
 

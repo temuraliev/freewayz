@@ -115,6 +115,18 @@ export const orderType = defineType({
       description: 'e.g. Air, Sea, Express',
     }),
     defineField({
+      name: 'promoCode',
+      title: 'Promo Code',
+      type: 'string',
+      description: 'Promo code applied at checkout',
+    }),
+    defineField({
+      name: 'discount',
+      title: 'Discount (UZS)',
+      type: 'number',
+      description: 'Discount amount applied',
+    }),
+    defineField({
       name: 'notes',
       title: 'Notes',
       type: 'text',

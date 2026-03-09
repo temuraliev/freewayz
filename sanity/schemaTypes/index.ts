@@ -8,7 +8,8 @@ import {userType} from './user'
 import {orderType} from './order'
 import {expenseType} from './expense'
 import {yupooSupplierType} from './yupooSupplier'
+import {promoCodeType} from './promoCode'
 
 export const schema: { types: SchemaTypeDefinition[] } = {
-  types: [categoryType, brandType, styleType, productType, userType, orderType, expenseType, yupooSupplierType],
+  types: [categoryType, brandType, styleType, productType, userType, orderType, expenseType, yupooSupplierType, promoCodeType],
 }

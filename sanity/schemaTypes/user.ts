@@ -76,6 +76,26 @@ export const userType = defineType({
       validation: (rule) => rule.min(0),
     }),
     defineField({
+      name: 'onboardingDone',
+      title: 'Onboarding Done',
+      type: 'boolean',
+      initialValue: false,
+    }),
+    defineField({
+      name: 'preferredBrands',
+      title: 'Preferred Brands',
+      type: 'array',
+      of: [defineArrayMember({ type: 'reference', to: [{ type: 'brand' }] })],
+      description: 'Brands the user picked during onboarding',
+    }),
+    defineField({
+      name: 'preferredStyles',
+      title: 'Preferred Styles',
+      type: 'array',
+      of: [defineArrayMember({ type: 'reference', to: [{ type: 'style' }] })],
+      description: 'Styles the user picked during onboarding',
+    }),
+    defineField({
       name: 'orders',
       title: 'Order History',
       type: 'array',

@@ -13,6 +13,7 @@
  *  /suppliers    — list Yupoo suppliers
  *  /addsupplier  — add a new supplier
  *  /expense      — record an expense
+ *  /importcategory <url> --brand SLUG --style SLUG [--from N] [--to M] [--ai] [--publish] — run category import from bot
  *
  * Callback queries handle the interactive Yupoo import flow.
  */
@@ -21,6 +22,7 @@ import { createClient } from '@sanity/client';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
+import { spawn } from 'child_process';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..', '..');
@@ -148,7 +150,9 @@ bot.command('start', async (ctx) => {
     '/track — привязать трек-номер\n' +
     '/confirm — подтвердить заказ\n' +
     '/suppliers — поставщики Yupoo\n' +
-    '/expense — записать расход';
+    '/importcategory — импорт категории Yupoo\n' +
+    '/expense — записать расход\n' +
+    '/promo — управление промокодами';
   const keyboard = webAppUrl
     ? { reply_markup: { inline_keyboard: [[{ text: 'Открыть панель', web_app: { url: webAppUrl } }]] } }
     : {};
@@ -429,6 +433,235 @@ bot.command('expense', async (ctx) => {
   } catch (e) {
     await ctx.reply('Ошибка: ' + (e.message || 'create failed'));
   }
+});
+
+// ── /importcategory — запуск импорта категории Yupoo с этой машины ────────
+
+bot.command('importcategory', async (ctx) => {
+  const raw = ctx.message?.text?.replace(/^\/importcategory\s+/i, '').trim() || '';
+  if (!raw) {
+    await ctx.reply(
+      'Импорт категории Yupoo с бота.\n\n' +
+      'Использование:\n' +
+      '/importcategory <URL> --brand SLUG --style SLUG [--from N] [--to M] [--ai] [--publish]\n\n' +
+      'Пример:\n' +
+      '/importcategory https://tophotfashion.x.yupoo.com/categories/4644883 --brand chrome-hearts --style opium --from 1 --to 50 --ai'
+    );
+    return;
+  }
+
+  const args = raw.split(/\s+/);
+  let url = null;
+  let brand = null;
+  let style = null;
+  let category = null;
+  let from = 1;
+  let to = 20;
+  let ai = false;
+  let publish = false;
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i].startsWith('http') && args[i].includes('yupoo')) {
+      url = args[i];
+    } else if (args[i] === '--brand' && args[i + 1]) {
+      brand = args[i + 1].trim();
+      i++;
+    } else if (args[i] === '--style' && args[i + 1]) {
+      style = args[i + 1].trim();
+      i++;
+    } else if (args[i] === '--category' && args[i + 1]) {
+      category = args[i + 1].trim();
+      i++;
+    } else if (args[i] === '--from' && args[i + 1]) {
+      from = parseInt(args[i + 1], 10) || 1;
+      i++;
+    } else if (args[i] === '--to' && args[i + 1]) {
+      to = parseInt(args[i + 1], 10) || 20;
+      i++;
+    } else if (args[i] === '--ai') {
+      ai = true;
+    } else if (args[i] === '--publish') {
+      publish = true;
+    }
+  }
+
+  if (!url || !brand || !style) {
+    await ctx.reply('Нужны: URL категории Yupoo, --brand SLUG и --style SLUG. Опционально: --from N --to M --ai --publish --category SLUG');
+    return;
+  }
+
+  const scriptPath = join(PROJECT_ROOT, 'scripts', 'import-yupoo-to-sanity.mjs');
+  const spawnArgs = [
+    scriptPath,
+    url,
+    '--brand', brand,
+    '--style', style,
+    '--from', String(from),
+    '--to', String(to),
+  ];
+  if (category) spawnArgs.push('--category', category);
+  if (ai) spawnArgs.push('--ai');
+  if (publish) spawnArgs.push('--publish');
+
+  await ctx.reply(`Запускаю импорт: ${from}–${to}, бренд ${brand}, стиль ${style}${ai ? ', с ИИ' : ''}. Уведомлю по окончании.`);
+
+  const adminChatId = ctx.chat?.id;
+  let outBuf = '';
+  let errBuf = '';
+
+  const child = spawn('node', spawnArgs, {
+    cwd: PROJECT_ROOT,
+    env: process.env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  child.stdout?.on('data', (chunk) => { outBuf += chunk.toString(); });
+  child.stderr?.on('data', (chunk) => { errBuf += chunk.toString(); });
+
+  child.on('exit', (code, signal) => {
+    const tail = (s, n = 800) => s.length > n ? '...\n' + s.slice(-n) : s;
+    const errTail = tail(errBuf.trim() || outBuf.trim());
+    if (code === 0) {
+      notifyAdmins(`Импорт категории завершён.\nURL: ${url}\nКод выхода: 0.\n\n${errTail}`).catch(() => {});
+    } else {
+      notifyAdmins(`Импорт категории завершился с ошибкой (код ${code}${signal ? `, ${signal}` : ''}).\nURL: ${url}\n\n${errTail}`).catch(() => {});
+    }
+  });
+
+  child.on('error', (err) => {
+    notifyAdmins(`Импорт категории: не удалось запустить процесс — ${err.message}`).catch(() => {});
+  });
+});
+
+// ── Promo code management ────────────────────────────────────
+
+bot.command('promo', async (ctx) => {
+  if (!client) { await ctx.reply('Sanity не настроен.'); return; }
+  const rest = ctx.message?.text?.replace(/^\/promo\s+/i, '').trim() || '';
+  const parts = rest.split(/\s+/);
+  const subCmd = parts[0]?.toLowerCase();
+
+  if (subCmd === 'create') {
+    // /promo create CODE TYPE VALUE [maxUses] [maxUsesPerUser]
+    const code = parts[1]?.toUpperCase();
+    const type = parts[2];
+    const value = parseInt(parts[3], 10);
+    const maxUses = parts[4] ? parseInt(parts[4], 10) : undefined;
+    const maxUsesPerUser = parts[5] ? parseInt(parts[5], 10) : 1;
+
+    const validTypes = ['discount_percent', 'discount_fixed', 'balance_topup'];
+    if (!code || !validTypes.includes(type) || isNaN(value) || value <= 0) {
+      await ctx.reply(
+        'Использование:\n' +
+        '/promo create CODE TYPE VALUE [maxUses] [maxUsesPerUser]\n\n' +
+        'TYPE: discount_percent, discount_fixed, balance_topup\n' +
+        'Пример: /promo create SUMMER10 discount_percent 10\n' +
+        'Пример: /promo create GIFT50K balance_topup 50000 100'
+      );
+      return;
+    }
+
+    try {
+      const existing = await client.fetch(
+        `*[_type == "promoCode" && upper(code) == $code][0]{ _id }`,
+        { code }
+      );
+      if (existing) {
+        await ctx.reply(`Промокод ${code} уже существует.`);
+        return;
+      }
+
+      const doc = {
+        _type: 'promoCode',
+        code,
+        type,
+        value,
+        isActive: true,
+        usedCount: 0,
+        maxUsesPerUser,
+        usedBy: [],
+      };
+      if (maxUses) doc.maxUses = maxUses;
+
+      await client.create(doc);
+
+      const typeLabel = type === 'discount_percent'
+        ? `${value}%`
+        : type === 'discount_fixed'
+          ? `${value.toLocaleString()} UZS`
+          : `+${value.toLocaleString()} UZS (баланс)`;
+
+      await ctx.reply(
+        `Промокод создан:\n` +
+        `Код: ${code}\n` +
+        `Тип: ${typeLabel}\n` +
+        (maxUses ? `Макс. использований: ${maxUses}\n` : 'Без лимита\n') +
+        `На пользователя: ${maxUsesPerUser}`
+      );
+    } catch (e) {
+      await ctx.reply('Ошибка: ' + (e.message || 'create failed'));
+    }
+    return;
+  }
+
+  if (subCmd === 'list') {
+    try {
+      const codes = await client.fetch(
+        `*[_type == "promoCode" && isActive == true] | order(code asc) {
+          code, type, value, usedCount, maxUses, isActive
+        }`
+      );
+      if (!codes?.length) {
+        await ctx.reply('Нет активных промокодов.');
+        return;
+      }
+      const lines = codes.map((c) => {
+        const typeLabel = c.type === 'discount_percent'
+          ? `${c.value}%`
+          : c.type === 'discount_fixed'
+            ? `${c.value.toLocaleString()} UZS`
+            : `+${c.value.toLocaleString()} UZS (бал.)`;
+        const usage = c.maxUses
+          ? `${c.usedCount || 0}/${c.maxUses}`
+          : `${c.usedCount || 0}/∞`;
+        return `${c.code} — ${typeLabel} (${usage})`;
+      });
+      await ctx.reply('Активные промокоды:\n\n' + lines.join('\n'));
+    } catch (e) {
+      await ctx.reply('Ошибка: ' + (e.message || 'fetch failed'));
+    }
+    return;
+  }
+
+  if (subCmd === 'disable') {
+    const code = parts[1]?.toUpperCase();
+    if (!code) {
+      await ctx.reply('Использование: /promo disable CODE');
+      return;
+    }
+    try {
+      const promo = await client.fetch(
+        `*[_type == "promoCode" && upper(code) == $code][0]{ _id, code }`,
+        { code }
+      );
+      if (!promo) {
+        await ctx.reply(`Промокод ${code} не найден.`);
+        return;
+      }
+      await client.patch(promo._id).set({ isActive: false }).commit();
+      await ctx.reply(`Промокод ${promo.code} деактивирован.`);
+    } catch (e) {
+      await ctx.reply('Ошибка: ' + (e.message || 'patch failed'));
+    }
+    return;
+  }
+
+  await ctx.reply(
+    'Команды промокодов:\n' +
+    '/promo create CODE TYPE VALUE — создать\n' +
+    '/promo list — список активных\n' +
+    '/promo disable CODE — деактивировать'
+  );
 });
 
 // ── Callback queries for Yupoo import flow ──────────────────

@@ -71,8 +71,8 @@ const AI_DELAY_MS = 500;
 const DEFAULT_MAX_PRODUCTS = 5;
 const DEFAULT_PRICE_UZS = 200_000;
 const YUAN_TO_UZS = 1_600;
-/** Skip images smaller than this (bytes). 150 KB = 153600 */
-const MIN_IMAGE_SIZE_BYTES = 800 * 1024;
+/** Skip images smaller than this (bytes). 200 KB = 204800 */
+const MIN_IMAGE_SIZE_BYTES = 200 * 1024;
 /** Max images to send to Gemini for analysis */
 const MAX_AI_IMAGES = 4;
 /** Max parallel image downloads */
@@ -133,10 +133,13 @@ function resolveUrl(url, base) {
   }
 }
 
-/** Parse price from title like "¥~158" or "¥\~329" -> 158 */
+/** Parse price from title: "¥~158" / "￥329" -> 158; "P209 6402-89L" (tophotfashion etc.) -> 209 */
 function parsePriceFromTitle(title) {
+  if (!title || typeof title !== 'string') return null;
   const m = title.match(/[¥￥]\s*\\?~?\s*(\d+)/);
   if (m) return parseInt(m[1], 10);
+  const mP = title.match(/\bP\s*(\d+)\b/);
+  if (mP) return parseInt(mP[1], 10);
   return null;
 }
 

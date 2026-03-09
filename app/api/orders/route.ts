@@ -17,6 +17,8 @@ const bodySchema = z.object({
   initData: z.string().min(1),
   items: z.array(itemSchema).min(1),
   total: z.number().nonnegative(),
+  promoCode: z.string().optional(),
+  discount: z.number().nonnegative().optional(),
 });
 
 function makeSanityClient() {
@@ -99,7 +101,7 @@ export async function POST(request: NextRequest) {
       quantity: it.quantity,
     }));
 
-    await client.create({
+    const orderDoc: Record<string, unknown> = {
       _type: "order",
       orderId,
       user: { _type: "reference", _ref: userDoc._id },
@@ -107,7 +109,37 @@ export async function POST(request: NextRequest) {
       total: parsed.data.total,
       status: "new",
       createdAt: new Date().toISOString(),
-    });
+    };
+
+    if (parsed.data.promoCode) orderDoc.promoCode = parsed.data.promoCode;
+    if (parsed.data.discount) orderDoc.discount = parsed.data.discount;
+
+    await client.create(orderDoc);
+
+    // Record promo code usage if applied
+    if (parsed.data.promoCode) {
+      try {
+        const promo = await client.fetch(
+          `*[_type == "promoCode" && upper(code) == $code][0]{ _id }`,
+          { code: parsed.data.promoCode.trim().toUpperCase() }
+        );
+        if (promo) {
+          await client
+            .patch(promo._id)
+            .inc({ usedCount: 1 })
+            .append("usedBy", [
+              {
+                _key: `${tgUser.id}_${Date.now()}`,
+                telegramId: String(tgUser.id),
+                usedAt: new Date().toISOString(),
+              },
+            ])
+            .commit();
+        }
+      } catch (promoErr) {
+        console.error("Failed to record promo usage:", promoErr);
+      }
+    }
 
     const adminIds = (process.env.ADMIN_TELEGRAM_IDS || "")
       .split(",")
@@ -119,11 +151,14 @@ export async function POST(request: NextRequest) {
       const itemLines = parsed.data.items
         .map((it, i) => `  ${i + 1}. ${it.brand} ${it.title} — ${it.size}`)
         .join("\n");
+      const promoLine = parsed.data.promoCode
+        ? `\nПромокод: ${parsed.data.promoCode} (−${(parsed.data.discount || 0).toLocaleString()} UZS)`
+        : "";
       const text =
         `Новый заказ #${orderId}\n` +
         `Клиент: @${tgUser.username || tgUser.first_name}\n` +
         `Товаров: ${parsed.data.items.length}\n` +
-        `Сумма: ${parsed.data.total.toLocaleString()} UZS\n\n` +
+        `Сумма: ${parsed.data.total.toLocaleString()} UZS${promoLine}\n\n` +
         itemLines;
 
       for (const chatId of adminIds) {

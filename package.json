@@ -12,6 +12,7 @@
     "check-sanity-token": "node --env-file=.env.local scripts/check-sanity-token.mjs",
     "import-yupoo": "node --env-file=.env.local scripts/import-yupoo-to-sanity.mjs",
     "admin-bot": "node scripts/admin-bot/index.mjs",
+    "customer-bot": "node scripts/customer-bot/index.mjs",
     "set-brand-style": "node --env-file=.env.local scripts/set-brand-style.mjs",
     "normalize-subtype-zippie": "node --env-file=.env.local scripts/normalize-subtype-zippie.mjs"
   },

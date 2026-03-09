@@ -152,6 +152,18 @@ export async function POST(request: NextRequest) {
         `${eventDesc}`
     );
 
+    // Отдельное оповещение админу, когда посылка доставлена (последний адрес)
+    if (newStatus === "Delivered") {
+      const locationDesc = latestEvent?.location
+        ? `\nАдрес: ${latestEvent.location}`
+        : "";
+      await notifyAdminBot(
+        `✅ Посылка доставлена\n` +
+          `Заказ #${order.orderId}\n` +
+          `Трек: ${trackNumber}${locationDesc}`
+      );
+    }
+
     const KEY_STATUSES = ["PickedUp", "Delivered"];
     if (
       newStatus &&
