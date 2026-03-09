@@ -1,0 +1,26 @@
+# После push в main подключается к серверу по SSH, делает git pull и перезапускает бота.
+# Секреты репозитория (Settings → Secrets and variables → Actions):
+#   DEPLOY_HOST  — IP или домен сервера (например 123.45.67.89)
+#   DEPLOY_USER — пользователь SSH (например root)
+#   DEPLOY_KEY  — приватный SSH-ключ (содержимое id_rsa, без пароля)
+name: Deploy bot to server
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            cd /opt/freewayz || exit 1
+            git pull
+            npx pm2 restart admin-bot
+            npx pm2 list

@@ -101,6 +101,9 @@ bot.use(session({
 bot.use((ctx, next) => {
   const from = ctx.from;
   if (!from) return next();
+  const text = ctx.message?.text?.trim() || '';
+  const isStartOrHelp = /^\/(start|help)(@\w+)?\s*$/i.test(text);
+  if (isStartOrHelp) return next();
   if (!isAdmin(from.id)) {
     ctx.reply('Access denied.').catch(() => {});
     return;
@@ -140,23 +143,49 @@ async function registerWith17track(trackNumber) {
   }
 }
 
-// ── /start ──────────────────────────────────────────────────
+// ── /start (один бот: админам — админ-меню, остальным — приветствие и кнопки каталога) ─
 
 bot.command('start', async (ctx) => {
-  const text =
-    'Панель администратора\n\n' +
-    '/orders — заказы\n' +
-    '/neworder — создать заказ\n' +
-    '/track — привязать трек-номер\n' +
-    '/confirm — подтвердить заказ\n' +
-    '/suppliers — поставщики Yupoo\n' +
-    '/importcategory — импорт категории Yupoo\n' +
-    '/expense — записать расход\n' +
-    '/promo — управление промокодами';
-  const keyboard = webAppUrl
-    ? { reply_markup: { inline_keyboard: [[{ text: 'Открыть панель', web_app: { url: webAppUrl } }]] } }
-    : {};
-  await ctx.reply(text, keyboard);
+  const from = ctx.from;
+  if (isAdmin(from?.id)) {
+    const text =
+      'Панель администратора\n\n' +
+      '/orders — заказы\n' +
+      '/neworder — создать заказ\n' +
+      '/track — привязать трек-номер\n' +
+      '/confirm — подтвердить заказ\n' +
+      '/suppliers — поставщики Yupoo\n' +
+      '/importcategory — импорт категории Yupoo\n' +
+      '/expense — записать расход\n' +
+      '/promo — управление промокодами';
+    const keyboard = webAppUrl
+      ? { reply_markup: { inline_keyboard: [[{ text: 'Открыть панель', web_app: { url: webAppUrl } }]] } }
+      : {};
+    await ctx.reply(text, keyboard);
+    return;
+  }
+  const firstName = from?.first_name || 'друг';
+  const kb = new InlineKeyboard();
+  if (webAppUrl) {
+    kb.webApp('Каталог', webAppUrl).row();
+    kb.webApp('Рекомендации для тебя', `${webAppUrl}/recommendations`).row();
+    kb.webApp('Мой профиль', `${webAppUrl}/profile`);
+  }
+  await ctx.reply(
+    `Привет, ${firstName}! Добро пожаловать в FreeWayz\n\n` +
+    'Андеграунд стритвир премиум-класса.\n' +
+    'Бренды: SP5DER, Denim Tears, Hellstar, Protect London и другие.\n\n' +
+    'Выбирай из каталога или посмотри персональные рекомендации:',
+    { reply_markup: kb, parse_mode: undefined }
+  );
+});
+
+bot.command('help', async (ctx) => {
+  if (isAdmin(ctx.from?.id)) {
+    await ctx.reply('Админ-команды: /orders, /track, /suppliers, /importcategory, /expense, /promo. Используйте /start.');
+    return;
+  }
+  await ctx.reply('Команды:\n/start — главное меню\n/help — эта справка');
 });
 
 bot.command('menu', async (ctx) => {
@@ -788,7 +817,7 @@ async function setMenuButton() {
   if (!webAppUrl) return;
   try {
     await bot.api.setChatMenuButton({
-      menuButton: { type: 'web_app', text: 'Admin Panel', web_app: { url: webAppUrl } },
+      menuButton: { type: 'web_app', text: 'Каталог', web_app: { url: webAppUrl } },
     });
   } catch (e) {
     console.warn('Could not set menu button:', e.message);
