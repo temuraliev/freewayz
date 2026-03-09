@@ -102,7 +102,7 @@ bot.use((ctx, next) => {
   const from = ctx.from;
   if (!from) return next();
   const text = ctx.message?.text?.trim() || '';
-  const isStartOrHelp = /^\/(start|help)(@\w+)?\s*$/i.test(text);
+  const isStartOrHelp = /^\/(start|help)(@\w+)?(\s.*)?$/i.test(text);
   if (isStartOrHelp) return next();
   if (!isAdmin(from.id)) {
     ctx.reply('Access denied.').catch(() => {});
