@@ -6,6 +6,20 @@ export const productType = defineType({
   type: 'document',
   fields: [
     defineField({
+      name: 'tier',
+      title: 'Tier',
+      type: 'string',
+      options: {
+        list: [
+          {title: 'Top', value: 'top'},
+          {title: 'Ultimate', value: 'ultimate'},
+        ],
+        layout: 'radio',
+      },
+      initialValue: 'ultimate',
+      validation: (rule) => rule.required(),
+    }),
+    defineField({
       name: 'title',
       title: 'Title',
       type: 'string',
@@ -143,6 +157,13 @@ export const productType = defineType({
       initialValue: false,
     }),
     defineField({
+      name: 'internalNotes',
+      title: 'Internal Notes (только для менеджера)',
+      type: 'text',
+      description: 'Закупочная цена, доставка, наценка. Видно только в студии — на сайте и в API клиентам не отдаётся.',
+      options: { rows: 6 },
+    }),
+    defineField({
       name: 'sourceUrl',
       title: 'Source URL (Yupoo)',
       type: 'string',
@@ -156,26 +177,29 @@ export const productType = defineType({
       brand: 'brand.title',
       price: 'price',
       media: 'images.0',
+      tier: 'tier',
       isHotDrop: 'isHotDrop',
       isOnSale: 'isOnSale',
       isNewArrival: 'isNewArrival',
     },
     prepare(selection) {
-      const {title, brand, price, media, isHotDrop, isOnSale, isNewArrival} = selection as {
+      const {title, brand, price, media, tier, isHotDrop, isOnSale, isNewArrival} = selection as {
         title?: string
         brand?: string
         price?: number
         media?: unknown
+        tier?: string
         isHotDrop?: boolean
         isOnSale?: boolean
         isNewArrival?: boolean
       }
 
       const badges = [isHotDrop && '🔥', isOnSale && '💸', isNewArrival && '🆕'].filter(Boolean).join(' ')
+      const tierLabel = tier === 'top' ? '[TOP]' : '[ULT]'
 
       return {
         title: `${badges} ${title ?? ''}`.trim(),
-        subtitle: `${brand ?? ''}${typeof price === 'number' ? ` — ${price} UZS` : ''}`.trim(),
+        subtitle: `${tierLabel} ${brand ?? ''}${typeof price === 'number' ? ` — ${price} UZS` : ''}`.trim(),
         media: media as string | undefined,
       }
     },

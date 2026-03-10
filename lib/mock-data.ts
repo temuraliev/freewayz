@@ -7,6 +7,7 @@ const mockBrand = (title: string, slug: string) => ({ _id: slug, title, slug: { 
 export const MOCK_PRODUCTS: Product[] = [
     {
         _id: "1",
+        tier: "ultimate",
         title: "Washed Black Hoodie",
         slug: { current: "washed-black-hoodie" },
         price: 280,
@@ -20,6 +21,7 @@ export const MOCK_PRODUCTS: Product[] = [
     },
     {
         _id: "2",
+        tier: "ultimate",
         title: "Distressed Cargo Pants",
         slug: { current: "distressed-cargo-pants" },
         price: 320,
@@ -34,6 +36,7 @@ export const MOCK_PRODUCTS: Product[] = [
     },
     {
         _id: "3",
+        tier: "ultimate",
         title: "Oversized Graphic Tee",
         slug: { current: "oversized-graphic-tee" },
         price: 150,
@@ -49,6 +52,7 @@ export const MOCK_PRODUCTS: Product[] = [
 
 export const MOCK_PRODUCT: Product = {
     _id: "1",
+    tier: "ultimate",
     title: "Washed Black Hoodie",
     slug: { current: "washed-black-hoodie" },
     price: 280,

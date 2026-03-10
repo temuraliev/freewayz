@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Product } from "@/lib/types";
 import { formatPrice, cn } from "@/lib/utils";
 import { client } from "@/lib/sanity/client";
+import { useTierStore } from "@/lib/store";
 import { AdminEditButton } from "@/components/admin/admin-edit-button";
 
 const PAGE_SIZE = 20;
@@ -30,6 +31,7 @@ export function InfiniteProductCarousel({
     const offsetRef = useRef(initialProducts.length);
     const sentinelRef = useRef<HTMLDivElement>(null);
     const isLarge = cardSize === "large";
+    const tier = useTierStore((s) => s.tier);
 
     const loadMore = useCallback(async () => {
         if (loading || !hasMore) return;
@@ -39,6 +41,7 @@ export function InfiniteProductCarousel({
             const newItems = await client.fetch<Product[]>(query, {
                 offset,
                 limit: offset + PAGE_SIZE,
+                tier,
             });
             if (!Array.isArray(newItems) || newItems.length === 0) {
                 setHasMore(false);
@@ -51,7 +54,7 @@ export function InfiniteProductCarousel({
             setHasMore(false);
         }
         setLoading(false);
-    }, [loading, hasMore, query]);
+    }, [loading, hasMore, query, tier]);
 
     useEffect(() => {
         if (!sentinelRef.current) return;

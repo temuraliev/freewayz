@@ -472,9 +472,9 @@ bot.command('importcategory', async (ctx) => {
     await ctx.reply(
       'Импорт категории Yupoo с бота.\n\n' +
       'Использование:\n' +
-      '/importcategory <URL> --brand SLUG --style SLUG [--from N] [--to M] [--ai] [--publish]\n\n' +
+      '/importcategory <URL> --brand SLUG --style SLUG [--tier top|ultimate] [--from N] [--to M] [--ai] [--publish]\n\n' +
       'Пример:\n' +
-      '/importcategory https://tophotfashion.x.yupoo.com/categories/4644883 --brand chrome-hearts --style opium --from 1 --to 50 --ai'
+      '/importcategory https://tophotfashion.x.yupoo.com/categories/4644883 --brand chrome-hearts --style opium --tier top --from 1 --to 50 --ai'
     );
     return;
   }
@@ -486,6 +486,7 @@ bot.command('importcategory', async (ctx) => {
   let category = null;
   let from = 1;
   let to = 20;
+  let tier = 'ultimate';
   let ai = false;
   let publish = false;
 
@@ -501,6 +502,9 @@ bot.command('importcategory', async (ctx) => {
     } else if (args[i] === '--category' && args[i + 1]) {
       category = args[i + 1].trim();
       i++;
+    } else if (args[i] === '--tier' && args[i + 1]) {
+      tier = args[i + 1].trim().toLowerCase();
+      i++;
     } else if (args[i] === '--from' && args[i + 1]) {
       from = parseInt(args[i + 1], 10) || 1;
       i++;
@@ -515,7 +519,12 @@ bot.command('importcategory', async (ctx) => {
   }
 
   if (!url || !brand || !style) {
-    await ctx.reply('Нужны: URL категории Yupoo, --brand SLUG и --style SLUG. Опционально: --from N --to M --ai --publish --category SLUG');
+    await ctx.reply('Нужны: URL категории Yupoo, --brand SLUG и --style SLUG. Опционально: --tier top|ultimate --from N --to M --ai --publish --category SLUG');
+    return;
+  }
+
+  if (tier !== 'top' && tier !== 'ultimate') {
+    await ctx.reply('--tier должен быть "top" или "ultimate" (по умолчанию: ultimate)');
     return;
   }
 
@@ -525,6 +534,7 @@ bot.command('importcategory', async (ctx) => {
     url,
     '--brand', brand,
     '--style', style,
+    '--tier', tier,
     '--from', String(from),
     '--to', String(to),
   ];
@@ -532,7 +542,7 @@ bot.command('importcategory', async (ctx) => {
   if (ai) spawnArgs.push('--ai');
   if (publish) spawnArgs.push('--publish');
 
-  await ctx.reply(`Запускаю импорт: ${from}–${to}, бренд ${brand}, стиль ${style}${ai ? ', с ИИ' : ''}. Уведомлю по окончании.`);
+  await ctx.reply(`Запускаю импорт: ${from}–${to}, бренд ${brand}, стиль ${style}, tier ${tier}${ai ? ', с ИИ' : ''}. Уведомлю по окончании.`);
 
   const adminChatId = ctx.chat?.id;
   let outBuf = '';

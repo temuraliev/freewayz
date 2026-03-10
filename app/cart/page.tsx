@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CartItem } from "@/components/cart/cart-item";
 import { CartSummary } from "@/components/cart/cart-summary";
 import { Button } from "@/components/ui/button";
-import { useCartStore } from "@/lib/store";
+import { useCartStore, useTierStore } from "@/lib/store";
 import { ru, itemsCount } from "@/lib/i18n/ru";
 import { Product } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
@@ -29,6 +29,7 @@ interface CrossSellProduct {
 export default function CartPage() {
   const router = useRouter();
   const { items, clearCart, addItem } = useCartStore();
+  const tier = useTierStore((s) => s.tier);
   const [crossSell, setCrossSell] = useState<CrossSellProduct[]>([]);
 
   const fetchCrossSell = useCallback(async () => {
@@ -59,6 +60,7 @@ export default function CartPage() {
     if (brands.length) params.set("brands", brands.join(","));
     if (excludeIds.length) params.set("exclude", excludeIds.join(","));
     params.set("maxPrice", String(maxPrice));
+    params.set("tier", tier);
 
     try {
       const res = await fetch(`/api/cross-sell?${params.toString()}`);
@@ -69,7 +71,7 @@ export default function CartPage() {
     } catch {
       /* ignore */
     }
-  }, [items]);
+  }, [items, tier]);
 
   useEffect(() => {
     fetchCrossSell();

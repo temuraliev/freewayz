@@ -517,6 +517,7 @@ async function main() {
   let useAi = false;
   let autoPublish = false;
   let resumeMode = false;
+  let tierValue = 'ultimate';
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--from' && args[i + 1]) { fromNum = parseInt(args[i + 1], 10); i++; }
@@ -525,13 +526,19 @@ async function main() {
     else if (args[i] === '--brand' && args[i + 1]) { brandSlug = args[i + 1].trim(); i++; }
     else if (args[i] === '--category' && args[i + 1]) { categorySlug = args[i + 1].trim(); i++; }
     else if (args[i] === '--style' && args[i + 1]) { styleSlug = args[i + 1].trim(); i++; }
+    else if (args[i] === '--tier' && args[i + 1]) { tierValue = args[i + 1].trim().toLowerCase(); i++; }
     else if (args[i] === '--ai') { useAi = true; }
     else if (args[i] === '--publish') { autoPublish = true; }
     else if (args[i] === '--resume') { resumeMode = true; }
   }
 
+  if (tierValue !== 'top' && tierValue !== 'ultimate') {
+    console.error('--tier must be "top" or "ultimate" (default: ultimate)');
+    process.exit(1);
+  }
+
   if (!url) {
-    console.error('Usage: node --env-file=.env.local scripts/import-yupoo-to-sanity.mjs <url> [--from N --to M] [--max N] [--brand SLUG] [--category SLUG] [--style SLUG] [--ai] [--publish] [--resume]');
+    console.error('Usage: node --env-file=.env.local scripts/import-yupoo-to-sanity.mjs <url> [--from N --to M] [--max N] [--brand SLUG] [--category SLUG] [--style SLUG] [--tier top|ultimate] [--ai] [--publish] [--resume]');
     process.exit(1);
   }
 
@@ -855,6 +862,7 @@ async function main() {
       const doc = {
         _id: productId,
         _type: 'product',
+        tier: tierValue,
         title: docTitle,
         slug: { _type: 'slug', current: slug },
         price: docPrice,

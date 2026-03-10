@@ -9,8 +9,7 @@ import { InfiniteProductCarousel } from "@/components/products/infinite-product-
 import { ProductGrid } from "@/components/products/product-grid";
 import { InfiniteProductGrid } from "@/components/products/infinite-product-grid";
 import { SectionHeader } from "@/components/products/section-header";
-import { useFilterStore } from "@/lib/store";
-import { useAdminStore } from "@/lib/store";
+import { useFilterStore, useAdminStore, useTierStore } from "@/lib/store";
 import { Product } from "@/lib/types";
 import { client } from "@/lib/sanity/client";
 import {
@@ -58,6 +57,7 @@ export default function HomePage() {
 
   const { style, brand, category, subtype, setSubtype, saleOnly, searchQuery, hasActiveFilters, minPrice, maxPrice } = useFilterStore();
   const catalogInvalidated = useAdminStore((s) => s.catalogInvalidated);
+  const tier = useTierStore((s) => s.tier);
   const filtersActive = hasActiveFilters();
   const searchActive = searchQuery.length >= 2;
 
@@ -69,9 +69,9 @@ export default function HomePage() {
       try {
         // Try fetching from Sanity
         const [hotData, saleData, freshData] = await Promise.all([
-          client.fetch(hotDropsQuery),
-          client.fetch(saleProductsQuery),
-          client.fetch(freshArrivalsQuery),
+          client.fetch(hotDropsQuery, { tier }),
+          client.fetch(saleProductsQuery, { tier }),
+          client.fetch(freshArrivalsQuery, { tier }),
         ]);
 
         // If Sanity succeeds, we trust its response (even if empty)
@@ -89,7 +89,7 @@ export default function HomePage() {
     };
 
     fetchProducts();
-  }, [catalogInvalidated]);
+  }, [catalogInvalidated, tier]);
 
   // Fetch filtered products when filters change
   useEffect(() => {
@@ -102,6 +102,7 @@ export default function HomePage() {
       setLoading(true);
       try {
         const data = await client.fetch(productsByFilterQuery, {
+          tier,
           saleOnly: !!saleOnly,
           style: style || "",
           brand: brand || "",
@@ -132,7 +133,7 @@ export default function HomePage() {
     };
 
     fetchFiltered();
-  }, [style, brand, category, subtype, saleOnly, filtersActive, catalogInvalidated]);
+  }, [style, brand, category, subtype, saleOnly, filtersActive, catalogInvalidated, tier]);
 
   // Fetch distinct subtypes for current filters (brand, style, category, saleOnly) for dynamic subtype chips
   useEffect(() => {
@@ -143,6 +144,7 @@ export default function HomePage() {
     const fetchSubtypes = async () => {
       try {
         const data = await client.fetch(distinctSubtypesQuery, {
+          tier,
           saleOnly: !!saleOnly,
           style: style || "",
           brand: brand || "",
@@ -163,7 +165,7 @@ export default function HomePage() {
       }
     };
     fetchSubtypes();
-  }, [filtersActive, style, brand, category, saleOnly, minPrice, maxPrice, catalogInvalidated]);
+  }, [filtersActive, style, brand, category, saleOnly, minPrice, maxPrice, catalogInvalidated, tier]);
 
   // Search: debounced fetch and filter by title/brand
   useEffect(() => {
@@ -181,7 +183,7 @@ export default function HomePage() {
           setSearchLoading(false);
           return;
         }
-        const data = await client.fetch(searchProductsQuery, { searchTerms });
+        const data = await client.fetch(searchProductsQuery, { searchTerms, tier });
         const list = Array.isArray(data) ? data : [];
         setSearchProducts(list);
       } catch (error) {
@@ -192,7 +194,7 @@ export default function HomePage() {
     }, 300);
 
     return () => clearTimeout(t);
-  }, [searchQuery, searchActive]);
+  }, [searchQuery, searchActive, tier]);
 
   // Loading skeleton
   const LoadingSkeleton = () => (

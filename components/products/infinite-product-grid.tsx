@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Product } from "@/lib/types";
 import { ProductCard } from "@/components/products/product-card";
 import { client } from "@/lib/sanity/client";
+import { useTierStore } from "@/lib/store";
 import { ru } from "@/lib/i18n/ru";
 
 const PAGE_SIZE = 20;
@@ -19,6 +20,7 @@ export function InfiniteProductGrid({ initialProducts, query }: InfiniteProductG
     const [hasMore, setHasMore] = useState(initialProducts.length === PAGE_SIZE);
     const sentinelRef = useRef<HTMLDivElement>(null);
     const offsetRef = useRef(initialProducts.length);
+    const tier = useTierStore((s) => s.tier);
 
     const loadMore = useCallback(async () => {
         if (loading || !hasMore) return;
@@ -28,6 +30,7 @@ export function InfiniteProductGrid({ initialProducts, query }: InfiniteProductG
             const newItems = await client.fetch<Product[]>(query, {
                 offset,
                 limit: offset + PAGE_SIZE,
+                tier,
             });
 
             if (!Array.isArray(newItems) || newItems.length === 0) {
@@ -41,7 +44,7 @@ export function InfiniteProductGrid({ initialProducts, query }: InfiniteProductG
             setHasMore(false);
         }
         setLoading(false);
-    }, [loading, hasMore, query]);
+    }, [loading, hasMore, query, tier]);
 
     useEffect(() => {
         if (!sentinelRef.current) return;

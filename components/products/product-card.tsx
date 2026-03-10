@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Product } from "@/lib/types";
 import { formatPrice, optimizeImage } from "@/lib/utils";
+import { useTierStore } from "@/lib/store";
 import { ru } from "@/lib/i18n/ru";
 import { AdminEditButton } from "@/components/admin/admin-edit-button";
 
@@ -16,6 +17,8 @@ interface ProductCardProps {
 export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const brandName = typeof product.brand === "string" ? product.brand : product.brand?.title;
   const styleName = typeof product.style === "string" ? product.style : product.style?.title;
+  const tier = useTierStore((s) => s.tier);
+  const isUlt = tier === "ultimate";
 
   return (
     <motion.div
@@ -54,17 +57,15 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
 
           {/* Info */}
           <div className="card-info">
-            {/* Product name */}
             <h3 className="truncate text-[13px] font-semibold leading-tight text-foreground">
               {product.title}
             </h3>
 
-            {/* Price row */}
             <div className="mt-2 flex items-center justify-between gap-2">
               <div className="flex items-baseline gap-2">
                 {product.isOnSale && product.originalPrice != null ? (
                   <>
-                    <span className="font-mono text-[13px] font-bold text-red-500">
+                    <span className={`font-mono text-[13px] font-bold ${isUlt ? "text-amber-500" : "text-red-500"}`}>
                       {formatPrice(product.price)}
                     </span>
                     <span className="font-mono text-[11px] text-muted-foreground line-through">
