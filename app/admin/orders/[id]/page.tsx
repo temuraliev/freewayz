@@ -42,6 +42,7 @@ interface Order {
   _id: string;
   orderId: string;
   total: number;
+  cost?: number | null;
   status: string;
   trackNumber?: string;
   trackUrl?: string;
@@ -71,6 +72,7 @@ export default function AdminOrderDetailPage() {
   const [trackNumber, setTrackNumber] = useState("");
   const [trackUrl, setTrackUrl] = useState("");
   const [notes, setNotes] = useState("");
+  const [cost, setCost] = useState<string>("");
 
   const initData =
     typeof window !== "undefined" && window.Telegram?.WebApp?.initData
@@ -93,6 +95,7 @@ export default function AdminOrderDetailPage() {
           setTrackNumber(data.trackNumber ?? "");
           setTrackUrl(data.trackUrl ?? "");
           setNotes(data.notes ?? "");
+          setCost(data.cost != null ? String(data.cost) : "");
         }
       })
       .finally(() => setLoading(false));
@@ -102,6 +105,7 @@ export default function AdminOrderDetailPage() {
     if (!order || !id) return;
     setSaving(true);
     try {
+      const costNum = cost.trim() === "" ? undefined : parseFloat(cost);
       const res = await fetch(`/api/admin/orders/${encodeURIComponent(id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -111,12 +115,13 @@ export default function AdminOrderDetailPage() {
           trackNumber: trackNumber.trim() || undefined,
           trackUrl: trackUrl.trim() || undefined,
           notes: notes.trim() || undefined,
+          cost: costNum != null && !Number.isNaN(costNum) ? costNum : undefined,
         }),
       });
       if (res.ok) {
         setOrder((prev) =>
           prev
-            ? { ...prev, status, trackNumber, trackUrl, notes }
+            ? { ...prev, status, trackNumber, trackUrl, notes, cost: costNum }
             : null
         );
       }
@@ -253,6 +258,14 @@ export default function AdminOrderDetailPage() {
                 {(order.total || 0).toLocaleString()} UZS
               </span>
             </div>
+            {(order.cost != null && order.cost > 0) && (
+              <div className="flex justify-between pt-1 text-sm text-muted-foreground">
+                <span>Себестоимость</span>
+                <span className="font-mono">
+                  {Number(order.cost).toLocaleString()} UZS
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -307,6 +320,23 @@ export default function AdminOrderDetailPage() {
             rows={2}
             className="mt-1 w-full border border-border bg-background px-3 py-2 text-sm"
           />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">
+            Себестоимость заказа (UZS)
+          </label>
+          <input
+            type="number"
+            min={0}
+            step={1000}
+            value={cost}
+            onChange={(e) => setCost(e.target.value)}
+            placeholder="0"
+            className="mt-1 w-full border border-border bg-background px-3 py-2 text-sm"
+          />
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
+            Затраты на заказ (закуп, доставка). Учитываются в прибыли в разделе Финансы.
+          </p>
         </div>
         <button
           onClick={handleSave}

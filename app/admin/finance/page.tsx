@@ -15,6 +15,7 @@ interface Expense {
 interface FinanceData {
   expenses: Expense[];
   revenue: number;
+  costOfGoods: number;
   totalExpense: number;
   profit: number;
 }
@@ -135,8 +136,8 @@ export default function AdminFinancePage() {
         </Link>
       </div>
 
-      {/* Summary cards */}
-      <div className="mb-6 grid grid-cols-3 gap-3">
+      {/* Summary cards: Доход − Себестоимость − Расходы = Прибыль */}
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="border border-border bg-card p-3">
           <div className="text-xs font-medium text-muted-foreground">
             Доход
@@ -144,6 +145,16 @@ export default function AdminFinancePage() {
           <div className="mt-1 font-mono text-lg font-bold text-green-400">
             {data.revenue.toLocaleString()}
           </div>
+          <div className="text-[10px] text-muted-foreground">UZS</div>
+        </div>
+        <div className="border border-border bg-card p-3">
+          <div className="text-xs font-medium text-muted-foreground">
+            Себестоимость заказов
+          </div>
+          <div className="mt-1 font-mono text-lg font-bold text-amber-500">
+            {(data.costOfGoods ?? 0).toLocaleString()}
+          </div>
+          <div className="text-[10px] text-muted-foreground">UZS</div>
         </div>
         <div className="border border-border bg-card p-3">
           <div className="text-xs font-medium text-muted-foreground">
@@ -152,6 +163,7 @@ export default function AdminFinancePage() {
           <div className="mt-1 font-mono text-lg font-bold text-red-400">
             {data.totalExpense.toLocaleString()}
           </div>
+          <div className="text-[10px] text-muted-foreground">UZS</div>
         </div>
         <div className="border border-border bg-card p-3">
           <div className="text-xs font-medium text-muted-foreground">
@@ -162,6 +174,7 @@ export default function AdminFinancePage() {
           >
             {data.profit.toLocaleString()}
           </div>
+          <div className="text-[10px] text-muted-foreground">Доход − себестоимость − расходы</div>
         </div>
       </div>
 

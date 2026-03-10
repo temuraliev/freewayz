@@ -7,6 +7,7 @@ const orderFields = `
   _id,
   orderId,
   total,
+  cost,
   status,
   trackNumber,
   trackUrl,
@@ -30,6 +31,7 @@ const bodySchema = z.object({
   trackNumber: z.string().optional(),
   trackUrl: z.string().url().optional().nullable(),
   notes: z.string().optional(),
+  cost: z.number().min(0).optional().nullable(),
 });
 
 function makeSanityClient() {
@@ -148,6 +150,7 @@ export async function PATCH(
     patch.trackNumber = parsed.data.trackNumber;
   if (parsed.data.trackUrl !== undefined) patch.trackUrl = parsed.data.trackUrl;
   if (parsed.data.notes !== undefined) patch.notes = parsed.data.notes;
+  if (parsed.data.cost !== undefined) patch.cost = parsed.data.cost;
 
   try {
     const prev = await client.getDocument(id).catch(() => null);

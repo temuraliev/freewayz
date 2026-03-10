@@ -41,11 +41,24 @@ export async function GET(request: NextRequest) {
       `*[${expenseFilter}] | order(date desc) { _id, date, amount, currency, category, description }`,
       params
     );
-    const orders = await client.fetch(
-      `*[_type == "order" && status != "cancelled"] { total, createdAt }`
+
+    let orderFilter = `_type == "order" && status != "cancelled"`;
+    const orderParams = { ...params };
+    if (from) orderFilter += ` && createdAt >= $from`;
+    if (to) {
+      orderFilter += ` && createdAt <= $toEnd`;
+      orderParams.toEnd = `${to}T23:59:59.999Z`;
+    }
+    const orders = await client.fetch<{ total?: number; cost?: number }[]>(
+      `*[${orderFilter}] { total, cost, createdAt }`,
+      orderParams
     );
+
     const revenue = Array.isArray(orders)
-      ? (orders as { total?: number }[]).reduce((s, o) => s + (Number(o.total) || 0), 0)
+      ? orders.reduce((s, o) => s + (Number(o.total) || 0), 0)
+      : 0;
+    const costOfGoods = Array.isArray(orders)
+      ? orders.reduce((s, o) => s + (Number(o.cost) || 0), 0)
       : 0;
     const totalExpense = Array.isArray(expenses)
       ? (expenses as { amount?: number; currency?: string }[]).reduce((s, e) => {
@@ -53,11 +66,14 @@ export async function GET(request: NextRequest) {
           return s + (e.currency === "UZS" ? amt : amt * 1600);
         }, 0)
       : 0;
+    const profit = revenue - costOfGoods - totalExpense;
+
     return NextResponse.json({
       expenses: expenses ?? [],
       revenue,
+      costOfGoods,
       totalExpense,
-      profit: revenue - totalExpense,
+      profit,
     });
   } catch (e) {
     console.error("Finance fetch error:", e);

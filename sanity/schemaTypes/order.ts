@@ -46,6 +46,13 @@ export const orderType = defineType({
       validation: (rule) => rule.required().min(0),
     }),
     defineField({
+      name: 'cost',
+      title: 'Себестоимость (UZS)',
+      type: 'number',
+      description: 'Затраты на этот заказ (закуп, доставка по заказу). Используется для расчёта прибыли в бухгалтерии.',
+      validation: (rule) => rule.min(0),
+    }),
+    defineField({
       name: 'status',
       title: 'Status',
       type: 'string',
