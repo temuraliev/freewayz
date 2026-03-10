@@ -6,6 +6,7 @@ import { ArrowLeft, Crown, Star, Flame, Gift, TrendingUp, Tag, Loader2, Check } 
 import { motion } from "framer-motion";
 
 import { useUserStore } from "@/lib/store";
+import type { User } from "@/lib/types";
 import { formatPrice, getStatusProgress, getUserStatusEmoji } from "@/lib/utils";
 import { ru } from "@/lib/i18n/ru";
 import { Button } from "@/components/ui/button";
@@ -217,8 +218,8 @@ function PromoSection({
   user,
   setUser,
 }: {
-  user: ReturnType<typeof useUserStore>["user"];
-  setUser: ReturnType<typeof useUserStore>["setUser"];
+  user: User | null;
+  setUser: (user: User | null) => void;
 }) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);

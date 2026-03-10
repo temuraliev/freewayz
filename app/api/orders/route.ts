@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       quantity: it.quantity,
     }));
 
-    const orderDoc: Record<string, unknown> = {
+    const orderDoc: Record<string, unknown> & { _type: string } = {
       _type: "order",
       orderId,
       user: { _type: "reference", _ref: userDoc._id },

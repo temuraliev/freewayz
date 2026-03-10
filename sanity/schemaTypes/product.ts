@@ -161,7 +161,7 @@ export const productType = defineType({
       title: 'Internal Notes (только для менеджера)',
       type: 'text',
       description: 'Закупочная цена, доставка, наценка. Видно только в студии — на сайте и в API клиентам не отдаётся.',
-      options: { rows: 6 },
+      rows: 6,
     }),
     defineField({
       name: 'sourceUrl',
