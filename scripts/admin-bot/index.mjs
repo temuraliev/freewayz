@@ -13,7 +13,8 @@
  *  /suppliers    — list Yupoo suppliers
  *  /addsupplier  — add a new supplier
  *  /expense      — record an expense
- *  /importcategory <url> --brand SLUG --style SLUG [--from N] [--to M] [--ai] [--publish] — run category import from bot
+ *  /importcategory <url> ... — add Yupoo category import to queue (runs one by one)
+ *  /importqueue — show import queue and current job
  *
  * Callback queries handle the interactive Yupoo import flow.
  */
@@ -180,12 +181,57 @@ bot.command('start', async (ctx) => {
   );
 });
 
+const ADMIN_HELP = (
+  '📋 Справка по командам бота\n\n' +
+  '🛒 Заказы\n' +
+  '/orders — список последних 15 заказов (номер, статус, сумма, трек).\n' +
+  'Пример: /orders\n\n' +
+  '/order <orderId> — детали заказа (клиент, товары, трек, заметки).\n' +
+  'Пример: /order 42\n' +
+  'Пример: /order ORDER-abc123\n\n' +
+  '/neworder @username товар1, товар2 сумма — создать заказ вручную.\n' +
+  'Пример: /neworder @ivan худи sp5der, футболка denim tears 990000\n\n' +
+  '/track <orderId> <трек-номер> — привязать трек к заказу.\n' +
+  'Пример: /track 42 1Z999AA10123456784\n\n' +
+  '/confirm <orderId> — перевести заказ в статус «заказан».\n' +
+  'Пример: /confirm 42\n\n' +
+  '📦 Поставщики и импорт\n' +
+  '/suppliers — список Yupoo-поставщиков.\n' +
+  'Пример: /suppliers\n\n' +
+  '/addsupplier <url> — добавить поставщика по URL магазина.\n' +
+  'Пример: /addsupplier https://tophotfashion.x.yupoo.com\n\n' +
+  '/importcategory <URL> --brand SLUG --style SLUG [опции] — добавить импорт категории в очередь. Выполняется по одному.\n' +
+  'Опции: --tier top|ultimate, --from N, --to M, --min-image-size KB, --category SLUG, --ai, --publish\n' +
+  'Пример: /importcategory https://tophotfashion.x.yupoo.com/categories/4644883 --brand chrome-hearts --style opium --tier top --from 1 --to 50 --min-image-size 100 --ai\n\n' +
+  '/importqueue — показать очередь импортов и текущую задачу.\n' +
+  'Пример: /importqueue\n\n' +
+  '💰 Финансы\n' +
+  '/expense <сумма> <описание> — записать расход.\n' +
+  'Пример: /expense 50000 Доставка из Китая\n\n' +
+  '🎟 Промокоды\n' +
+  '/promo create CODE TYPE VALUE [maxUses] [maxUsesPerUser] — создать промокод.\n' +
+  'TYPE: discount_percent, discount_fixed, balance_topup\n' +
+  'Пример: /promo create SUMMER10 discount_percent 10\n' +
+  'Пример: /promo create GIFT50K balance_topup 50000 100\n\n' +
+  '/promo list — список активных промокодов.\n' +
+  'Пример: /promo list\n\n' +
+  '/promo disable CODE — отключить промокод.\n' +
+  'Пример: /promo disable SUMMER10\n\n' +
+  '/start — главное меню с кнопкой панели.'
+);
+
+const USER_HELP = (
+  'Команды бота:\n\n' +
+  '/start — главное меню (каталог, рекомендации, профиль).\n\n' +
+  '/help — эта справка.'
+);
+
 bot.command('help', async (ctx) => {
   if (isAdmin(ctx.from?.id)) {
-    await ctx.reply('Админ-команды: /orders, /track, /suppliers, /importcategory, /expense, /promo. Используйте /start.');
+    await ctx.reply(ADMIN_HELP);
     return;
   }
-  await ctx.reply('Команды:\n/start — главное меню\n/help — эта справка');
+  await ctx.reply(USER_HELP);
 });
 
 bot.command('menu', async (ctx) => {
@@ -464,17 +510,77 @@ bot.command('expense', async (ctx) => {
   }
 });
 
-// ── /importcategory — запуск импорта категории Yupoo с этой машины ────────
+// ── Очередь импортов Yupoo ─────────────────────────────────────────────────
+
+const importQueue = [];
+let importRunning = null;
+
+function runNextImport() {
+  if (importRunning || importQueue.length === 0) return;
+
+  const job = importQueue.shift();
+  const { url, brand, style, category, from, to, tier, ai, publish, minImageSize } = job;
+
+  const scriptPath = join(PROJECT_ROOT, 'scripts', 'import-yupoo-to-sanity.mjs');
+  const spawnArgs = [
+    scriptPath,
+    url,
+    '--brand', brand,
+    '--style', style,
+    '--tier', tier,
+    '--from', String(from),
+    '--to', String(to),
+  ];
+  if (category) spawnArgs.push('--category', category);
+  if (minImageSize != null && minImageSize > 0) spawnArgs.push('--min-image-size', String(minImageSize));
+  if (ai) spawnArgs.push('--ai');
+  if (publish) spawnArgs.push('--publish');
+
+  let outBuf = '';
+  let errBuf = '';
+
+  const child = spawn('node', spawnArgs, {
+    cwd: PROJECT_ROOT,
+    env: process.env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  importRunning = { job, child };
+
+  child.stdout?.on('data', (chunk) => { outBuf += chunk.toString(); });
+  child.stderr?.on('data', (chunk) => { errBuf += chunk.toString(); });
+
+  child.on('exit', (code, signal) => {
+    const tail = (s, n = 800) => s.length > n ? '...\n' + s.slice(-n) : s;
+    const errTail = tail(errBuf.trim() || outBuf.trim());
+    if (code === 0) {
+      notifyAdmins(`Импорт завершён.\nURL: ${url}\nБренд: ${brand}, стиль: ${style}\nКод: 0.\n\n${errTail}`).catch(() => {});
+    } else {
+      notifyAdmins(`Импорт с ошибкой (код ${code}${signal ? `, ${signal}` : ''}).\nURL: ${url}\n\n${errTail}`).catch(() => {});
+    }
+    importRunning = null;
+    runNextImport();
+  });
+
+  child.on('error', (err) => {
+    notifyAdmins(`Импорт: не удалось запустить — ${err.message}`).catch(() => {});
+    importRunning = null;
+    runNextImport();
+  });
+}
+
+// ── /importcategory — добавить импорт в очередь ─────────────────────────────
 
 bot.command('importcategory', async (ctx) => {
   const raw = ctx.message?.text?.replace(/^\/importcategory\s+/i, '').trim() || '';
   if (!raw) {
     await ctx.reply(
-      'Импорт категории Yupoo с бота.\n\n' +
+      'Импорт категории Yupoo (очередь).\n\n' +
       'Использование:\n' +
-      '/importcategory <URL> --brand SLUG --style SLUG [--tier top|ultimate] [--from N] [--to M] [--ai] [--publish]\n\n' +
+      '/importcategory <URL> --brand SLUG --style SLUG [--tier top|ultimate] [--from N] [--to M] [--min-image-size KB] [--ai] [--publish]\n\n' +
       'Пример:\n' +
-      '/importcategory https://tophotfashion.x.yupoo.com/categories/4644883 --brand chrome-hearts --style opium --tier top --from 1 --to 50 --ai'
+      '/importcategory https://... --brand x --style y --from 1 --to 50 --min-image-size 100 --ai\n\n' +
+      '/importqueue — показать очередь'
     );
     return;
   }
@@ -487,6 +593,7 @@ bot.command('importcategory', async (ctx) => {
   let from = 1;
   let to = 20;
   let tier = 'ultimate';
+  let minImageSize = null;
   let ai = false;
   let publish = false;
 
@@ -504,6 +611,10 @@ bot.command('importcategory', async (ctx) => {
       i++;
     } else if (args[i] === '--tier' && args[i + 1]) {
       tier = args[i + 1].trim().toLowerCase();
+      i++;
+    } else if (args[i] === '--min-image-size' && args[i + 1]) {
+      const n = parseInt(args[i + 1], 10);
+      minImageSize = Number.isNaN(n) ? null : Math.max(0, n);
       i++;
     } else if (args[i] === '--from' && args[i + 1]) {
       from = parseInt(args[i + 1], 10) || 1;
@@ -528,48 +639,30 @@ bot.command('importcategory', async (ctx) => {
     return;
   }
 
-  const scriptPath = join(PROJECT_ROOT, 'scripts', 'import-yupoo-to-sanity.mjs');
-  const spawnArgs = [
-    scriptPath,
-    url,
-    '--brand', brand,
-    '--style', style,
-    '--tier', tier,
-    '--from', String(from),
-    '--to', String(to),
-  ];
-  if (category) spawnArgs.push('--category', category);
-  if (ai) spawnArgs.push('--ai');
-  if (publish) spawnArgs.push('--publish');
+  const job = { url, brand, style, category, from, to, tier, minImageSize, ai, publish };
+  importQueue.push(job);
+  const pos = importQueue.length;
+  const running = importRunning ? 1 : 0;
 
-  await ctx.reply(`Запускаю импорт: ${from}–${to}, бренд ${brand}, стиль ${style}, tier ${tier}${ai ? ', с ИИ' : ''}. Уведомлю по окончании.`);
+  const minImg = minImageSize != null ? `, мин. фото: ${minImageSize} KB` : '';
+  await ctx.reply(
+    `Добавлено в очередь. Позиция: ${pos} (в очереди: ${importQueue.length}, выполняется: ${running}).\n` +
+    `${brand} / ${style}, ${from}–${to}, tier: ${tier}${minImg}${ai ? ', ИИ' : ''}. Уведомлю по окончании.`
+  );
 
-  const adminChatId = ctx.chat?.id;
-  let outBuf = '';
-  let errBuf = '';
+  runNextImport();
+});
 
-  const child = spawn('node', spawnArgs, {
-    cwd: PROJECT_ROOT,
-    env: process.env,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+// ── /importqueue — показать очередь импортов ────────────────────────────────
 
-  child.stdout?.on('data', (chunk) => { outBuf += chunk.toString(); });
-  child.stderr?.on('data', (chunk) => { errBuf += chunk.toString(); });
-
-  child.on('exit', (code, signal) => {
-    const tail = (s, n = 800) => s.length > n ? '...\n' + s.slice(-n) : s;
-    const errTail = tail(errBuf.trim() || outBuf.trim());
-    if (code === 0) {
-      notifyAdmins(`Импорт категории завершён.\nURL: ${url}\nКод выхода: 0.\n\n${errTail}`).catch(() => {});
-    } else {
-      notifyAdmins(`Импорт категории завершился с ошибкой (код ${code}${signal ? `, ${signal}` : ''}).\nURL: ${url}\n\n${errTail}`).catch(() => {});
-    }
-  });
-
-  child.on('error', (err) => {
-    notifyAdmins(`Импорт категории: не удалось запустить процесс — ${err.message}`).catch(() => {});
-  });
+bot.command('importqueue', async (ctx) => {
+  const running = importRunning
+    ? `Выполняется: ${importRunning.job.url}\n  ${importRunning.job.brand} / ${importRunning.job.style} (${importRunning.job.from}–${importRunning.job.to})\n\n`
+    : '';
+  const list = importQueue.length === 0
+    ? 'Очередь пуста.'
+    : importQueue.map((j, i) => `${i + 1}. ${j.brand} / ${j.style} — ${j.url} (${j.from}–${j.to})`).join('\n');
+  await ctx.reply(running + 'Очередь:\n' + list);
 });
 
 // ── Promo code management ────────────────────────────────────

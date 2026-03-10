@@ -350,7 +350,7 @@ async function fetchImageBuffer(url, referer) {
  * Download multiple images in parallel (batch of PARALLEL_DOWNLOADS).
  * Returns array of { index, buffer } for successful downloads.
  */
-async function downloadImagesParallel(imageUrls, referer) {
+async function downloadImagesParallel(imageUrls, referer, minSizeBytes = MIN_IMAGE_SIZE_BYTES) {
   const results = [];
   for (let start = 0; start < imageUrls.length; start += PARALLEL_DOWNLOADS) {
     const batch = imageUrls.slice(start, start + PARALLEL_DOWNLOADS);
@@ -358,8 +358,8 @@ async function downloadImagesParallel(imageUrls, referer) {
       const index = start + batchIdx;
       try {
         const buffer = await fetchImageBuffer(url, referer);
-        if (buffer.length < MIN_IMAGE_SIZE_BYTES) {
-          console.log(`    Skip image ${index + 1} (too small: ${Math.round(buffer.length / 1024)} KB)`);
+        if (buffer.length < minSizeBytes) {
+          console.log(`    Skip image ${index + 1} (too small: ${Math.round(buffer.length / 1024)} KB, min ${Math.round(minSizeBytes / 1024)} KB)`);
           return null;
         }
         return { index, buffer };
@@ -518,6 +518,7 @@ async function main() {
   let autoPublish = false;
   let resumeMode = false;
   let tierValue = 'ultimate';
+  let minImageSizeKb = 200;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--from' && args[i + 1]) { fromNum = parseInt(args[i + 1], 10); i++; }
@@ -527,10 +528,13 @@ async function main() {
     else if (args[i] === '--category' && args[i + 1]) { categorySlug = args[i + 1].trim(); i++; }
     else if (args[i] === '--style' && args[i + 1]) { styleSlug = args[i + 1].trim(); i++; }
     else if (args[i] === '--tier' && args[i + 1]) { tierValue = args[i + 1].trim().toLowerCase(); i++; }
+    else if (args[i] === '--min-image-size' && args[i + 1]) { minImageSizeKb = parseInt(args[i + 1], 10) || 200; i++; }
     else if (args[i] === '--ai') { useAi = true; }
     else if (args[i] === '--publish') { autoPublish = true; }
     else if (args[i] === '--resume') { resumeMode = true; }
   }
+
+  const minImageSizeBytes = Math.max(0, minImageSizeKb) * 1024;
 
   if (tierValue !== 'top' && tierValue !== 'ultimate') {
     console.error('--tier must be "top" or "ultimate" (default: ultimate)');
@@ -538,7 +542,7 @@ async function main() {
   }
 
   if (!url) {
-    console.error('Usage: node --env-file=.env.local scripts/import-yupoo-to-sanity.mjs <url> [--from N --to M] [--max N] [--brand SLUG] [--category SLUG] [--style SLUG] [--tier top|ultimate] [--ai] [--publish] [--resume]');
+    console.error('Usage: node --env-file=.env.local scripts/import-yupoo-to-sanity.mjs <url> [--from N --to M] [--max N] [--brand SLUG] [--category SLUG] [--style SLUG] [--tier top|ultimate] [--min-image-size KB] [--ai] [--publish] [--resume]');
     process.exit(1);
   }
 
@@ -756,7 +760,7 @@ async function main() {
         : slugBase + '_' + (rangeFrom + i);
 
       // ── Download ALL images in parallel ────────────────────────────────
-      const downloadedImages = await downloadImagesParallel(imageUrls, albumOrigin);
+      const downloadedImages = await downloadImagesParallel(imageUrls, albumOrigin, minImageSizeBytes);
       if (downloadedImages.length === 0) {
         console.log('  ⚠ No valid images downloaded. Skip.');
         failed++;

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { CartItem as CartItemType } from "@/lib/types";
@@ -40,8 +41,11 @@ export function CartItem({ item }: CartItemProps) {
       exit={{ opacity: 0, x: -20 }}
       className="flex gap-3 rounded-xl border border-border bg-card p-3"
     >
-      {/* Image */}
-      <div className="relative h-24 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-secondary">
+      {/* Image — клик ведёт на страницу товара */}
+      <Link
+        href={`/product/${product.slug.current}`}
+        className="relative block h-24 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-secondary"
+      >
         {product.images?.[0] && (
           <Image
             src={product.images[0]}
@@ -50,17 +54,22 @@ export function CartItem({ item }: CartItemProps) {
             className="object-cover"
           />
         )}
-      </div>
+      </Link>
 
       {/* Info */}
       <div className="flex flex-1 flex-col justify-between">
         <div>
-          <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-            {typeof product.brand === 'string' ? product.brand : product.brand?.title}
-          </p>
-          <h3 className="text-sm font-medium text-foreground line-clamp-1">
-            {product.title}
-          </h3>
+          <Link
+            href={`/product/${product.slug.current}`}
+            className="block transition-opacity hover:opacity-80"
+          >
+            <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+              {typeof product.brand === 'string' ? product.brand : product.brand?.title}
+            </p>
+            <h3 className="text-sm font-medium text-foreground line-clamp-1">
+              {product.title}
+            </h3>
+          </Link>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {ru.size}: {size}
             {color && ` • ${color}`}

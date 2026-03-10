@@ -239,13 +239,25 @@ export function ProductPageClient({ product, initialEditMode }: ProductPageClien
 
         {/* Description */}
         {product.description && (
-          <div>
-            <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground" style={{ fontFamily: "var(--font-mono)" }}>
+          <div className="border-t border-border pt-5">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/90" style={{ fontFamily: "var(--font-mono)" }}>
               {ru.description}
             </p>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {product.description}
-            </p>
+            <div className="text-[15px] leading-7 text-foreground/90 tracking-tight">
+              {(product.description || "")
+                .split(/\n\n+/)
+                .filter(Boolean)
+                .map((paragraph, i) => (
+                  <p key={i} className={i > 0 ? "mt-4" : ""}>
+                    {paragraph.split("\n").map((line, j) => (
+                      <span key={j}>
+                        {j > 0 && <br />}
+                        {line}
+                      </span>
+                    ))}
+                  </p>
+                ))}
+            </div>
           </div>
         )}
 
