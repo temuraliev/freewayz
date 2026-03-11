@@ -204,7 +204,13 @@ const ADMIN_HELP = (
   'Опции: --tier top|ultimate, --from N, --to M, --min-image-size KB, --category SLUG, --ai, --publish\n' +
   'Пример: /importcategory https://tophotfashion.x.yupoo.com/categories/4644883 --brand chrome-hearts --style opium --tier top --from 1 --to 50 --min-image-size 100 --ai\n\n' +
   '/importqueue — показать очередь импортов и текущую задачу.\n' +
-  'Пример: /importqueue\n\n' +
+  'Пример: /importqueue\n' +
+  '/importqueue remove <N> — удалить N-ю задачу из очереди.\n' +
+  'Пример: /importqueue remove 2\n' +
+  '/importqueue clear — очистить очередь ожидания (текущий импорт не трогает).\n' +
+  'Пример: /importqueue clear\n\n' +
+  '/importcancel — остановить текущий импорт и перейти к следующему.\n' +
+  'Пример: /importcancel\n\n' +
   '💰 Финансы\n' +
   '/expense <сумма> <описание> — записать расход.\n' +
   'Пример: /expense 50000 Доставка из Китая\n\n' +
@@ -551,9 +557,12 @@ function runNextImport() {
   child.stderr?.on('data', (chunk) => { errBuf += chunk.toString(); });
 
   child.on('exit', (code, signal) => {
+    const wasCancelled = !!importRunning?.job?.cancelled;
     const tail = (s, n = 800) => s.length > n ? '...\n' + s.slice(-n) : s;
     const errTail = tail(errBuf.trim() || outBuf.trim());
-    if (code === 0) {
+    if (wasCancelled) {
+      notifyAdmins(`Импорт остановлен админом.\nURL: ${url}\n\n${errTail}`).catch(() => {});
+    } else if (code === 0) {
       notifyAdmins(`Импорт завершён.\nURL: ${url}\nБренд: ${brand}, стиль: ${style}\nКод: 0.\n\n${errTail}`).catch(() => {});
     } else {
       notifyAdmins(`Импорт с ошибкой (код ${code}${signal ? `, ${signal}` : ''}).\nURL: ${url}\n\n${errTail}`).catch(() => {});
@@ -653,16 +662,78 @@ bot.command('importcategory', async (ctx) => {
   runNextImport();
 });
 
-// ── /importqueue — показать очередь импортов ────────────────────────────────
+// ── /importqueue — управление очередью импортов ─────────────────────────────
+// /importqueue                — показать очередь
+// /importqueue remove <N>     — удалить N-ю задачу из очереди
+// /importqueue clear          — очистить очередь
 
 bot.command('importqueue', async (ctx) => {
+  const rest = ctx.message?.text?.replace(/^\/importqueue(\s+)?/i, '').trim() || '';
+  const parts = rest.split(/\s+/).filter(Boolean);
+  const sub = (parts[0] || '').toLowerCase();
+
+  if (sub === 'clear') {
+    const removed = importQueue.length;
+    importQueue.length = 0;
+    await ctx.reply(`Очередь очищена. Удалено задач: ${removed}.`);
+    return;
+  }
+
+  if (sub === 'remove') {
+    const n = parts[1] ? parseInt(parts[1], 10) : NaN;
+    if (Number.isNaN(n) || n < 1 || n > importQueue.length) {
+      await ctx.reply(
+        'Использование:\n' +
+        '/importqueue remove <N>\n\n' +
+        `Сейчас в очереди: ${importQueue.length}\n` +
+        'Пример: /importqueue remove 2'
+      );
+      return;
+    }
+    const removedJob = importQueue.splice(n - 1, 1)[0];
+    await ctx.reply(
+      `Удалено из очереди (#${n}):\n` +
+      `${removedJob.brand} / ${removedJob.style} — ${removedJob.url} (${removedJob.from}–${removedJob.to})`
+    );
+    return;
+  }
+
   const running = importRunning
-    ? `Выполняется: ${importRunning.job.url}\n  ${importRunning.job.brand} / ${importRunning.job.style} (${importRunning.job.from}–${importRunning.job.to})\n\n`
+    ? `Выполняется:\n${importRunning.job.url}\n${importRunning.job.brand} / ${importRunning.job.style} (${importRunning.job.from}–${importRunning.job.to})\n\n`
     : '';
   const list = importQueue.length === 0
     ? 'Очередь пуста.'
     : importQueue.map((j, i) => `${i + 1}. ${j.brand} / ${j.style} — ${j.url} (${j.from}–${j.to})`).join('\n');
   await ctx.reply(running + 'Очередь:\n' + list);
+});
+
+// ── /importcancel — остановить текущий импорт ───────────────────────────────
+
+bot.command('importcancel', async (ctx) => {
+  if (!importRunning?.child) {
+    await ctx.reply('Сейчас нет активного импорта.');
+    return;
+  }
+
+  const { job, child } = importRunning;
+  job.cancelled = true;
+
+  // Try graceful stop first
+  const pid = child.pid;
+  try { child.kill('SIGTERM'); } catch {}
+
+  // Force kill if still running after 5s
+  setTimeout(() => {
+    if (importRunning?.child?.pid === pid) {
+      try { importRunning.child.kill('SIGKILL'); } catch {}
+    }
+  }, 5000);
+
+  await ctx.reply(
+    'Останавливаю текущий импорт…\n' +
+    `${job.brand} / ${job.style} — ${job.url}\n` +
+    'После остановки запущу следующий из очереди (если есть).'
+  );
 });
 
 // ── Promo code management ────────────────────────────────────
