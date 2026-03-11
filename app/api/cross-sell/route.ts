@@ -32,7 +32,7 @@ const PROJECTION = `{
   price,
   originalPrice,
   "images": images[0...1].asset->url,
-  "brand": brand->{ title, slug },
+  "brand": brand->{ _id, title, slug },
   subtype,
   isOnSale
 }`;
