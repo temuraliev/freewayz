@@ -66,8 +66,8 @@ const BROWSER_HEADERS = {
   'Upgrade-Insecure-Requests': '1'
 };
 
-const DELAY_MS = 500;
-const AI_DELAY_MS = 500;
+const DELAY_MS = 200;
+const AI_DELAY_MS = 250;
 const DEFAULT_MAX_PRODUCTS = 5;
 const DEFAULT_PRICE_UZS = 200_000;
 const YUAN_TO_UZS = 1_600;
@@ -75,8 +75,10 @@ const YUAN_TO_UZS = 1_600;
 const MIN_IMAGE_SIZE_BYTES = 200 * 1024;
 /** Max images to send to Gemini for analysis */
 const MAX_AI_IMAGES = 4;
-/** Max parallel image downloads */
-const PARALLEL_DOWNLOADS = 3;
+/** Max parallel image downloads from Yupoo */
+const PARALLEL_DOWNLOADS = 5;
+/** Max parallel image uploads to Sanity */
+const PARALLEL_UPLOADS = 5;
 
 import { chromium } from 'playwright';
 
@@ -370,7 +372,7 @@ async function downloadImagesParallel(imageUrls, referer, minSizeBytes = MIN_IMA
     });
     const batchResults = await Promise.all(promises);
     results.push(...batchResults.filter(Boolean));
-    if (start + PARALLEL_DOWNLOADS < imageUrls.length) await sleep(100);
+    if (start + PARALLEL_DOWNLOADS < imageUrls.length) await sleep(50);
   }
   return results;
 }
@@ -804,24 +806,33 @@ async function main() {
         }
       }
 
-      // ── Upload images to Sanity ────────────────────────────────────────
+      // ── Upload images to Sanity (parallel, max PARALLEL_UPLOADS at a time) ─
       console.log('  📤 Uploading images to Sanity...');
       const imageRefs = [];
-      for (const { index, buffer } of downloadedImages) {
+      const uploadOne = async ({ index, buffer }) => {
         try {
-          await sleep(100);
           const asset = await client.assets.upload('image', buffer, {
             filename: `yupoo-${i}-${index}.jpg`,
             contentType: 'image/jpeg',
           });
-          imageRefs.push({
-            _key: `img-${i}-${index}-${asset._id.slice(-6)}`,
-            _type: 'image',
-            asset: { _type: 'reference', _ref: asset._id },
-          });
+          return {
+            index,
+            ref: {
+              _key: `img-${i}-${index}-${asset._id.slice(-6)}`,
+              _type: 'image',
+              asset: { _type: 'reference', _ref: asset._id },
+            },
+          };
         } catch (e) {
           console.log(`    Upload error image ${index + 1}: ${e.message}`);
+          return null;
         }
+      };
+      for (let start = 0; start < downloadedImages.length; start += PARALLEL_UPLOADS) {
+        const chunk = downloadedImages.slice(start, start + PARALLEL_UPLOADS);
+        const results = await Promise.all(chunk.map((item) => uploadOne(item)));
+        const valid = results.filter(Boolean).sort((a, b) => a.index - b.index);
+        for (const { ref } of valid) imageRefs.push(ref);
       }
 
       if (imageRefs.length === 0) {
