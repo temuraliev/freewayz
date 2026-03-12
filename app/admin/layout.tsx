@@ -15,7 +15,7 @@ export default function AdminLayout({
 
   useEffect(() => {
     if (isAdmin === false) {
-      router.replace("/");
+      router.replace("/admin/login");
     }
   }, [isAdmin, router]);
 

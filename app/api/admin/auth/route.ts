@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateAdminInitData } from "@/lib/admin-auth";
+import { getAdminSessionCookieName, verifyAdminSessionToken } from "@/lib/admin-session";
 import { z } from "zod";
 
 const bodySchema = z.object({ initData: z.string() });
 
 export async function POST(request: NextRequest) {
+  // 1) Browser admin session (cookie) — allows admin panel outside Telegram
+  const cookieToken = request.cookies.get(getAdminSessionCookieName())?.value;
+  if (verifyAdminSessionToken(cookieToken)) {
+    return NextResponse.json({ ok: true, user: { id: 0, first_name: "Browser Admin" } });
+  }
+
   let body: unknown;
   try {
     body = await request.json();
