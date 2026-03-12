@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    // Vercel Image Optimization can return 402 when quota/plan limits are hit.
-    // We rely on Sanity CDN image URLs instead.
+    // Vercel Image Optimization is returning 402 (quota/plan). Disable Next.js
+    // optimization so images load directly from their source (e.g. Sanity CDN).
     unoptimized: true,
     remotePatterns: [
       {
