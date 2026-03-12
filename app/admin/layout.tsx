@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAdminStore } from "@/lib/store";
 
@@ -11,13 +11,21 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const isAdmin = useAdminStore((s) => s.isAdmin);
+  const isLoginRoute = pathname === "/admin/login";
 
   useEffect(() => {
+    if (isLoginRoute) return;
     if (isAdmin === false) {
       router.replace("/admin/login");
     }
-  }, [isAdmin, router]);
+  }, [isAdmin, isLoginRoute, router]);
+
+  // Allow /admin/login to render even when not admin
+  if (isLoginRoute) {
+    return <>{children}</>;
+  }
 
   if (isAdmin === null) {
     return (
