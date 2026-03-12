@@ -55,7 +55,7 @@ export const productBySlugQuery = groq`
   }
 `;
 
-// Products with filters — hot drops first, new arrivals second, then by date
+// Products with filters — first page (limited to 20)
 export const productsByFilterQuery = groq`
   *[_type == "product"
     && tier == $tier
@@ -66,9 +66,39 @@ export const productsByFilterQuery = groq`
     && ($subtype == "" || subtype == $subtype)
     && price >= $minPrice
     && price <= $maxPrice
-  ] | order(isHotDrop desc, isNewArrival desc, _createdAt desc) {
+  ] | order(isHotDrop desc, isNewArrival desc, _createdAt desc) [0...20] {
     ${productFields}
   }
+`;
+
+// Products with filters — paginated (infinite scroll)
+export const productsByFilterPaginatedQuery = groq`
+  *[_type == "product"
+    && tier == $tier
+    && ($saleOnly == false || isOnSale == true)
+    && ($style == "" || style->slug.current == $style)
+    && ($brand == "" || brand->slug.current == $brand)
+    && ($category == "" || category->slug.current == $category)
+    && ($subtype == "" || subtype == $subtype)
+    && price >= $minPrice
+    && price <= $maxPrice
+  ] | order(isHotDrop desc, isNewArrival desc, _createdAt desc) [$offset...$limit] {
+    ${productFields}
+  }
+`;
+
+// Count of filtered products (for "Found: N" badge)
+export const productsByFilterCountQuery = groq`
+  count(*[_type == "product"
+    && tier == $tier
+    && ($saleOnly == false || isOnSale == true)
+    && ($style == "" || style->slug.current == $style)
+    && ($brand == "" || brand->slug.current == $brand)
+    && ($category == "" || category->slug.current == $category)
+    && ($subtype == "" || subtype == $subtype)
+    && price >= $minPrice
+    && price <= $maxPrice
+  ])
 `;
 
 // Hot Drops - first page

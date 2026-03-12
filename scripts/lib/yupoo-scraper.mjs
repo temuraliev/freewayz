@@ -12,6 +12,7 @@ import {
   roundPriceToNiceUzs,
   normalizeSubtype,
 } from './gemini-enrich.mjs';
+import { compressImageToMaxBytes } from './compress-image.mjs';
 
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
@@ -43,6 +44,18 @@ function isRealImageUrl(url) {
     !u.includes('logo') &&
     !u.includes('icon')
   );
+}
+
+function slugify(text, fallback = 'product') {
+  if (!text || typeof text !== 'string') return fallback;
+  const s = text
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40);
+  return s || fallback;
 }
 
 function normalizeImageUrl(url) {
@@ -276,8 +289,10 @@ export async function importSingleAlbum({
     const uploadedAssets = [];
     for (const buf of imageBuffers) {
       try {
-        const asset = await sanityClient.assets.upload('image', buf, {
+        const compressed = await compressImageToMaxBytes(buf, 500 * 1024);
+        const asset = await sanityClient.assets.upload('image', compressed, {
           filename: `yupoo-${Date.now()}.jpg`,
+          contentType: 'image/jpeg',
         });
         uploadedAssets.push(asset);
       } catch (e) {
@@ -332,11 +347,12 @@ export async function importSingleAlbum({
       brand?.slug || 'brand',
     ].join('_');
 
+    const titlePart = slugify(title).slice(0, 40);
     const existing = await sanityClient.fetch(
       `count(*[_type == "product" && slug.current match $p])`,
       { p: `${slugBase}*` }
     );
-    const slugCurrent = `${slugBase}_${(existing || 0) + 1}`;
+    const slugCurrent = [slugBase, titlePart || 'product', (existing || 0) + 1].join('_');
 
     const images = uploadedAssets.map((a, i) => ({
       _key: `img${i}`,

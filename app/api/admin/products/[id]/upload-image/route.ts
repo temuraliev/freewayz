@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@sanity/client";
 import imageUrlBuilder from "@sanity/image-url";
 import { isAdminRequest } from "@/lib/admin-gate";
+import { compressImageToMaxBytes } from "@/lib/compress-image";
 
 export async function POST(
   request: NextRequest,
@@ -36,10 +37,11 @@ export async function POST(
   });
 
   try {
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const rawBuffer = Buffer.from(await file.arrayBuffer());
+    const buffer = await compressImageToMaxBytes(rawBuffer, 500 * 1024);
     const asset = await client.assets.upload("image", buffer, {
       filename: file.name || "admin-upload.jpg",
-      contentType: file.type || "image/jpeg",
+      contentType: "image/jpeg",
     });
     const doc = await client.getDocument(docId);
     if (!doc) {

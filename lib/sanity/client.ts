@@ -24,7 +24,9 @@ export const client = createClient({
   projectId,
   dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
   apiVersion: "2024-01-01",
-  useCdn: false, // false = данные всегда свежие (новые товары видны сразу)
+  // ISR (revalidate) handles caching at the Next.js level.
+  // CDN disabled because dataset config causes CDN lookup errors on this project.
+  useCdn: false,
 });
 
 

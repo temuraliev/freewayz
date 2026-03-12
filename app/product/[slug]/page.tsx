@@ -14,14 +14,19 @@ type Props = {
 export const revalidate = 60; // Revalidate every 60 seconds
 
 export async function generateStaticParams() {
-  const products = await client.fetch<{ slug: { current: string } }[]>(
-    `*[_type == "product"]{ slug }`
-  );
-  return products
-    .filter((p) => p.slug?.current)
-    .map((p) => ({
-      slug: p.slug.current,
-    }));
+  try {
+    const products = await client.fetch<{ slug: { current: string } }[]>(
+      `*[_type == "product"]{ slug }`
+    );
+    return products
+      .filter((p) => p.slug?.current)
+      .map((p) => ({
+        slug: p.slug.current,
+      }));
+  } catch (error) {
+    console.warn("generateStaticParams: failed to fetch products from Sanity. Skipping pre-render:", error);
+    return [];
+  }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

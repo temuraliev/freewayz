@@ -578,6 +578,7 @@ function runNextImport() {
   ];
   if (category) spawnArgs.push('--category', category);
   if (minImageSize != null && minImageSize > 0) spawnArgs.push('--min-image-size', String(minImageSize));
+  if (job.concurrency) spawnArgs.push('--concurrency', String(job.concurrency));
   if (ai) spawnArgs.push('--ai');
   if (publish) spawnArgs.push('--publish');
 
@@ -645,6 +646,7 @@ bot.command('importcategory', async (ctx) => {
   let to = 20;
   let tier = 'ultimate';
   let minImageSize = null;
+  let concurrency = 3;
   let ai = false;
   let publish = false;
 
@@ -666,6 +668,9 @@ bot.command('importcategory', async (ctx) => {
     } else if (args[i] === '--min-image-size' && args[i + 1]) {
       const n = parseInt(args[i + 1], 10);
       minImageSize = Number.isNaN(n) ? null : Math.max(0, n);
+      i++;
+    } else if (args[i] === '--concurrency' && args[i + 1]) {
+      concurrency = parseInt(args[i + 1], 10) || 3;
       i++;
     } else if (args[i] === '--from' && args[i + 1]) {
       from = parseInt(args[i + 1], 10) || 1;
@@ -690,16 +695,17 @@ bot.command('importcategory', async (ctx) => {
     return;
   }
 
-  const job = { url, brand, style, category, from, to, tier, minImageSize, ai, publish };
+  const job = { url, brand, style, category, from, to, tier, minImageSize, concurrency, ai, publish };
   importQueue.push(job);
   saveImportQueueState(importQueue, importRunning?.job || null);
   const pos = importQueue.length;
   const running = importRunning ? 1 : 0;
 
   const minImg = minImageSize != null ? `, мин. фото: ${minImageSize} KB` : '';
+  const concLog = concurrency !== 3 ? `, потоков: ${concurrency}` : '';
   await ctx.reply(
     `Добавлено в очередь. Позиция: ${pos} (в очереди: ${importQueue.length}, выполняется: ${running}).\n` +
-    `${brand} / ${style}, ${from}–${to}, tier: ${tier}${minImg}${ai ? ', ИИ' : ''}. Уведомлю по окончании.`
+    `${brand} / ${style}, ${from}–${to}, tier: ${tier}${minImg}${concLog}${ai ? ', ИИ' : ''}. Уведомлю по окончании.`
   );
 
   runNextImport();
