@@ -89,11 +89,11 @@ export function ProductEditOverlay({
   }, [open, product]);
 
   useEffect(() => {
-    if (!open || !initData || !product._id) return;
+    if (!open || !product._id) return;
     setImagesLoading(true);
-    fetch(`/api/admin/products/${encodeURIComponent(product._id)}`, {
+    fetch(`/api/admin/products/${encodeURIComponent(product._id)}`, initData ? {
       headers: { "X-Telegram-Init-Data": initData },
-    })
+    } : undefined)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Failed to load"))))
       .then((data: { images?: { _ref: string; url: string }[] }) => {
         const imgs = data.images ?? [];
@@ -197,7 +197,7 @@ export function ProductEditOverlay({
   const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file || !initData || !product._id) return;
+    if (!file || !product._id) return;
     setUploadingImage(true);
     try {
       const form = new FormData();
@@ -222,10 +222,6 @@ export function ProductEditOverlay({
   };
 
   const handleSave = async () => {
-    if (!initData) {
-      toast({ title: "Нет доступа", variant: "destructive" });
-      return;
-    }
     const priceNum = parseInt(price, 10);
     const originalPriceNum = originalPrice.trim() ? parseInt(originalPrice, 10) : null;
     if (Number.isNaN(priceNum) || priceNum <= 0) {

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@sanity/client";
-import { validateAdminInitData } from "@/lib/admin-auth";
+import { isAdminRequest } from "@/lib/admin-gate";
 import { z } from "zod";
 
-const bodySchema = z.object({ initData: z.string() });
+const bodySchema = z.object({ initData: z.string().optional().default("") });
 
 export async function POST(
   request: NextRequest,
@@ -24,7 +24,7 @@ export async function POST(
     return NextResponse.json({ error: "initData required" }, { status: 400 });
   }
 
-  const auth = validateAdminInitData(parsed.data.initData ?? "", request.headers.get("host"));
+  const auth = isAdminRequest(request, parsed.data.initData ?? "");
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@sanity/client";
 import imageUrlBuilder from "@sanity/image-url";
-import { validateAdminInitData } from "@/lib/admin-auth";
+import { isAdminRequest } from "@/lib/admin-gate";
 
 export async function POST(
   request: NextRequest,
@@ -12,7 +12,7 @@ export async function POST(
 
   const formData = await request.formData();
   const initData = (formData.get("initData") as string | null) ?? "";
-  const auth = validateAdminInitData(initData, request.headers.get("host"));
+  const auth = isAdminRequest(request, initData);
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

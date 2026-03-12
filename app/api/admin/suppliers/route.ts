@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@sanity/client";
-import { validateAdminInitData } from "@/lib/admin-auth";
+import { isAdminRequest } from "@/lib/admin-gate";
 
 export async function GET(request: NextRequest) {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
-  const auth = validateAdminInitData(initData, request.headers.get("host"));
+  const auth = isAdminRequest(request, initData);
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
   const initData = (body as Record<string, unknown>)?.initData;
   const initDataStr = typeof initData === "string" ? initData : "";
-  const auth = validateAdminInitData(initDataStr, request.headers.get("host"));
+  const auth = isAdminRequest(request, initDataStr);
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

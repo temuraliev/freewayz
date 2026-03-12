@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@sanity/client";
 import imageUrlBuilder from "@sanity/image-url";
-import { validateAdminInitData } from "@/lib/admin-auth";
+import { isAdminRequest } from "@/lib/admin-gate";
 import { normalizeSubtype } from "@/lib/sanity/normalize-subtype";
 import { z } from "zod";
 
@@ -25,7 +25,7 @@ export async function GET(
   const { id } = await params;
   const docId = decodeURIComponent(id);
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
-  const auth = validateAdminInitData(initData, request.headers.get("host"));
+  const auth = isAdminRequest(request, initData);
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -62,7 +62,7 @@ export async function GET(
 }
 
 const bodySchema = z.object({
-  initData: z.string(),
+  initData: z.string().optional().default(""),
   title: z.string().optional(),
   description: z.string().nullable().optional(),
   price: z.number().positive().optional(),
@@ -98,7 +98,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const auth = validateAdminInitData(parsed.data.initData ?? "", request.headers.get("host"));
+  const auth = isAdminRequest(request, parsed.data.initData ?? "");
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
