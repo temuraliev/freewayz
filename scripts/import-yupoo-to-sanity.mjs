@@ -118,7 +118,7 @@ function jitterStr(min = 1000, max = 3000) {
 const DEFAULT_PRICE_UZS = 200_000;
 const YUAN_TO_UZS = 1_600;
 let MIN_IMAGE_SIZE_BYTES = 200 * 1024;
-const MAX_AI_IMAGES = 10;
+const MAX_AI_IMAGES = 20;
 const PARALLEL_DOWNLOADS = 5;
 const PARALLEL_UPLOADS = 5;
 const MAX_UPLOAD_BYTES = 250 * 1024;
