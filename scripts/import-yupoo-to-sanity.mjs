@@ -397,15 +397,8 @@ function parseAlbumPageImages(html, albumUrl) {
   const seen = new Set();
   const urls = [];
 
-  const ogImage = $('meta[property="og:image"]').attr('content');
-  if (ogImage && isRealImageUrl(ogImage)) {
-    const full = ogImage.startsWith('//') ? 'https:' + ogImage : resolveUrl(ogImage, albumUrl);
-    const norm = normalizeImageUrl(full);
-    if (!seen.has(norm)) {
-      seen.add(norm);
-      urls.push(full);
-    }
-  }
+  // Rely on document order for images, don't prioritize og:image
+  // as it may not be the intended first photo in the gallery.
 
   $('img').each((_, el) => {
     const candidates = [$(el).attr('data-origin-src'), $(el).attr('data-original'), $(el).attr('src'), $(el).attr('data-src')].filter(Boolean);

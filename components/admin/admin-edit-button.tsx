@@ -23,7 +23,7 @@ export function AdminEditButton({ product, className = "" }: AdminEditButtonProp
         e.stopPropagation();
         setEditingProduct(product);
       }}
-      className={`absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-md bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80 ${className}`}
+      className={`absolute left-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-md bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80 ${className}`}
       aria-label="Редактировать товар"
     >
       <Pencil className="h-4 w-4" />
