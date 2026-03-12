@@ -20,7 +20,7 @@
  */
 import { Bot, session, InlineKeyboard } from 'grammy';
 import { createClient } from '@sanity/client';
-import { readFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
@@ -518,8 +518,47 @@ bot.command('expense', async (ctx) => {
 
 // ── Очередь импортов Yupoo ─────────────────────────────────────────────────
 
-const importQueue = [];
+const IMPORT_QUEUE_FILE =
+  (process.env.IMPORT_QUEUE_FILE || '').trim() ||
+  join(PROJECT_ROOT, '.importqueue.json');
+
+function loadImportQueueState() {
+  try {
+    if (!existsSync(IMPORT_QUEUE_FILE)) return { queue: [], runningJob: null };
+    const raw = readFileSync(IMPORT_QUEUE_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    const queue = Array.isArray(parsed?.queue) ? parsed.queue : [];
+    const runningJob = parsed?.runningJob && typeof parsed.runningJob === 'object' ? parsed.runningJob : null;
+    return { queue, runningJob };
+  } catch (e) {
+    console.warn('Failed to load import queue state:', e.message || e);
+    return { queue: [], runningJob: null };
+  }
+}
+
+function saveImportQueueState(queue, runningJob) {
+  try {
+    const dir = IMPORT_QUEUE_FILE.replace(/[\\/][^\\/]+$/, '');
+    if (dir && dir !== IMPORT_QUEUE_FILE) {
+      try { mkdirSync(dir, { recursive: true }); } catch {}
+    }
+    const tmp = IMPORT_QUEUE_FILE + '.tmp';
+    writeFileSync(tmp, JSON.stringify({ queue, runningJob, savedAt: new Date().toISOString() }, null, 2), 'utf8');
+    writeFileSync(IMPORT_QUEUE_FILE, readFileSync(tmp, 'utf8'), 'utf8');
+  } catch (e) {
+    console.warn('Failed to save import queue state:', e.message || e);
+  }
+}
+
+const state = loadImportQueueState();
+const importQueue = Array.isArray(state.queue) ? state.queue : [];
 let importRunning = null;
+
+// If bot restarted mid-import, put that job back to the front of the queue.
+if (state.runningJob) {
+  importQueue.unshift({ ...state.runningJob, requeuedAfterRestart: true, requeuedAt: new Date().toISOString() });
+}
+saveImportQueueState(importQueue, null);
 
 function runNextImport() {
   if (importRunning || importQueue.length === 0) return;
@@ -552,6 +591,7 @@ function runNextImport() {
   });
 
   importRunning = { job, child };
+  saveImportQueueState(importQueue, job);
 
   child.stdout?.on('data', (chunk) => { outBuf += chunk.toString(); });
   child.stderr?.on('data', (chunk) => { errBuf += chunk.toString(); });
@@ -568,12 +608,14 @@ function runNextImport() {
       notifyAdmins(`Импорт с ошибкой (код ${code}${signal ? `, ${signal}` : ''}).\nURL: ${url}\n\n${errTail}`).catch(() => {});
     }
     importRunning = null;
+    saveImportQueueState(importQueue, null);
     runNextImport();
   });
 
   child.on('error', (err) => {
     notifyAdmins(`Импорт: не удалось запустить — ${err.message}`).catch(() => {});
     importRunning = null;
+    saveImportQueueState(importQueue, null);
     runNextImport();
   });
 }
@@ -650,6 +692,7 @@ bot.command('importcategory', async (ctx) => {
 
   const job = { url, brand, style, category, from, to, tier, minImageSize, ai, publish };
   importQueue.push(job);
+  saveImportQueueState(importQueue, importRunning?.job || null);
   const pos = importQueue.length;
   const running = importRunning ? 1 : 0;
 
@@ -675,6 +718,7 @@ bot.command('importqueue', async (ctx) => {
   if (sub === 'clear') {
     const removed = importQueue.length;
     importQueue.length = 0;
+    saveImportQueueState(importQueue, importRunning?.job || null);
     await ctx.reply(`Очередь очищена. Удалено задач: ${removed}.`);
     return;
   }
@@ -691,6 +735,7 @@ bot.command('importqueue', async (ctx) => {
       return;
     }
     const removedJob = importQueue.splice(n - 1, 1)[0];
+    saveImportQueueState(importQueue, importRunning?.job || null);
     await ctx.reply(
       `Удалено из очереди (#${n}):\n` +
       `${removedJob.brand} / ${removedJob.style} — ${removedJob.url} (${removedJob.from}–${removedJob.to})`
@@ -717,6 +762,7 @@ bot.command('importcancel', async (ctx) => {
 
   const { job, child } = importRunning;
   job.cancelled = true;
+  saveImportQueueState(importQueue, job);
 
   // Try graceful stop first
   const pid = child.pid;
