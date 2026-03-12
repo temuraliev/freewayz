@@ -16,6 +16,7 @@ export interface Product {
   videos?: string[];
   model3d?: string | null;
   category: {
+    _id: string;
     title: string;
     slug: { current: string };
     subtypes?: string[];

@@ -150,7 +150,8 @@ export const searchProductsQuery = groq`
     category->title match $searchTerms || 
     style->title match $searchTerms ||
     subtype match $searchTerms ||
-    pt::text(description) match $searchTerms
+    pt::text(description) match $searchTerms ||
+    internalNotes match $searchTerms
   )] | order(_updatedAt desc) [0...80] {
     ${searchProductFields}
   }
@@ -167,6 +168,14 @@ export const distinctSubtypesQuery = groq`
     && price >= $minPrice
     && price <= $maxPrice
   ] { subtype }
+`;
+
+export const relatedProductsQuery = groq`
+  *[_type == "product" && _id != $currentProductId && tier == $tier && (
+    brand._ref == $brandId || style._ref == $styleId || category._ref == $categoryId
+  )] | order(isHotDrop desc, _createdAt desc) [0...6] {
+    ${productFields}
+  }
 `;
 
 // Categories queries (with subtypes for filter drawer)

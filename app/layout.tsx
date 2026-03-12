@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TelegramProvider } from "@/components/providers/telegram-provider";
 import { AdminProvider } from "@/components/admin/admin-provider";
 import { TierThemeProvider } from "@/components/providers/tier-theme-provider";
+import { QuickViewModal } from "@/components/products/quick-view-modal";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -64,6 +65,7 @@ export default function RootLayout({
             <main className="min-h-screen pb-20 relative z-10">
               {children}
             </main>
+            <QuickViewModal />
           </AdminProvider>
           <BottomNav />
           <Toaster />

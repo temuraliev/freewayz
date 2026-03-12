@@ -9,6 +9,7 @@ import { ImageCarousel, type CarouselMediaItem } from "@/components/products/ima
 import dynamic from "next/dynamic";
 import { SizeSelector } from "@/components/products/size-selector";
 import { ColorSelector } from "@/components/products/color-selector";
+import { RelatedProducts } from "@/components/products/related-products";
 import { useCartStore } from "@/lib/store";
 import { useAdminStore } from "@/lib/store";
 import { useHapticFeedback } from "@/components/providers/telegram-provider";
@@ -283,6 +284,14 @@ export function ProductPageClient({ product, initialEditMode }: ProductPageClien
           />
         )}
       </motion.div>
+
+      {/* Related Products / Recommendations */}
+      <RelatedProducts 
+        currentProductId={product._id} 
+        brandId={typeof product.brand !== "string" ? product.brand?._id : undefined}
+        styleId={typeof product.style !== "string" ? product.style?._id : undefined}
+        categoryId={typeof product.category !== "string" ? product.category?._id : undefined}
+      />
 
       {/* Fixed CTA */}
       <div className="fixed bottom-[72px] left-0 right-0 z-40 border-t border-border bg-background/95 p-4 backdrop-blur-lg safe-bottom">

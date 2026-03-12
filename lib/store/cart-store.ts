@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { CartItem, Product, Size, Color } from "@/lib/types";
+import { telegramStorage } from "@/lib/store/telegram-storage";
 
 interface CartState {
   items: CartItem[];
@@ -105,6 +106,7 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: "freewayz-cart",
+      storage: createJSONStorage(() => telegramStorage),
       partialize: (state) => ({ items: state.items }),
     }
   )

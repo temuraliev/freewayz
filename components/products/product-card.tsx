@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Product } from "@/lib/types";
 import { formatPrice, optimizeImage } from "@/lib/utils";
-import { useTierStore } from "@/lib/store";
+import { useTierStore, useQuickViewStore } from "@/lib/store";
 import { ru } from "@/lib/i18n/ru";
 import { AdminEditButton } from "@/components/admin/admin-edit-button";
 
@@ -19,6 +19,12 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const styleName = typeof product.style === "string" ? product.style : product.style?.title;
   const tier = useTierStore((s) => s.tier);
   const isUlt = tier === "ultimate";
+  const openQuickView = useQuickViewStore((s) => s.openQuickView);
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    openQuickView(product);
+  };
 
   return (
     <motion.div
@@ -26,7 +32,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.06, ease: [0.22, 1, 0.36, 1] }}
     >
-      <Link href={`/product/${product.slug.current}`} className="group block relative">
+      <a href={`/product/${product.slug.current}`} onClick={handleClick} className="group block relative cursor-pointer">
         <div className="product-card-editorial">
           {/* Image */}
           <div className="card-img-wrap">
@@ -86,7 +92,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
             </div>
           </div>
         </div>
-      </Link>
+      </a>
     </motion.div>
   );
 }
