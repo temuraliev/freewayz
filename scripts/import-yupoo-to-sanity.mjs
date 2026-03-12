@@ -117,7 +117,7 @@ function jitterStr(min = 1000, max = 3000) {
 
 const DEFAULT_PRICE_UZS = 200_000;
 const YUAN_TO_UZS = 1_600;
-const MIN_IMAGE_SIZE_BYTES = 200 * 1024;
+let MIN_IMAGE_SIZE_BYTES = 200 * 1024;
 const MAX_AI_IMAGES = 4;
 const PARALLEL_DOWNLOADS = 5;
 const PARALLEL_UPLOADS = 5;
@@ -465,12 +465,12 @@ async function main() {
     });
   } catch(e) {}
 
-  tgBotToken = process.env.TELEGRAM_BOT_TOKEN || '';
-  tgChatId = process.env.TELEGRAM_CHAT_ID || '';
+  tgBotToken = process.env.ADMIN_BOT_TOKEN || process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || '';
+  tgChatId = (process.env.ADMIN_TELEGRAM_IDS || '').split(',')[0].trim() || process.env.TELEGRAM_CHAT_ID || '';
 
   const args = process.argv.slice(2);
   let url = args.find((a) => a.startsWith('http'));
-  let maxProducts = 5;
+  let maxProducts = 1000; // Increased default
   let concurrency = 3;
   let brandSlug = null;
   let categorySlug = null;
@@ -479,6 +479,8 @@ async function main() {
   let autoPublish = false;
   let resumeMode = false;
   let tierValue = 'ultimate';
+  let fromIdx = 1;
+  let toIdx = null;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--max' && args[i + 1]) { maxProducts = parseInt(args[i + 1], 10); i++; }
@@ -487,6 +489,13 @@ async function main() {
     else if (args[i] === '--category' && args[i + 1]) { categorySlug = args[i + 1].trim(); i++; }
     else if (args[i] === '--style' && args[i + 1]) { styleSlug = args[i + 1].trim(); i++; }
     else if (args[i] === '--tier' && args[i + 1]) { tierValue = args[i + 1].trim().toLowerCase(); i++; }
+    else if (args[i] === '--from' && args[i + 1]) { fromIdx = parseInt(args[i + 1], 10); i++; }
+    else if (args[i] === '--to' && args[i + 1]) { toIdx = parseInt(args[i + 1], 10); i++; }
+    else if (args[i] === '--min-image-size' && args[i + 1]) { 
+      const kb = parseInt(args[i + 1], 10);
+      if (!isNaN(kb)) MIN_IMAGE_SIZE_BYTES = kb * 1024;
+      i++; 
+    }
     else if (args[i] === '--ai') { useAi = true; }
     else if (args[i] === '--publish') { autoPublish = true; }
     else if (args[i] === '--resume') { resumeMode = true; }
@@ -508,7 +517,7 @@ async function main() {
   if (!projectId || !token) { console.error('Set NEXT_PUBLIC_SANITY_PROJECT_ID and SANITY_API_TOKEN'); process.exit(1); }
 
   const client = createClient({ projectId, dataset, apiVersion: '2024-01-01', useCdn: false, token });
-  try { await client.fetch('*[_type == "product"][0]{_id}'); } catch (e) { console.error('Sanity check failed'); process.exit(1); }
+  try { await client.fetch('*[_type == "product"][0]{_id}'); } catch (e) { console.error('Sanity check failed:', e.message); process.exit(1); }
 
   const existingSourceUrls = new Set();
   try {
@@ -556,7 +565,15 @@ async function main() {
   if (resumeMode) albumUrls = albumUrls.filter(u => !progress.completed.includes(u.replace(/\?.*$/, '')));
   if (existingSourceUrls.size > 0) albumUrls = albumUrls.filter(u => !existingSourceUrls.has(u.replace(/\?.*$/, '')));
 
-  albumUrls = albumUrls.slice(0, maxProducts);
+  // Apply range --from and --to (1-based indices as expected by human)
+  const start = Math.max(0, fromIdx - 1);
+  const end = toIdx ? Math.min(albumUrls.length, toIdx) : albumUrls.length;
+  albumUrls = albumUrls.slice(start, end);
+
+  // Apply --max limit if specified
+  if (args.includes('--max')) {
+    albumUrls = albumUrls.slice(0, maxProducts);
+  }
   
   if (albumUrls.length === 0) {
     console.log("No albums to import after dedup and max limit.");
