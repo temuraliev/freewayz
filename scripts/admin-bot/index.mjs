@@ -428,7 +428,10 @@ bot.command('confirm', async (ctx) => {
   if (!arg) { await ctx.reply('Использование: /confirm <orderId>'); return; }
   try {
     const order = await client.fetch(
-      `*[_type == "order" && (orderId == $id || _id == $id)][0]{ _id, orderId, status }`,
+      `*[_type == "order" && (orderId == $id || _id == $id)][0]{ 
+        _id, orderId, status, total,
+        user->{ _id, telegramId, referredBy, totalSpent, cashbackBalance, status, firstName }
+      }`,
       { id: arg }
     );
     if (!order) { await ctx.reply('Заказ не найден.'); return; }
@@ -436,11 +439,80 @@ bot.command('confirm', async (ctx) => {
       await ctx.reply(`Заказ #${order.orderId} уже в статусе: ${order.status}`);
       return;
     }
-    await client.patch(order._id).set({
-      status: 'ordered',
-      updatedAt: new Date().toISOString(),
-    }).commit();
-    await ctx.reply(`Заказ #${order.orderId} подтверждён (ordered)`);
+
+    const orderTotal = order.total || 0;
+    const user = order.user;
+    let replyText = `Заказ #${order.orderId} подтверждён (ordered)`;
+
+    if (user) {
+      // 1. Update Total Spent
+      const newTotalSpent = (user.totalSpent || 0) + orderTotal;
+      
+      // 2. Recalculate Loyalty Status
+      // Thresholds: PRO = 4M, LEGEND = 7M (as per lib/utils.ts)
+      let newStatus = 'ROOKIE';
+      if (newTotalSpent >= 7000000) newStatus = 'LEGEND';
+      else if (newTotalSpent >= 4000000) newStatus = 'PRO';
+
+      // 3. Referral Bonus (50,000 UZS)
+      let referrerUpdate = null;
+      let userBonusSuffix = '';
+      
+      if (user.referredBy && (!user.totalSpent || user.totalSpent === 0)) {
+        const REFERRER_BONUS = 50000;
+        const referrerId = user.referredBy;
+        
+        // Find referrer in Sanity
+        const referrer = await client.fetch(`*[_type == "user" && telegramId == $id][0]`, { id: referrerId });
+        
+        if (referrer) {
+          referrerUpdate = client
+            .patch(referrer._id)
+            .inc({ cashbackBalance: REFERRER_BONUS })
+            .commit();
+          
+          // Notify referrer via bot if possible
+          bot.api.sendMessage(referrer.telegramId, 
+            `💰 <b>Бонус начислен!</b>\n\nТвой друг ${user.firstName || ''} @${user.username || ''} сделал первый заказ. Тебе начислено <b>50,000 UZS</b> кэшбэка!`,
+            { parse_mode: 'HTML' }
+          ).catch(() => {});
+
+          // Add bonus to the buyer too
+          userBonusSuffix = ` + Начислен реферальный бонус 50,000 UZS`;
+          replyText += userBonusSuffix;
+        }
+      }
+
+      // Final User Patch
+      const userPatch = client.patch(user._id).set({
+        totalSpent: newTotalSpent,
+        status: newStatus,
+      });
+
+      if (userBonusSuffix) {
+        userPatch.inc({ cashbackBalance: 50000 });
+      }
+
+      await Promise.all([
+        userPatch.commit(),
+        referrerUpdate,
+        client.patch(order._id).set({
+          status: 'ordered',
+          updatedAt: new Date().toISOString(),
+        }).commit()
+      ]);
+
+      if (newStatus !== user.status) {
+        replyText += `\n⬆️ Статус клиента повышен до <b>${newStatus}</b>!`;
+      }
+    } else {
+      await client.patch(order._id).set({
+        status: 'ordered',
+        updatedAt: new Date().toISOString(),
+      }).commit();
+    }
+
+    await ctx.reply(replyText, { parse_mode: 'HTML' });
   } catch (e) {
     await ctx.reply('Ошибка: ' + (e.message || 'update failed'));
   }

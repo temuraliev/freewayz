@@ -83,6 +83,9 @@ export const ru = {
   tierRookieRange: "0 — 4 млн сўм",
   tierProRange: "4 — 7 млн сўм",
   tierLegendRange: "7 млн+ сўм",
+  leftToSpend: "Осталось потратить",
+  forStatus: "для перехода на уровень",
+  maxStatusReached: "🏆 Вы достигли максимального статуса! Скидка 10% работает всегда.",
 
   // Toast / generic
   loading: "Загрузка...",

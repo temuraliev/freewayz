@@ -2,32 +2,34 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Crown, Star, Flame, Gift, TrendingUp, Tag, Loader2, Check } from "lucide-react";
+import { ArrowLeft, Crown, Star, Flame, Gift, TrendingUp, Tag, Loader2, Check, Heart, Share2 } from "lucide-react";
 import { motion } from "framer-motion";
 
-import { useUserStore } from "@/lib/store";
+import { useUserStore, useWishlistStore } from "@/lib/store";
 import type { User } from "@/lib/types";
 import { formatPrice, getStatusProgress, getUserStatusEmoji } from "@/lib/utils";
+import { ymTrack } from "@/components/providers/yandex-metrica";
 import { ru } from "@/lib/i18n/ru";
 import { Button } from "@/components/ui/button";
+import { ProductCard } from "@/components/products/product-card";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { telegramUser, user, getDisplayName, getStatusLabel, setUser } = useUserStore();
+  const { telegramUser, user, getDisplayName, setUser } = useUserStore();
 
   const status = user?.status || "ROOKIE";
   const totalSpent = user?.totalSpent || 0;
   const cashback = user?.cashbackBalance || 0;
-  const progress = getStatusProgress(totalSpent);
+  const { current, next, progress, remaining } = getStatusProgress(totalSpent);
 
   const getStatusIcon = () => {
     switch (status) {
       case "LEGEND":
-        return <Crown className="h-8 w-8" />;
+        return <Crown className="h-8 w-8 text-white" />;
       case "PRO":
-        return <Star className="h-8 w-8" />;
+        return <Star className="h-8 w-8 text-white" />;
       default:
-        return <Flame className="h-8 w-8" />;
+        return <Flame className="h-8 w-8 text-white" />;
     }
   };
 
@@ -43,82 +45,108 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="flex min-h-screen flex-col bg-background pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-lg">
-        <div className="flex h-14 items-center justify-between px-4">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            {ru.back}
-          </button>
-          <h1 className="font-headline text-lg tracking-wider">{ru.profile}</h1>
-          <div className="w-16" />
-        </div>
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-white/5 bg-background/80 px-4 py-4 backdrop-blur-md">
+        <button
+          onClick={() => router.back()}
+          className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 transition-colors hover:bg-white/10"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <h1 className="font-headline text-lg uppercase tracking-widest">{ru.profile}</h1>
+        <div className="w-10" />
       </div>
 
-      <div className="p-4 space-y-6">
+      <main className="flex-1 space-y-6 px-4 py-6">
         {/* User Info Card */}
-        <motion.div
+        <motion.section 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-border bg-card p-6"
+          className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-card to-background p-6"
         >
-          <div className="flex items-center gap-4">
-            {/* Avatar */}
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-zinc-700 to-zinc-800 text-2xl font-bold">
-              {telegramUser?.first_name?.[0] || "G"}
+          <div className="relative z-10 flex items-center gap-4">
+            <div className="relative">
+              <div className="h-16 w-16 overflow-hidden rounded-2xl border-2 border-primary/20 bg-secondary p-0.5">
+                {telegramUser?.photo_url ? (
+                  <img
+                    src={telegramUser.photo_url}
+                    alt={telegramUser.first_name || "User"}
+                    className="h-full w-full rounded-[14px] object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-primary/10 text-2xl font-bold text-primary">
+                    {telegramUser?.first_name?.[0] || "?"}
+                  </div>
+                )}
+              </div>
+              <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-lg bg-primary text-xs shadow-lg">
+                {getUserStatusEmoji(current)}
+              </div>
             </div>
-
-            <div className="flex-1">
-              <h2 className="text-xl font-bold">{getDisplayName() === "Guest" ? ru.guest : getDisplayName()}</h2>
-              <p className="text-sm text-muted-foreground">
-                {telegramUser
-                  ? `@${telegramUser.username || "user"}`
-                  : ru.guestUser}
-              </p>
+            <div>
+              <h2 className="font-headline text-xl tracking-tight">
+                {telegramUser?.first_name} {telegramUser?.last_name || ""}
+              </h2>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase opacity-70">
+                  {current} STATUS
+                </span>
+                <span className="inline-block h-1 w-1 rounded-full bg-muted-foreground/30" />
+                <span className="text-xs font-medium text-green-500">
+                  {cashback.toLocaleString()} UZS кэшбэк
+                </span>
+              </div>
             </div>
           </div>
-        </motion.div>
 
-        {/* Status Card */}
+          {/* Progress Bar */}
+          <div className="mt-8 space-y-3">
+            <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-tighter">
+              <span className="text-muted-foreground">{ru.progressTo} {next || "MAX"}</span>
+              <span className="text-primary">{Math.round(progress)}%</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-secondary/50 p-[1px]">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className="h-full rounded-full bg-gradient-to-r from-primary/60 to-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]"
+              />
+            </div>
+            {remaining > 0 ? (
+              <p className="text-[11px] text-muted-foreground leading-tight">
+                {/* @ts-ignore - added translation keys dynamically */}
+                {ru.leftToSpend} <b>{formatPrice(remaining)}</b> {/* @ts-ignore */} {ru.forStatus} <b>{next}</b>
+              </p>
+            ) : (
+              <p className="text-[11px] text-green-500 leading-tight">
+                {/* @ts-ignore */}
+                {ru.maxStatusReached}
+              </p>
+            )}
+          </div>
+        </motion.section>
+
+        {/* Status Tier Banner */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className={`rounded-2xl bg-gradient-to-r ${getStatusGradient()} p-6 text-white`}
+          className={`rounded-2xl bg-gradient-to-r ${getStatusGradient()} p-6 text-white shadow-xl`}
         >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm opacity-80">{ru.currentStatus}</p>
-              <h3 className="mt-1 text-3xl font-bold flex items-center gap-2">
-                {getUserStatusEmoji(status)} {status === "LEGEND" ? ru.statusLegend : status === "PRO" ? ru.statusPro : ru.statusRookie}
+              <h3 className="mt-1 text-2xl font-bold flex items-center gap-2 uppercase tracking-wide">
+                {status === "LEGEND" ? ru.statusLegend : status === "PRO" ? ru.statusPro : ru.statusRookie}
               </h3>
+              <p className="mt-1 text-xs opacity-70">
+                {status === "LEGEND" ? "Скидка 10% на всё" : status === "PRO" ? "Скидка 5% на всё" : "Копите покупки для скидок"}
+              </p>
             </div>
             {getStatusIcon()}
           </div>
-
-          {/* Progress to next level */}
-          {progress.next && (
-            <div className="mt-6">
-              <div className="flex items-center justify-between text-sm">
-                <span className="opacity-80">{ru.progressTo} {progress.next === "PRO" ? ru.statusPro : ru.statusLegend}</span>
-                <span className="font-mono font-bold">
-                  {formatPrice(progress.remaining)} {ru.left}
-                </span>
-              </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/20">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progress.progress}%` }}
-                  transition={{ duration: 1, ease: "easeOut" }}
-                  className="h-full rounded-full bg-white"
-                />
-              </div>
-            </div>
-          )}
         </motion.div>
 
         {/* Stats Grid */}
@@ -127,13 +155,13 @@ export default function ProfilePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="rounded-2xl border border-border bg-card p-4"
+            className="rounded-2xl border border-white/5 bg-card p-4"
           >
             <div className="flex items-center gap-2 text-muted-foreground">
               <TrendingUp className="h-4 w-4" />
-              <span className="text-xs uppercase tracking-wider">{ru.totalSpent}</span>
+              <span className="text-[10px] uppercase tracking-wider">{ru.totalSpent}</span>
             </div>
-            <p className="mt-2 font-mono text-2xl font-bold">
+            <p className="mt-2 font-mono text-xl font-bold">
               {formatPrice(totalSpent)}
             </p>
           </motion.div>
@@ -142,13 +170,13 @@ export default function ProfilePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="rounded-2xl border border-border bg-card p-4"
+            className="rounded-2xl border border-white/5 bg-card p-4"
           >
             <div className="flex items-center gap-2 text-muted-foreground">
               <Gift className="h-4 w-4" />
-              <span className="text-xs uppercase tracking-wider">{ru.cashback}</span>
+              <span className="text-[10px] uppercase tracking-wider">{ru.cashback}</span>
             </div>
-            <p className="mt-2 font-mono text-2xl font-bold text-green-500">
+            <p className="mt-2 font-mono text-xl font-bold text-green-500">
               {formatPrice(cashback)}
             </p>
           </motion.div>
@@ -157,60 +185,87 @@ export default function ProfilePage() {
         {/* Promo Code Section */}
         <PromoSection user={user} setUser={setUser} />
 
-        {/* Status Tiers Info */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="rounded-2xl border border-border bg-card p-6"
-        >
-          <h3 className="mb-4 font-headline text-sm uppercase tracking-wider text-muted-foreground">
-            {ru.statusTiers}
-          </h3>
+        {/* Referral Section */}
+        <ReferralSection telegramId={telegramUser?.id} />
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-700">
-                  <Flame className="h-4 w-4 text-zinc-300" />
-                </div>
-                <div>
-                  <p className="font-medium">{ru.statusRookie}</p>
-                  <p className="text-xs text-muted-foreground">{ru.tierRookieRange}</p>
-                </div>
-              </div>
-              <span className="text-xs text-muted-foreground">{ru.cashbackRookie}</span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-amber-600">
-                  <Star className="h-4 w-4 text-white" />
-                </div>
-                <div>
-                  <p className="font-medium">{ru.statusPro}</p>
-                  <p className="text-xs text-muted-foreground">{ru.tierProRange}</p>
-                </div>
-              </div>
-              <span className="text-xs text-muted-foreground">{ru.cashbackPro}</span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 via-pink-500 to-red-500">
-                  <Crown className="h-4 w-4 text-white" />
-                </div>
-                <div>
-                  <p className="font-medium">{ru.statusLegend}</p>
-                  <p className="text-xs text-muted-foreground">{ru.tierLegendRange}</p>
-                </div>
-              </div>
-              <span className="text-xs text-muted-foreground">{ru.cashbackLegend}</span>
-            </div>
-          </div>
-        </motion.div>
-      </div>
+        {/* Wishlist Section */}
+        <WishlistSection />
+      </main>
     </div>
+  );
+}
+
+function ReferralSection({ telegramId }: { telegramId?: number }) {
+  const [copied, setCopied] = useState(false);
+  if (!telegramId) return null;
+
+  const referralLink = `https://t.me/free_wayz_bot/shop?startapp=ref_${telegramId}`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(referralLink);
+    setCopied(true);
+    ymTrack("referral_link_copied");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.36 }}
+      className="rounded-2xl border border-white/10 bg-card p-6"
+    >
+      <h3 className="mb-3 flex items-center gap-2 font-headline text-sm uppercase tracking-wider text-muted-foreground">
+        <Share2 className="h-4 w-4" />
+        Программа лояльности
+      </h3>
+      <p className="mb-4 text-sm text-muted-foreground leading-relaxed">
+        Пригласи друга и получи <b>50,000 UZS</b> на баланс после его первого заказа! Друг также получит бонус.
+      </p>
+      
+      <div className="flex gap-2">
+        <input
+          type="text"
+          readOnly
+          value={referralLink}
+          className="h-10 flex-1 rounded border border-white/5 bg-secondary px-3 text-[11px] outline-none text-muted-foreground"
+        />
+        <Button
+          variant="secondary"
+          size="sm"
+          className="h-10 px-4"
+          onClick={handleCopy}
+        >
+          {copied ? <Check className="h-4 w-4" /> : "Копировать"}
+        </Button>
+      </div>
+    </motion.div>
+  );
+}
+
+function WishlistSection() {
+  const items = useWishlistStore((s) => s.items);
+
+  if (items.length === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.38 }}
+      className="space-y-4 pt-4"
+    >
+      <h3 className="flex items-center gap-2 font-headline text-lg uppercase tracking-wider text-foreground px-1">
+        <Heart className="h-5 w-5" />
+        Избранное ({items.length})
+      </h3>
+      
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+        {items.map((product, i) => (
+          <ProductCard key={product._id} product={product} index={i} />
+        ))}
+      </div>
+    </motion.div>
   );
 }
 
@@ -227,7 +282,8 @@ function PromoSection({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const handleApply = async () => {
-    if (!code.trim()) return;
+    const codeVal = code.trim();
+    if (!codeVal) return;
     setLoading(true);
     setError(null);
     setSuccessMsg(null);
@@ -241,7 +297,7 @@ function PromoSection({
       const res = await fetch("/api/promo/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ initData, code: code.trim(), context: "profile" }),
+        body: JSON.stringify({ initData, code: codeVal, context: "profile" }),
       });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -275,7 +331,7 @@ function PromoSection({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.35 }}
-      className="rounded-2xl border border-border bg-card p-6"
+      className="rounded-2xl border border-white/10 bg-card p-6"
     >
       <h3 className="mb-3 flex items-center gap-2 font-headline text-sm uppercase tracking-wider text-muted-foreground">
         <Tag className="h-4 w-4" />
@@ -291,7 +347,7 @@ function PromoSection({
             setSuccessMsg(null);
           }}
           placeholder="Введите промокод"
-          className="h-10 flex-1 rounded border border-border bg-secondary px-3 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-primary"
+          className="h-10 flex-1 rounded border border-white/5 bg-secondary px-3 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-primary"
         />
         <Button
           variant="outline"

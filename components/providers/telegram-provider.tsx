@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useUserStore } from "@/lib/store";
+import { useUserStore, useCartStore } from "@/lib/store";
 import { TelegramUser } from "@/lib/types";
 import { client } from "@/lib/sanity/client";
 import { userByTelegramIdQuery } from "@/lib/sanity/queries";
@@ -129,11 +129,24 @@ export function TelegramProvider({ children }: TelegramProviderProps) {
         setWebApp(tg);
         setIsReady(true);
 
-        // Deep link handling — navigate to product if start_param is set
+        // Deep link handling
         const startParam = tg.initDataUnsafe?.start_param;
         if (startParam) {
-          // start_param is the product slug
-          router.push(`/product/${startParam}`);
+          if (startParam.startsWith("ref_")) {
+            const referrerId = startParam.replace("ref_", "");
+            // Link referral in background
+            fetch("/api/user/link-referral", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                initData: tg.initData,
+                referrerId: referrerId,
+              }),
+            }).catch(err => console.error("Referral linking failed:", err));
+          } else {
+            // start_param is the product slug
+            router.push(`/product/${startParam}`);
+          }
         }
       } else {
         // Running outside Telegram (for development)
@@ -175,6 +188,29 @@ export function TelegramProvider({ children }: TelegramProviderProps) {
       })
       .catch((err) => console.error("Failed to fetch user from Sanity:", err));
   }, [telegramUser, setUser]);
+
+  // Sync Cart with Backend
+  const cartItems = useCartStore((s) => s.items);
+  
+  useEffect(() => {
+    if (!telegramUser?.id) return;
+    
+    const tg = window?.Telegram?.WebApp;
+    if (!tg?.initData) return;
+
+    const timer = setTimeout(() => {
+      fetch("/api/user/sync-cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          initData: tg.initData,
+          cartItems,
+        }),
+      }).catch(err => console.error("Cart sync failed:", err));
+    }, 2000); // 2 second debounce
+
+    return () => clearTimeout(timer);
+  }, [cartItems, telegramUser?.id]);
 
   return (
     <TelegramContext.Provider value={{ isReady, webApp }}>

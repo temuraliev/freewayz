@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShoppingBag, Check } from "lucide-react";
-import { useQuickViewStore, useCartStore } from "@/lib/store";
+import { X, ShoppingBag, Check, Heart } from "lucide-react";
+import { useQuickViewStore, useCartStore, useWishlistStore } from "@/lib/store";
 import { ImageCarousel, type CarouselMediaItem } from "@/components/products/image-carousel";
 import { SizeSelector } from "@/components/products/size-selector";
 import { ColorSelector } from "@/components/products/color-selector";
@@ -18,6 +18,7 @@ import { RemoveScroll } from "react-remove-scroll";
 export function QuickViewModal() {
   const { isOpen, product, closeQuickView } = useQuickViewStore();
   const addItem = useCartStore((state) => state.addItem);
+  const { isInWishlist, toggleItem } = useWishlistStore();
   const haptic = useHapticFeedback();
 
   const [selectedSize, setSelectedSize] = useState<Size | null>(null);
@@ -111,12 +112,29 @@ export function QuickViewModal() {
             <div className="relative flex items-center justify-center border-b border-border/50 px-4 py-3">
               <div className="absolute top-2 h-1 w-12 rounded-full bg-border" />
               <h3 className="text-sm font-semibold mt-2">{ru.quickView || "Быстрый просмотр"}</h3>
-              <button
-                onClick={closeQuickView}
-                className="absolute right-4 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-secondary/50 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="absolute right-4 top-3 flex items-center gap-2">
+                {product && (
+                  <button
+                    onClick={() => {
+                      haptic.impact("light");
+                      toggleItem(product);
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/50 transition-colors hover:bg-secondary"
+                  >
+                    <Heart
+                      className={`h-4 w-4 transition-colors ${
+                        isInWishlist(product._id) ? "fill-red-500 text-red-500" : "text-foreground"
+                      }`}
+                    />
+                  </button>
+                )}
+                <button
+                  onClick={closeQuickView}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/50 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             {/* Scrollable Content */}

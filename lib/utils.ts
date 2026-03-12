@@ -84,6 +84,17 @@ export function getUserStatusEmoji(status: string): string {
   }
 }
 
+export function getStatusDiscount(status?: string): number {
+  switch (status) {
+    case "LEGEND":
+      return 10;
+    case "PRO":
+      return 5;
+    default:
+      return 0;
+  }
+}
+
 /** Status thresholds. Use USD if NEXT_PUBLIC_PRICES_IN_USD=true, else UZS (4M PRO, 7M LEGEND). */
 const PRO_THRESHOLD_USD = 500;
 const LEGEND_THRESHOLD_USD = 2000;

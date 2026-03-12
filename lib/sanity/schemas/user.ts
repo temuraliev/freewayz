@@ -95,6 +95,29 @@ export const userSchema = {
         },
       ],
     },
+    {
+      name: "cartItems",
+      title: "Saved Cart Items",
+      description: "JSON string of currently saved cart items",
+      type: "text",
+    },
+    {
+      name: "cartUpdatedAt",
+      title: "Cart Last Updated",
+      type: "datetime",
+    },
+    {
+      name: "abandonedCartNotified",
+      title: "Abandoned Cart Notified",
+      description: "Flag to track if the user has already received a notification for this cart",
+      type: "boolean",
+      initialValue: false,
+    },
+    {
+      name: "referredBy",
+      title: "Referred By (Telegram ID)",
+      type: "string",
+    },
   ],
   preview: {
     select: {

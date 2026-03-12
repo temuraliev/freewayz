@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ShoppingBag, Check, Share2, Pencil } from "lucide-react";
+import { ArrowLeft, ShoppingBag, Check, Share2, Pencil, Heart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { ImageCarousel, type CarouselMediaItem } from "@/components/products/image-carousel";
@@ -10,8 +10,7 @@ import dynamic from "next/dynamic";
 import { SizeSelector } from "@/components/products/size-selector";
 import { ColorSelector } from "@/components/products/color-selector";
 import { RelatedProducts } from "@/components/products/related-products";
-import { useCartStore } from "@/lib/store";
-import { useAdminStore } from "@/lib/store";
+import { useCartStore, useWishlistStore, useAdminStore } from "@/lib/store";
 import { useHapticFeedback } from "@/components/providers/telegram-provider";
 import { toast } from "@/components/ui/use-toast";
 import { ProductEditOverlay } from "@/components/admin/product-edit-overlay";
@@ -49,6 +48,8 @@ export function ProductPageClient({ product, initialEditMode }: ProductPageClien
   const [shareDone, setShareDone] = useState(false);
 
   const addItem = useCartStore((state) => state.addItem);
+  const { isInWishlist, toggleItem } = useWishlistStore();
+  const isLiked = isInWishlist(product._id);
   const haptic = useHapticFeedback();
 
   const handleShare = async () => {
@@ -141,11 +142,31 @@ export function ProductPageClient({ product, initialEditMode }: ProductPageClien
               <Pencil className="h-4 w-4 text-white" />
             </motion.button>
           )}
-          {/* Share button */}
+
+          {/* Wishlist button */}
           <motion.button
             initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.12 }}
+            onClick={() => {
+              haptic.impact("light");
+              toggleItem(product);
+            }}
+            className="flex h-9 w-9 items-center justify-center border border-white/20 bg-black/50 backdrop-blur-sm transition-colors"
+            aria-label={isLiked ? "Remove from wishlist" : "Add to wishlist"}
+          >
+            <Heart
+              className={`h-4 w-4 transition-colors ${
+                isLiked ? "fill-red-500 text-red-500" : "text-white"
+              }`}
+            />
+          </motion.button>
+
+          {/* Share button */}
+          <motion.button
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.13 }}
             onClick={handleShare}
             className="flex h-9 w-9 items-center justify-center border border-white/20 bg-black/50 backdrop-blur-sm transition-colors"
           >
@@ -167,7 +188,7 @@ export function ProductPageClient({ product, initialEditMode }: ProductPageClien
             <motion.span
               initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.15 }}
+              transition={{ delay: 0.14 }}
               className="bg-black/50 px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-white/70 backdrop-blur-sm"
               style={{ fontFamily: "var(--font-mono)" }}
             >

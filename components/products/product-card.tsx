@@ -2,12 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Product } from "@/lib/types";
 import { formatPrice, optimizeImage } from "@/lib/utils";
-import { useTierStore, useQuickViewStore } from "@/lib/store";
+import { useTierStore, useQuickViewStore, useWishlistStore, useCartStore } from "@/lib/store";
 import { ru } from "@/lib/i18n/ru";
 import { AdminEditButton } from "@/components/admin/admin-edit-button";
+import { Heart } from "lucide-react";
+import { ymTrack } from "@/components/providers/yandex-metrica";
+import { useState } from "react";
 
 interface ProductCardProps {
   product: Product;
@@ -20,10 +23,20 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const tier = useTierStore((s) => s.tier);
   const isUlt = tier === "ultimate";
   const openQuickView = useQuickViewStore((s) => s.openQuickView);
+  const { isInWishlist, toggleItem } = useWishlistStore();
+  const isLiked = isInWishlist(product._id);
+  const { addItem } = useCartStore();
+  const [added, setAdded] = useState(false);
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     openQuickView(product);
+  };
+
+  const handleLike = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleItem(product);
   };
 
   return (
@@ -37,6 +50,17 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           {/* Image */}
           <div className="card-img-wrap">
             <AdminEditButton product={product} />
+            <button
+              onClick={handleLike}
+              className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-background/50 backdrop-blur-md transition-colors hover:bg-background/80"
+              aria-label={isLiked ? "Remove from wishlist" : "Add to wishlist"}
+            >
+              <Heart
+                className={`h-4 w-4 transition-colors ${
+                  isLiked ? "fill-red-500 text-red-500" : "text-foreground"
+                }`}
+              />
+            </button>
             {product.images?.[0] ? (
               <Image
                 src={optimizeImage(product.images[0], 400)}

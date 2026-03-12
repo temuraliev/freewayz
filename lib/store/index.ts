@@ -4,3 +4,4 @@ export { useFilterStore } from "./filter-store";
 export { useAdminStore } from "./admin-store";
 export { useTierStore } from "./tier-store";
 export { useQuickViewStore } from "./quick-view-store";
+export * from "./wishlist-store";
