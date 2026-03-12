@@ -170,12 +170,14 @@ function buildPrompt(options) {
 4. **subtype**: Тип товара на русском (Худи, Футболки, Джинсы, Свитшот, Ветровка и т.д.).
 5. **categorySlug/styleSlug/brandSlug**: Выбирай строго из допустимых списков.
 6. **colors**: Массив цветов на английском (например ["Black", "Pink"]). Распознай по фото.
-7. **priceUzs**: Итоговая цена продажи в сумах. Формула: себестоимость ($) × 12000 × наценка (1.8–2.2). Строго округли до ближайшего красивого числа так, чтобы цена заканчивалась ровно на 50000 или 90000 (например: 450000, 490000, 850000, 890000, 1050000, 1090000). ВАЖНО: эта цена ДОЛЖНА совпадать с ценой в internalNotes!
-8. **weightKg**: Оцени вес (худи=0.7-1, футболка=0.2-0.4, куртка=1-1.5 и т.д.).
-9. **markup**: Использованная наценка.
+9. **excludeImageIndices**: Массив индексов (начиная с 0) фотографий из тех, что я тебе прислал, которые НУЖНО УДАЛИТЬ. Исключай фото, если на них есть:
+    - Люди, модели (даже если лицо обрезано, но видны руки/ноги, демонстрирующие одежду).
+    - Таблицы размеров, графики или слишком много технического текста.
+    - Фотографии с водяными знаками фабрики, которые не являются демонстрацией самого товара.
+    Если все фото хорошие, верни пустой массив [].
 ${examplesBlock}
 
-ВЕРНИ ТОЛЬКО VALID JSON с полями: title, description, internalNotes, subtype, categorySlug, styleSlug, brandSlug, colors, priceUzs, weightKg, markup.`;
+ВЕРНИ ТОЛЬКО VALID JSON с полями: title, description, internalNotes, subtype, categorySlug, styleSlug, brandSlug, colors, priceUzs, weightKg, markup, excludeImageIndices.`;
 }
 
 function sleep(ms) {
@@ -238,7 +240,7 @@ export async function callGeminiForProduct(params) {
 
   // Build images array: prefer imagesBase64 (multiple), fallback to single imageBase64
   const imagesBase64 = Array.isArray(imagesParam) && imagesParam.length > 0
-    ? imagesParam.slice(0, 4) // max 4 images
+    ? imagesParam.slice(0, 10) // Increased to 10 images for better filtering
     : imageBase64
       ? [imageBase64]
       : [];
@@ -282,8 +284,9 @@ export async function callGeminiForProduct(params) {
           priceUzs: { type: 'number', description: 'Calculated sale price in UZS' },
           weightKg: { type: 'number', description: 'Estimated weight in kg' },
           markup: { type: 'number', description: 'Markup coefficient used (1.8-2.1)' },
+          excludeImageIndices: { type: 'array', items: { type: 'number' }, description: 'Indices of images provided that should be excluded (models, charts, etc)' },
         },
-        required: ['title', 'description', 'internalNotes', 'subtype', 'categorySlug', 'styleSlug', 'brandSlug', 'colors', 'priceUzs', 'weightKg', 'markup'],
+        required: ['title', 'description', 'internalNotes', 'subtype', 'categorySlug', 'styleSlug', 'brandSlug', 'colors', 'priceUzs', 'weightKg', 'markup', 'excludeImageIndices'],
       },
       temperature: 0.1,
     },

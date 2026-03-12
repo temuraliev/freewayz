@@ -118,7 +118,7 @@ function jitterStr(min = 1000, max = 3000) {
 const DEFAULT_PRICE_UZS = 200_000;
 const YUAN_TO_UZS = 1_600;
 let MIN_IMAGE_SIZE_BYTES = 200 * 1024;
-const MAX_AI_IMAGES = 4;
+const MAX_AI_IMAGES = 10;
 const PARALLEL_DOWNLOADS = 5;
 const PARALLEL_UPLOADS = 5;
 const MAX_UPLOAD_BYTES = 250 * 1024;
@@ -619,6 +619,26 @@ async function main() {
             apiKeys: aiContext.apiKeys,
           });
         } catch(e) {}
+      }
+
+      if (aiResult && aiResult.excludeImageIndices && Array.isArray(aiResult.excludeImageIndices)) {
+        // excludeImageIndices refers to aiImages. 
+        // aiImages[0] is albumScreenshotBase64 (if present).
+        // aiImages[1..N] are downloadedImages[0..N-1].
+        const offset = albumScreenshotBase64 ? 1 : 0;
+        const toRemove = new Set();
+        for (const idx of aiResult.excludeImageIndices) {
+          const downloadedIdx = idx - offset;
+          if (downloadedIdx >= 0 && downloadedIdx < downloadedImages.length) {
+            toRemove.add(downloadedIdx);
+          }
+        }
+        
+        if (toRemove.size > 0) {
+          const before = downloadedImages.length;
+          downloadedImages = downloadedImages.filter((_, i) => !toRemove.has(i));
+          console.log(`AI filtered out ${before - downloadedImages.length} unwanted images (models/charts).`);
+        }
       }
 
       const imageRefs = [];
