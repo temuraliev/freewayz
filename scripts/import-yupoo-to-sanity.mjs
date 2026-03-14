@@ -80,8 +80,11 @@ async function initBrowser() {
   if (browser && browserUseCount < BROWSER_MAX_USES) return;
   
   if (browser) {
-      console.log(`[Browser] Reached ${BROWSER_MAX_USES} limit, rotating...`);
-      await browser.close();
+      // console.log(`[Browser] Reached ${BROWSER_MAX_USES} limit, rotating...`);
+      // We avoid closing the browser here because concurrent tasks might be using it.
+      // Instead, we just let it stay and launch a new one if absolutely necessary, 
+      // but for simplicity in this script, we'll just skip rotation to avoid TargetClosed errors.
+      return; 
   }
   
   const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
@@ -138,10 +141,27 @@ function normalizeImageUrl(url) {
   }
 }
 
+const VIDEO_EXTS = /\.(mp4|webm|avi|mov|m4v|mkv|flv|wmv)(\?|$)/i;
+
+function isVideoBuffer(buf) {
+  if (!buf || buf.length < 12) return false;
+  // MP4/MOV: bytes 4–7 are ASCII 'ftyp'
+  if (buf[4] === 0x66 && buf[5] === 0x74 && buf[6] === 0x79 && buf[7] === 0x70) return true;
+  // WebM: starts with 0x1A 0x45 0xDF 0xA3
+  if (buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3) return true;
+  return false;
+}
+
 function isRealImageUrl(url) {
   if (!url || url.startsWith('data:')) return false;
   const u = url.startsWith('//') ? 'https:' + url : url;
-  return u.startsWith('http') && !u.includes('avatar') && !u.includes('logo') && !u.includes('icon');
+  return (
+    u.startsWith('http') &&
+    !u.includes('avatar') &&
+    !u.includes('logo') &&
+    !u.includes('icon') &&
+    !VIDEO_EXTS.test(u)
+  );
 }
 
 function cleanTitle(raw) {
@@ -308,23 +328,54 @@ async function fetchImageBuffer(url, referer) {
   }
 }
 
-async function downloadImagesParallel(imageUrls, referer, minSizeBytes = MIN_IMAGE_SIZE_BYTES) {
+async function downloadOneCover(coverUrl, referer) {
+  try {
+    const buffer = await fetchImageBuffer(coverUrl, referer);
+    if (buffer && !isVideoBuffer(buffer)) return { index: 0, buffer };
+  } catch (_) {}
+  return null;
+}
+
+async function downloadImagesParallel(imageUrls, referer, minSizeBytes = MIN_IMAGE_SIZE_BYTES, options = {}) {
+  const { fallbackCoverUrl = null } = options;
   const results = [];
-  for (let start = 0; start < imageUrls.length; start += PARALLEL_DOWNLOADS) {
-    const batch = imageUrls.slice(start, start + PARALLEL_DOWNLOADS);
+  const restUrls = imageUrls.length > 1 ? imageUrls.slice(1) : [];
+  const restIndicesOffset = 1;
+
+  if (imageUrls.length > 0) {
+    let cover = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      cover = await downloadOneCover(imageUrls[0], referer);
+      if (cover) break;
+      if (attempt < 2) await sleep(1000 * (attempt + 1));
+    }
+    if (!cover && fallbackCoverUrl && fallbackCoverUrl !== imageUrls[0]) {
+      cover = await downloadOneCover(fallbackCoverUrl, referer);
+    }
+    if (cover) results.push(cover);
+  }
+
+  for (let start = 0; start < restUrls.length; start += PARALLEL_DOWNLOADS) {
+    const batch = restUrls.slice(start, start + PARALLEL_DOWNLOADS);
     const promises = batch.map(async (url, batchIdx) => {
-      const index = start + batchIdx;
+      const index = restIndicesOffset + start + batchIdx;
       try {
         const buffer = await fetchImageBuffer(url, referer);
+        if (isVideoBuffer(buffer)) return null;
         if (buffer.length < minSizeBytes) return null;
         return { index, buffer };
       } catch (e) { return null; }
     });
     const batchResults = await Promise.all(promises);
     results.push(...batchResults.filter(Boolean));
-    if (start + PARALLEL_DOWNLOADS < imageUrls.length) await sleep(50);
+    if (start + PARALLEL_DOWNLOADS < restUrls.length) await sleep(50);
   }
   results.sort((a, b) => a.index - b.index);
+
+  if (results.length > 0 && results[0].index !== 0) {
+    results[0].index = 0;
+    results.sort((a, b) => a.index - b.index);
+  }
   return results;
 }
 
@@ -397,9 +448,59 @@ function parseAlbumPageImages(html, albumUrl) {
   const seen = new Set();
   const urls = [];
 
-  // Rely on document order for images, don't prioritize og:image
-  // as it may not be the intended first photo in the gallery.
+  let ogImageUrl = null;
+  const rawOg = $('meta[property="og:image"]').attr('content');
+  if (rawOg && isRealImageUrl(rawOg)) {
+    ogImageUrl = rawOg.startsWith('//') ? 'https:' + rawOg : resolveUrl(rawOg, albumUrl);
+  }
 
+  function addCoverUrl(src) {
+    if (!src || !isRealImageUrl(src)) return false;
+    const full = src.startsWith('//') ? 'https:' + src : resolveUrl(src, albumUrl);
+    const norm = normalizeImageUrl(full);
+    seen.add(norm);
+    urls.push(full);
+    return true;
+  }
+
+  // 1. Cover from showalbumheader block (Yupoo album cover) — try multiple selectors and attributes
+  const coverSelectors = [
+    'div.showalbumheader__space img',
+    'div.showalbumheader_space img',
+    '[class*="showalbumheader"] img',
+  ];
+  for (const sel of coverSelectors) {
+    const el = $(sel).first();
+    if (el.length === 0) continue;
+    const candidates = [
+      el.attr('data-origin-src'),
+      el.attr('data-original'),
+      el.attr('src'),
+      el.attr('data-src'),
+    ].filter(Boolean);
+    for (const c of candidates) {
+      if (addCoverUrl(c)) break;
+    }
+    if (urls.length > 0) break;
+  }
+
+  // 1b. Cover as background-image on header div (some Yupoo layouts)
+  if (urls.length === 0) {
+    const headerDiv = $('div[class*="showalbumheader"]').first();
+    const style = headerDiv.attr('style') || '';
+    const bgMatch = style.match(/background-image:\s*url\(['"]?([^'")\s]+)['"]?\)/);
+    if (bgMatch && bgMatch[1]) {
+      addCoverUrl(bgMatch[1]);
+    }
+  }
+
+  // 2. Fallback: og:image
+  if (urls.length === 0) {
+    const ogImg = $('meta[property="og:image"]').attr('content');
+    if (ogImg) addCoverUrl(ogImg);
+  }
+
+  // 3. All other images in DOM order
   $('img').each((_, el) => {
     const candidates = [$(el).attr('data-origin-src'), $(el).attr('data-original'), $(el).attr('src'), $(el).attr('data-src')].filter(Boolean);
     for (const c of candidates) {
@@ -413,7 +514,24 @@ function parseAlbumPageImages(html, albumUrl) {
       break;
     }
   });
-  return urls;
+
+  // 4. If first image in DOM is not at position 0, move it to front (page header cover is usually first img)
+  if (urls.length > 1) {
+    const firstImg = $('img').first();
+    const firstCandidates = [firstImg.attr('data-origin-src'), firstImg.attr('data-original'), firstImg.attr('src'), firstImg.attr('data-src')].filter(Boolean);
+    for (const c of firstCandidates) {
+      if (!isRealImageUrl(c)) continue;
+      const full = c.startsWith('//') ? 'https:' + c : resolveUrl(c, albumUrl);
+      const norm = normalizeImageUrl(full);
+      const idx = urls.findIndex((u) => normalizeImageUrl(u) === norm);
+      if (idx > 0) {
+        urls.splice(idx, 1);
+        urls.unshift(full);
+      }
+      break;
+    }
+  }
+  return { urls, ogImageUrl };
 }
 
 function parseAlbumTitle(html) {
@@ -596,7 +714,7 @@ async function main() {
         html = await fetchHtml(albumUrl, albumOrigin);
       }
 
-      const imageUrls = parseAlbumPageImages(html, albumUrl);
+      const { urls: imageUrls, ogImageUrl } = parseAlbumPageImages(html, albumUrl);
       if (imageUrls.length === 0) throw new Error("No images found");
 
       const title = parseAlbumTitle(html);
@@ -604,7 +722,7 @@ async function main() {
       const isSale = isDiscountFromTitle(getRawAlbumTitle(html));
       const albumIdMatch = albumUrl.match(/\/albums\/(\d+)/);
 
-      const downloadedImages = await downloadImagesParallel(imageUrls, albumOrigin, MIN_IMAGE_SIZE_BYTES);
+      let downloadedImages = await downloadImagesParallel(imageUrls, albumOrigin, MIN_IMAGE_SIZE_BYTES, { fallbackCoverUrl: ogImageUrl || null });
       if (downloadedImages.length === 0) throw new Error("No valid images downloaded");
 
       let aiResult = null;
@@ -647,7 +765,7 @@ async function main() {
         const results = await Promise.all(chunk.map(async ({ index, buffer }) => {
           try {
             const compressed = await compressImageToMaxBytes(buffer, MAX_UPLOAD_BYTES);
-            const asset = await client.assets.upload('image', compressed, { filename: `yupoo-${Date.now()}-${index}.jpg` });
+            const asset = await client.assets.upload('image', compressed, { filename: `yupoo-${Date.now()}-${index}.webp` });
             return { _key: `img-${Date.now()}-${index}`, _type: 'image', asset: { _type: 'reference', _ref: asset._id } };
           } catch(e) { return null; }
         }));
@@ -685,6 +803,10 @@ async function main() {
       };
       if (docDesc) doc.description = docDesc;
       if (docSubtype) doc.subtype = normalizeSubtype(docSubtype);
+      if (aiResult?.internalNotes) doc.internalNotes = aiResult.internalNotes;
+      if (Array.isArray(aiResult?.keywords) && aiResult.keywords.length > 0) {
+        doc.keywords = aiResult.keywords.map(String);
+      }
       if (docBrandRef) doc.brand = { _type: 'reference', _ref: docBrandRef._id };
       if (docCategoryRef) doc.category = { _type: 'reference', _ref: docCategoryRef._id };
       if (docStyleRef) doc.style = { _type: 'reference', _ref: docStyleRef._id };

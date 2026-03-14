@@ -179,6 +179,7 @@ function buildPrompt(options) {
 
 2. **description**: ТОЛЬКО текст для ПОКУПАТЕЛЯ (он это увидит в магазине!). НЕ включай цену, математику, прибыль. Сохраняй переносы строк (\\n). Формат:
 [Краткое описание товара в 1-2 предложения на русском]\\n\\nВес: [N] грамм.\\nТкань: [Материал, состав].\\nДетали: [Принты, логотипы, молнии, карманы].\\nКрой: [Oversize / Boxy Fit / Regular / Slim].
+Если на фото или в названии ЯВНО видна информация о параметрах модели (например "170cm 60kg wears M", "im 165cm 50kg", "модель 170 см") — добавь в конце описания строку: \\nМодель: [рост] см, [вес] кг, размер [S/M/L/XL]. СТРОГО: если такой информации нет — не добавляй эту строку и не придумывай параметры.
 
 3. **internalNotes**: Скрытые заметки для МЕНЕДЖЕРА (покупатель НЕ увидит). Сохраняй переносы строк (\\n). Формат:
 Закуп: [цена]¥ / 6.5 = $[сумма]\\nДоставка (Авиа): [вес] кг × 10 = $[сумма]\\nУпаковка/Сервис: $1.50\\nСебестоимость: $[итого] (~[итого × 12000] сум)\\n\\nЦена продажи: [priceUzs] сум\\nПрибыль (Rookie): ~[выручка - себестоимость] сум\\nПрибыль (Legend): ~[выручка - себестоимость - кешбэк 7% - 50000] сум ($[в долларах])
@@ -189,15 +190,22 @@ function buildPrompt(options) {
    - СТРОГО: НЕ создавай новые названия для того, что УЖЕ есть в списке (например, нельзя писать "Зип-худи" или "Кофта на замке", если есть "Зипки").
 5. **categorySlug/styleSlug/brandSlug**: Выбирай строго из допустимых списков.
 6. **colors**: Массив цветов на английском (например ["Black", "Pink"]). Распознай по фото.
-9. **excludeImageIndices**: Массив индексов (начиная с 0) фотографий, которые НУЖНО ИСКЛЮЧИТЬ (удалить). 
-   СТРОГО ИСКЛЮЧАЙ ЕСЛИ:
-   - На фото есть ЛЮБОЙ ЧЕЛОВЕК (модель, лицо, руки, ноги, даже если он на заднем плане). Если вещь надета на человека — УДАЛЯЙ. В магазине должны быть только фото вещей на вешалке, на фоне или "предметная" съемка.
-   - На фото есть ТАБЛИЦА РАЗМЕРОВ, скриншоты характеристик, размерные сетки или много иероглифов.
-   - На фото есть КАРТОННЫЕ БИРКИ крупным планом или техническая упаковка, которая портит вид.
-   Если все фото хорошие, верни пустой массив [].
+7. **keywords**: 5–15 слов и коротких фраз на русском и английском для поиска товара. Включай: тип товара (на обоих языках), материал (cotton, хлопок), бренд, название коллекции или принта, цвет, стиль (streetwear, oversize, graphic, uk-trap и т.д.), сезон если применимо. Пример: ["худи", "hoodie", "оверсайз", "oversize", "хлопок", "cotton", "флисовый принт", "Denim Tears", "streetwear", "осень"].
+9. **excludeImageIndices**: Массив индексов (начиная с 0) фотографий, которые НУЖНО ИСКЛЮЧИТЬ (удалить).
+
+   ПРАВИЛО ФИЛЬТРАЦИИ — ИСКЛЮЧАЙ следующие типы фото:
+   - Фото, на которых китайские иероглифы или цифры нанесены ПОВЕРХ изображения как подписи или цветовые метки (например: цветные надписи «1白色», «2粉色», «3橙色» и т.п. прямо на ряду одежды на вешалках — это каталог расцветок с наложенными текстовыми метками).
+   - Фото-таблицы размеров (size chart) — изображение, которое целиком является таблицей или схемой с текстом, цифрами, измерениями тела.
+
+   ВАЖНО: ВСЕ ОСТАЛЬНЫЕ фото ОСТАВЛЯЙ (индекс НЕ добавляем в массив). В том числе:
+   - Оставляй фото с несколькими вещами разных расцветок, если на них НЕТ наложенных текстовых меток поверх фото.
+   - Оставляй фото где иероглифы видны только как часть бирки, тега, логотипа или упаковки (не наложены искусственно поверх фото).
+   - Оставляй любые предметные фото без людей и без наложенного текста.
+
+   Если нет фото для исключения, верни пустой массив [].
 ${examplesBlock}
 
-ВЕРНИ ТОЛЬКО VALID JSON с полями: title, description, internalNotes, subtype, categorySlug, styleSlug, brandSlug, colors, priceUzs, weightKg, markup, excludeImageIndices.`;
+ВЕРНИ ТОЛЬКО VALID JSON с полями: title, description, internalNotes, subtype, categorySlug, styleSlug, brandSlug, colors, keywords, priceUzs, weightKg, markup, excludeImageIndices.`;
 }
 
 function sleep(ms) {
@@ -301,12 +309,13 @@ export async function callGeminiForProduct(params) {
           styleSlug: { type: 'string', description: 'Style slug from allowed list' },
           brandSlug: { type: 'string', description: 'Brand slug from allowed list' },
           colors: { type: 'array', items: { type: 'string' }, description: 'Colors in English' },
+          keywords: { type: 'array', items: { type: 'string' }, description: '5-15 keywords in Russian and English for search' },
           priceUzs: { type: 'number', description: 'Calculated sale price in UZS' },
           weightKg: { type: 'number', description: 'Estimated weight in kg' },
           markup: { type: 'number', description: 'Markup coefficient used (1.8-2.1)' },
           excludeImageIndices: { type: 'array', items: { type: 'number' }, description: 'Indices of images provided that should be excluded (models, charts, etc)' },
         },
-        required: ['title', 'description', 'internalNotes', 'subtype', 'categorySlug', 'styleSlug', 'brandSlug', 'colors', 'priceUzs', 'weightKg', 'markup', 'excludeImageIndices'],
+        required: ['title', 'description', 'internalNotes', 'subtype', 'categorySlug', 'styleSlug', 'brandSlug', 'colors', 'keywords', 'priceUzs', 'weightKg', 'markup', 'excludeImageIndices'],
       },
       temperature: 0.1,
     },

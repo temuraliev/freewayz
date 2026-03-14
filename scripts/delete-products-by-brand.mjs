@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Delete all product documents for a given brand (by brand slug or title match).
+ * Delete all product documents for a given brand (by brand slug or title match)
+ * and their referenced image assets.
  *
  * Usage:
  *   node --env-file=.env.local scripts/delete-products-by-brand.mjs "Syna world"
@@ -8,6 +9,8 @@
  */
 
 import { createClient } from '@sanity/client';
+
+const ASSET_CONCURRENCY = 10;
 
 const input = (process.argv.slice(2).join(' ') || '').trim();
 if (!input) {
@@ -33,6 +36,21 @@ const client = createClient({
 
 function norm(s) {
   return String(s || '').toLowerCase().trim();
+}
+
+async function runPool(items, concurrency, fn) {
+  const executing = new Set();
+  const results = [];
+  for (const item of items) {
+    const p = Promise.resolve().then(() => fn(item)).then((r) => {
+      executing.delete(p);
+      return r;
+    });
+    executing.add(p);
+    results.push(p);
+    if (executing.size >= concurrency) await Promise.race(executing);
+  }
+  return Promise.all(results);
 }
 
 async function main() {
@@ -66,7 +84,8 @@ async function main() {
     `*[_type=="product" && brand._ref == $brandId]{
       _id,
       title,
-      "slug": slug.current
+      "slug": slug.current,
+      "assetIds": images[].asset._ref
     } | order(_createdAt desc)`,
     { brandId: brand._id }
   );
@@ -76,7 +95,16 @@ async function main() {
     return;
   }
 
-  console.log(`Found ${products.length} products. Deleting...`);
+  const assetIdSet = new Set();
+  for (const p of products) {
+    if (Array.isArray(p.assetIds)) {
+      for (const id of p.assetIds) {
+        if (id) assetIdSet.add(id);
+      }
+    }
+  }
+  const assetIds = [...assetIdSet];
+  console.log(`Found ${products.length} products, ${assetIds.length} image assets. Deleting products...`);
 
   let ok = 0;
   const failed = [];
@@ -94,14 +122,33 @@ async function main() {
     }
   }
 
-  console.log(`Deleted: ${ok}/${products.length}`);
+  console.log(`Products deleted: ${ok}/${products.length}`);
   if (failed.length) {
-    console.log('Failed to delete:');
+    console.log('Failed to delete products:');
     for (const f of failed) {
       console.log(`- ${f.id} | ${f.title ?? ''} | ${f.slug ?? ''} | ${f.error}`);
     }
     process.exitCode = 2;
   }
+
+  if (assetIds.length > 0) {
+    console.log(`Deleting ${assetIds.length} image assets (${ASSET_CONCURRENCY} concurrent)...`);
+    let assetsDeleted = 0;
+    let assetsFailed = 0;
+    const results = await runPool(assetIds, ASSET_CONCURRENCY, async (assetId) => {
+      try {
+        await client.delete(assetId);
+        return 'ok';
+      } catch {
+        return 'fail';
+      }
+    });
+    assetsDeleted = results.filter((r) => r === 'ok').length;
+    assetsFailed = results.filter((r) => r === 'fail').length;
+    console.log(`Assets deleted: ${assetsDeleted}, failed: ${assetsFailed}`);
+  }
+
+  console.log('Done.');
 }
 
 main().catch((e) => {

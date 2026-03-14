@@ -164,6 +164,13 @@ export const productType = defineType({
       rows: 6,
     }),
     defineField({
+      name: 'keywords',
+      title: 'Keywords (для поиска)',
+      type: 'array',
+      of: [defineArrayMember({ type: 'string' })],
+      description: 'Автозаполнение AI. Слова для поиска: материал, стиль, коллекция и т.д.',
+    }),
+    defineField({
       name: 'sourceUrl',
       title: 'Source URL (Yupoo)',
       type: 'string',
