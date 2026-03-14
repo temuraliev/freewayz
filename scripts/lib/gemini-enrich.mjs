@@ -128,6 +128,8 @@ function buildPrompt(options) {
     styles,
     brands,
     exampleProducts = [],
+    textOnly = false,
+    imagesCount = 0,
   } = options;
 
   const categoryList = (categories || [])
@@ -161,8 +163,15 @@ function buildPrompt(options) {
         .join('\n\n');
   }
 
-  return `Ты — профессиональный баер, эксперт по стритвир-одежде и копирайтер. Твоя задача: по фотографиям товара с фабрики (Yupoo) и данным ниже составить идеальную карточку товара для магазина в Ташкенте и рассчитать бизнес-модель продажи.
+  const noPhotosNote = textOnly
+    ? '\nВАЖНО: Фотографии не переданы. Заполняй ВСЁ только по названию и контексту ниже. excludeImageIndices верни пустым массивом []. colors — по названию товара (например из названия: Black, Pink). Описание и ключевые слова — по названию и типу товара.\n\n'
+    : '';
+  const screenshotNote = !textOnly && imagesCount === 1
+    ? '\nТебе передан один скриншот страницы альбома Yupoo. По нему заполни карточку: название, описание, инфо о модели (если видно на скрине), цвета, ключевые слова, цену. Фотографии товара не фильтровать — excludeImageIndices верни всегда пустым массивом [].\n\n'
+    : '';
 
+  return `Ты — профессиональный баер, эксперт по стритвир-одежде и копирайтер. Твоя задача: по данным ниже составить идеальную карточку товара для магазина в Ташкенте и рассчитать бизнес-модель продажи.${textOnly ? ' Фотографии не переданы — заполняй только по названию, цене и бренду.' : ''}
+${noPhotosNote}${screenshotNote}
 ДАННЫЕ С САЙТА ПОСТАВЩИКА:
 - Краткое название: ${title || 'не указано'}
 - Цена поставщика (юани): ${priceYuan ?? 'не указано'}
@@ -266,14 +275,12 @@ export async function callGeminiForProduct(params) {
 
   if (apiKeys.length === 0) return null;
 
-  // Build images array: prefer imagesBase64 (multiple), fallback to single imageBase64
+  // Build images array: prefer imagesBase64 (multiple), fallback to single imageBase64. Empty = text-only (no photos sent to AI).
   const imagesBase64 = Array.isArray(imagesParam) && imagesParam.length > 0
-    ? imagesParam.slice(0, 10) // Increased to 10 images for better filtering
+    ? imagesParam.slice(0, 10)
     : imageBase64
       ? [imageBase64]
       : [];
-
-  if (imagesBase64.length === 0) return null;
 
   const prompt = buildPrompt({
     title,
@@ -283,9 +290,11 @@ export async function callGeminiForProduct(params) {
     styles,
     brands,
     exampleProducts: exampleProducts || [],
+    textOnly: imagesBase64.length === 0,
+    imagesCount: imagesBase64.length,
   });
 
-  const imageParts = buildImageParts(imagesBase64);
+  const imageParts = imagesBase64.length > 0 ? buildImageParts(imagesBase64) : [];
 
   const body = {
     contents: [

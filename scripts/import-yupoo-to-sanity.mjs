@@ -728,36 +728,18 @@ async function main() {
       let aiResult = null;
       if (useAi && aiContext) {
         try {
-          const aiImages = [albumScreenshotBase64, ...downloadedImages.slice(0, MAX_AI_IMAGES-1).map(d => d.buffer.toString('base64'))].filter(Boolean);
           const brandTitle = aiContext.brands.find(b => b.slug === brandSlugToUse)?.title || brandSlugToUse;
+          // Передаём только скриншот страницы альбома — ИИ заполняет карточку по нему, фотографии товара не трогаем
+          const screenshotOnly = albumScreenshotBase64 ? [albumScreenshotBase64] : [];
           aiResult = await callGeminiForProduct({
-            imagesBase64: aiImages, title, priceYuan, brandName: brandTitle,
+            imagesBase64: screenshotOnly, title, priceYuan, brandName: brandTitle,
             categories: aiContext.categories, styles: aiContext.styles,
             brands: aiContext.brands, exampleProducts: aiContext.exampleProducts,
             apiKeys: aiContext.apiKeys,
           });
         } catch(e) {}
       }
-
-      if (aiResult && aiResult.excludeImageIndices && Array.isArray(aiResult.excludeImageIndices)) {
-        // excludeImageIndices refers to aiImages. 
-        // aiImages[0] is albumScreenshotBase64 (if present).
-        // aiImages[1..N] are downloadedImages[0..N-1].
-        const offset = albumScreenshotBase64 ? 1 : 0;
-        const toRemove = new Set();
-        for (const idx of aiResult.excludeImageIndices) {
-          const downloadedIdx = idx - offset;
-          if (downloadedIdx >= 0 && downloadedIdx < downloadedImages.length) {
-            toRemove.add(downloadedIdx);
-          }
-        }
-        
-        if (toRemove.size > 0) {
-          const before = downloadedImages.length;
-          downloadedImages = downloadedImages.filter((_, i) => !toRemove.has(i));
-          console.log(`AI filtered out ${before - downloadedImages.length} unwanted images (models/charts).`);
-        }
-      }
+      // Фотографии товара не фильтруем по ИИ — все скачанные изображения остаются
 
       const imageRefs = [];
       for (let start = 0; start < downloadedImages.length; start += PARALLEL_UPLOADS) {
