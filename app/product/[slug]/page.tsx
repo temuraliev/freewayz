@@ -6,6 +6,20 @@ import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { MOCK_PRODUCT } from "@/lib/mock-data";
 
+/** Ensures product has safe shape for client (no null refs in arrays, slug always object). */
+function normalizeProduct(p: Product): Product {
+  return {
+    ...p,
+    slug: p.slug && typeof p.slug === "object" && typeof (p.slug as { current?: string }).current === "string"
+      ? { current: (p.slug as { current: string }).current }
+      : { current: "" },
+    images: Array.isArray(p.images) ? p.images.filter((url): url is string => typeof url === "string" && url.length > 0) : [],
+    videos: Array.isArray(p.videos) ? p.videos.filter((url): url is string => typeof url === "string" && url.length > 0) : [],
+    sizes: Array.isArray(p.sizes) ? p.sizes : [],
+    colors: Array.isArray(p.colors) ? p.colors : [],
+  };
+}
+
 type Props = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ edit?: string }>;
@@ -30,23 +44,24 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params;
-  const product = await client.fetch<Product | null>(productBySlugQuery, { slug });
+  try {
+    const { slug } = await params;
+    const product = await client.fetch<Product | null>(productBySlugQuery, { slug });
+    if (!product) return { title: "Товар не найден | FreeWayz" };
 
-  if (!product) {
-    return { title: "Товар не найден | FreeWayz" };
+    const safe = normalizeProduct(product);
+    const brandName = typeof safe.brand === "string" ? safe.brand : safe.brand?.title || "";
+    const title = `${brandName} ${safe.title} | FreeWayz`.trim();
+    const firstImage = Array.isArray(safe.images) && safe.images.length > 0 && typeof safe.images[0] === "string" ? safe.images[0] : undefined;
+
+    return {
+      title,
+      description: safe.description?.substring(0, 160),
+      openGraph: firstImage ? { images: [firstImage] } : undefined,
+    };
+  } catch {
+    return { title: "Товар | FreeWayz" };
   }
-
-  const brandName = typeof product.brand === "string" ? product.brand : product.brand?.title || "";
-  const title = `${brandName} ${product.title} | FreeWayz`.trim();
-
-  return {
-    title,
-    description: product.description?.substring(0, 160),
-    openGraph: {
-      images: product.images?.[0] ? [product.images[0]] : [],
-    },
-  };
 }
 
 export default async function ProductPage({ params, searchParams }: Props) {
@@ -62,7 +77,6 @@ export default async function ProductPage({ params, searchParams }: Props) {
   }
 
   if (!product) {
-    // Allow mock fallback in dev environment
     if (MOCK_PRODUCT.slug.current === slug) {
       product = MOCK_PRODUCT;
     } else {
@@ -70,5 +84,6 @@ export default async function ProductPage({ params, searchParams }: Props) {
     }
   }
 
-  return <ProductPageClient product={product} initialEditMode={editMode} />;
+  const safeProduct = normalizeProduct(product);
+  return <ProductPageClient product={safeProduct} initialEditMode={editMode} />;
 }

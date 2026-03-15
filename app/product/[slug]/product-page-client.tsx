@@ -198,11 +198,11 @@ export function ProductPageClient({ product, initialEditMode }: ProductPageClien
         </div>
       </div>
 
-      {/* Image Carousel — full bleed */}
+      {/* Image Carousel — full bleed (only valid URLs to avoid 500) */}
       <ImageCarousel
         media={[
-          ...(product.videos ?? []).map((url): CarouselMediaItem => ({ type: "video", url })),
-          ...(product.images ?? []).map((url): CarouselMediaItem => ({ type: "image", url })),
+          ...(product.videos ?? []).filter((url): url is string => Boolean(url)).map((url): CarouselMediaItem => ({ type: "video", url })),
+          ...(product.images ?? []).filter((url): url is string => Boolean(url)).map((url): CarouselMediaItem => ({ type: "image", url })),
         ]}
         alt={product.title}
       />
