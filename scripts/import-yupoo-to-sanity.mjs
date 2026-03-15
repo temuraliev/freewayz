@@ -727,17 +727,22 @@ async function main() {
 
       let aiResult = null;
       if (useAi && aiContext) {
-        try {
-          const brandTitle = aiContext.brands.find(b => b.slug === brandSlugToUse)?.title || brandSlugToUse;
-          // Передаём только скриншот страницы альбома — ИИ заполняет карточку по нему, фотографии товара не трогаем
-          const screenshotOnly = albumScreenshotBase64 ? [albumScreenshotBase64] : [];
-          aiResult = await callGeminiForProduct({
-            imagesBase64: screenshotOnly, title, priceYuan, brandName: brandTitle,
-            categories: aiContext.categories, styles: aiContext.styles,
-            brands: aiContext.brands, exampleProducts: aiContext.exampleProducts,
-            apiKeys: aiContext.apiKeys,
-          });
-        } catch(e) {}
+        const brandTitle = aiContext.brands.find(b => b.slug === brandSlugToUse)?.title || brandSlugToUse;
+        const screenshotOnly = albumScreenshotBase64 ? [albumScreenshotBase64] : [];
+        for (let attempt = 1; ; attempt++) {
+          try {
+            aiResult = await callGeminiForProduct({
+              imagesBase64: screenshotOnly, title, priceYuan, brandName: brandTitle,
+              categories: aiContext.categories, styles: aiContext.styles,
+              brands: aiContext.brands, exampleProducts: aiContext.exampleProducts,
+              apiKeys: aiContext.apiKeys,
+            });
+            if (aiResult) break;
+          } catch (e) {
+            console.warn(`Gemini attempt ${attempt} failed (${albumUrl}):`, e.message);
+          }
+          await sleep(5000 * Math.min(attempt, 5));
+        }
       }
       // Фотографии товара не фильтруем по ИИ — все скачанные изображения остаются
 
@@ -804,10 +809,7 @@ async function main() {
       progress.completed.push(albumUrl);
       stats.success++;
 
-      if (stats.success % 10 === 0) {
-        saveProgress(progress);
-        await sendTelegramMessage(`📊 <b>Progress Update</b>\n✅ Success: ${stats.success}\n❌ Failed: ${stats.failed}\nElapsed: ${Math.round((Date.now()-startTime)/1000)}s`);
-      }
+      if (stats.success % 10 === 0) saveProgress(progress);
 
     } catch (e) {
       console.log(`❌ Error: ${albumUrl} - ${e.message}`);
