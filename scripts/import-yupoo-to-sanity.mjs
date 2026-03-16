@@ -810,6 +810,9 @@ async function main() {
       stats.success++;
 
       if (stats.success % 10 === 0) saveProgress(progress);
+      if (stats.success % 50 === 0) {
+        await sendTelegramMessage(`📊 <b>Progress</b>\n✅ Success: ${stats.success}\n❌ Failed: ${stats.failed}\nElapsed: ${Math.round((Date.now()-startTime)/1000)}s`);
+      }
 
     } catch (e) {
       console.log(`❌ Error: ${albumUrl} - ${e.message}`);
