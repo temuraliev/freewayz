@@ -619,7 +619,7 @@ async function main() {
 
   const origin = new URL(url).origin;
   const isSingleAlbum = /\/albums\/\d+/.test(url.replace(/\?.*$/, ''));
-  const isCategory = url.includes('/categories/');
+  const isCategory = url.includes('/categories/') || url.includes('/collections/');
   const isAlbumsIndex = url.includes('.yupoo.com') && !isCategory && !isSingleAlbum && (url === origin + '/' || url === origin || url.replace(/\?.*$/, '').endsWith('/albums/'));
 
   const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
