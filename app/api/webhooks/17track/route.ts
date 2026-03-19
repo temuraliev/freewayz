@@ -1,23 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@sanity/client";
+import { prisma } from "@/lib/db";
 import {
   parseTrackStatus,
   parseTrackEvents,
   mapTrackStatusToOrderStatus,
   type TrackingEvent,
 } from "@/lib/tracking/track17";
-
-function makeSanityClient() {
-  const token = process.env.SANITY_API_TOKEN;
-  if (!token) return null;
-  return createClient({
-    projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-    dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
-    apiVersion: "2024-01-01",
-    useCdn: false,
-    token,
-  });
-}
 
 async function notifyAdminBot(text: string) {
   const botToken = (
@@ -69,11 +57,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const client = makeSanityClient();
-  if (!client) {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
-  }
-
   try {
     const payload = body as {
       event?: string;
@@ -92,13 +75,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, skipped: "no number" });
     }
 
-    const order = await client.fetch(
-      `*[_type == "order" && trackNumber == $tn][0]{
-        _id, orderId, status, trackingStatus,
-        "userTelegramId": user->telegramId
-      }`,
-      { tn: trackNumber }
-    );
+    const order = await prisma.order.findFirst({
+      where: { trackNumber },
+      include: { user: { select: { telegramId: true } } },
+    });
 
     if (!order) {
       return NextResponse.json({ ok: true, skipped: "order not found" });
@@ -109,35 +89,31 @@ export async function POST(request: NextRequest) {
     const rawEvents = track?.z1 || track?.z0 || [];
     const events: TrackingEvent[] = parseTrackEvents(rawEvents);
 
-    const patch: Record<string, unknown> = {
-      updatedAt: new Date().toISOString(),
-    };
+    const updateData: Record<string, unknown> = {};
 
     if (newStatus && newStatus !== order.trackingStatus) {
-      patch.trackingStatus = newStatus;
+      updateData.trackingStatus = newStatus;
     }
 
     if (events.length > 0) {
-      patch.trackingEvents = events.map((ev, i) => ({
-        _key: `te${Date.now()}-${i}`,
-        _type: "trackingEvent",
-        date: ev.date || new Date().toISOString(),
+      updateData.trackingEvents = events.map((ev) => ({
+        date: ev.date || null,
         status: ev.status,
         description: ev.description,
         location: ev.location,
       }));
     }
 
-    await client.patch(order._id).set(patch).commit();
+    if (Object.keys(updateData).length > 0) {
+      await prisma.order.update({ where: { id: order.id }, data: updateData });
+    }
 
-    const orderStatus = newStatus
-      ? mapTrackStatusToOrderStatus(newStatus)
-      : null;
+    const orderStatus = newStatus ? mapTrackStatusToOrderStatus(newStatus) : null;
     if (orderStatus && orderStatus !== order.status) {
-      await client
-        .patch(order._id)
-        .set({ status: orderStatus })
-        .commit();
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { status: orderStatus as "new" | "paid" | "ordered" | "shipped" | "delivered" | "cancelled" },
+      });
     }
 
     const latestEvent = events[0];
@@ -152,11 +128,8 @@ export async function POST(request: NextRequest) {
         `${eventDesc}`
     );
 
-    // Отдельное оповещение админу, когда посылка доставлена (последний адрес)
     if (newStatus === "Delivered") {
-      const locationDesc = latestEvent?.location
-        ? `\nАдрес: ${latestEvent.location}`
-        : "";
+      const locationDesc = latestEvent?.location ? `\nАдрес: ${latestEvent.location}` : "";
       await notifyAdminBot(
         `✅ Посылка доставлена\n` +
           `Заказ #${order.orderId}\n` +
@@ -165,17 +138,13 @@ export async function POST(request: NextRequest) {
     }
 
     const KEY_STATUSES = ["PickedUp", "Delivered"];
-    if (
-      newStatus &&
-      KEY_STATUSES.includes(newStatus) &&
-      order.userTelegramId
-    ) {
+    if (newStatus && KEY_STATUSES.includes(newStatus) && order.user?.telegramId) {
       const msgs: Record<string, string> = {
         PickedUp: `Ваша посылка (заказ #${order.orderId}) забрана курьером и в пути!`,
         Delivered: `Ваш заказ #${order.orderId} доставлен! Спасибо за покупку!`,
       };
       if (msgs[newStatus]) {
-        await notifyCustomer(order.userTelegramId, msgs[newStatus]);
+        await notifyCustomer(order.user.telegramId, msgs[newStatus]);
       }
     }
 

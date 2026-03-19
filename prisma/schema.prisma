@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ROOKIE
+  PRO
+  LEGEND
+}
+
+enum OrderStatus {
+  new
+  paid
+  ordered
+  shipped
+  delivered
+  cancelled
+}
+
+enum ExpenseCurrency {
+  UZS
+  CNY
+  USD
+}
+
+enum ExpenseCategory {
+  shipping
+  purchase
+  packaging
+  other
+}
+
+enum PromoType {
+  discount_percent
+  discount_fixed
+  balance_topup
+}
+
+model User {
+  id                    Int          @id @default(autoincrement())
+  telegramId            String       @unique
+  username              String?
+  firstName             String?
+  lastName              String?
+  photoUrl              String?
+  phone                 String?
+  address               String?
+  adminNotes            String?
+  totalSpent            Float        @default(0)
+  status                UserStatus   @default(ROOKIE)
+  cashbackBalance       Float        @default(0)
+  onboardingDone        Boolean      @default(false)
+  referredBy            String?      // telegramId of referrer
+  preferredBrandIds     String[]     // Sanity brand _id values
+  preferredStyleIds     String[]     // Sanity style _id values
+  cartItems             String?      // JSON stringified cart items
+  cartUpdatedAt         DateTime?
+  abandonedCartNotified Boolean      @default(false)
+  orders                Order[]
+  promoUsages           PromoUsage[]
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+}
+
+model Order {
+  id                Int         @id @default(autoincrement())
+  orderId           String      @unique
+  userId            Int
+  user              User        @relation(fields: [userId], references: [id])
+  items             Json        // OrderItem[]
+  total             Float
+  cost              Float?
+  status            OrderStatus @default(new)
+  trackNumber       String?
+  trackUrl          String?
+  carrier           String?
+  track17Registered Boolean     @default(false)
+  trackingStatus    String?
+  trackingEvents    Json?       // TrackingEvent[]
+  shippingMethod    String?
+  promoCode         String?
+  discount          Float?
+  notes             String?
+  expenses          Expense[]
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+model Expense {
+  id          Int             @id @default(autoincrement())
+  date        DateTime
+  amount      Float
+  currency    ExpenseCurrency @default(UZS)
+  category    ExpenseCategory @default(other)
+  description String?
+  orderId     Int?
+  order       Order?          @relation(fields: [orderId], references: [id])
+  createdAt   DateTime        @default(now())
+}
+
+model PromoCode {
+  id             Int          @id @default(autoincrement())
+  code           String       @unique
+  type           PromoType
+  value          Float
+  minOrderTotal  Float?
+  maxUses        Int?
+  usedCount      Int          @default(0)
+  maxUsesPerUser Int          @default(1)
+  isActive       Boolean      @default(true)
+  expiresAt      DateTime?
+  usedBy         PromoUsage[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model PromoUsage {
+  id          Int       @id @default(autoincrement())
+  promoCodeId Int
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id])
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  usedAt      DateTime  @default(now())
+}
+
+model Supplier {
+  id             Int      @id @default(autoincrement())
+  name           String
+  url            String
+  lastCheckedAt  DateTime?
+  lastAlbumCount Int?
+  knownAlbumIds  String[]
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}

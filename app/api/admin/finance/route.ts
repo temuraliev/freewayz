@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@sanity/client";
+import { prisma } from "@/lib/db";
 import { validateAdminInitData } from "@/lib/admin-auth";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
@@ -10,66 +11,47 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const token = process.env.SANITY_API_TOKEN;
-  if (!token) {
-    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-  }
-
-  const client = createClient({
-    projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-    dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
-    apiVersion: "2024-01-01",
-    useCdn: false,
-    token,
-  });
-
   const from = request.nextUrl.searchParams.get("from") ?? "";
   const to = request.nextUrl.searchParams.get("to") ?? "";
 
   try {
-    const params: Record<string, string> = {};
-    let expenseFilter = `_type == "expense"`;
-    if (from) {
-      params.from = from;
-      expenseFilter += ` && date >= $from`;
-    }
+    const expenseWhere: Prisma.ExpenseWhereInput = {};
+    if (from) expenseWhere.date = { ...(expenseWhere.date as object), gte: new Date(from) };
     if (to) {
-      params.to = to;
-      expenseFilter += ` && date <= $to`;
+      const toEnd = new Date(to);
+      toEnd.setHours(23, 59, 59, 999);
+      expenseWhere.date = { ...(expenseWhere.date as object), lte: toEnd };
     }
-    const expenses = await client.fetch(
-      `*[${expenseFilter}] | order(date desc) { _id, date, amount, currency, category, description }`,
-      params
-    );
 
-    let orderFilter = `_type == "order" && status != "cancelled"`;
-    const orderParams = { ...params };
-    if (from) orderFilter += ` && createdAt >= $from`;
+    const expenses = await prisma.expense.findMany({
+      where: expenseWhere,
+      orderBy: { date: "desc" },
+      select: { id: true, date: true, amount: true, currency: true, category: true, description: true },
+    });
+
+    const orderWhere: Prisma.OrderWhereInput = { status: { not: "cancelled" } };
+    if (from) orderWhere.createdAt = { ...(orderWhere.createdAt as object), gte: new Date(from) };
     if (to) {
-      orderFilter += ` && createdAt <= $toEnd`;
-      orderParams.toEnd = `${to}T23:59:59.999Z`;
+      const toEnd = new Date(to);
+      toEnd.setHours(23, 59, 59, 999);
+      orderWhere.createdAt = { ...(orderWhere.createdAt as object), lte: toEnd };
     }
-    const orders = await client.fetch<{ total?: number; cost?: number }[]>(
-      `*[${orderFilter}] { total, cost, createdAt }`,
-      orderParams
-    );
 
-    const revenue = Array.isArray(orders)
-      ? orders.reduce((s, o) => s + (Number(o.total) || 0), 0)
-      : 0;
-    const costOfGoods = Array.isArray(orders)
-      ? orders.reduce((s, o) => s + (Number(o.cost) || 0), 0)
-      : 0;
-    const totalExpense = Array.isArray(expenses)
-      ? (expenses as { amount?: number; currency?: string }[]).reduce((s, e) => {
-          const amt = Number(e.amount) || 0;
-          return s + (e.currency === "UZS" ? amt : amt * 1600);
-        }, 0)
-      : 0;
+    const orders = await prisma.order.findMany({
+      where: orderWhere,
+      select: { total: true, cost: true },
+    });
+
+    const revenue = orders.reduce((s, o) => s + (o.total || 0), 0);
+    const costOfGoods = orders.reduce((s, o) => s + (o.cost || 0), 0);
+    const totalExpense = expenses.reduce((s, e) => {
+      const amt = Number(e.amount) || 0;
+      return s + (e.currency === "UZS" ? amt : amt * 1600);
+    }, 0);
     const profit = revenue - costOfGoods - totalExpense;
 
     return NextResponse.json({
-      expenses: expenses ?? [],
+      expenses,
       revenue,
       costOfGoods,
       totalExpense,
@@ -108,27 +90,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const token = process.env.SANITY_API_TOKEN;
-  if (!token) {
-    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-  }
-
-  const client = createClient({
-    projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-    dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
-    apiVersion: "2024-01-01",
-    useCdn: false,
-    token,
-  });
-
   try {
-    await client.create({
-      _type: "expense",
-      date: parsed.data.date,
-      amount: parsed.data.amount,
-      currency: parsed.data.currency,
-      category: parsed.data.category,
-      description: parsed.data.description ?? "",
+    await prisma.expense.create({
+      data: {
+        date: new Date(parsed.data.date),
+        amount: parsed.data.amount,
+        currency: parsed.data.currency,
+        category: parsed.data.category,
+        description: parsed.data.description ?? null,
+      },
     });
     return NextResponse.json({ ok: true });
   } catch (e) {

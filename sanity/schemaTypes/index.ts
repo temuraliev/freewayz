@@ -4,12 +4,7 @@ import {brandType} from './brand'
 import {categoryType} from './category'
 import {productType} from './product'
 import {styleType} from './style'
-import {userType} from './user'
-import {orderType} from './order'
-import {expenseType} from './expense'
-import {yupooSupplierType} from './yupooSupplier'
-import {promoCodeType} from './promoCode'
 
 export const schema: { types: SchemaTypeDefinition[] } = {
-  types: [categoryType, brandType, styleType, productType, userType, orderType, expenseType, yupooSupplierType, promoCodeType],
+  types: [categoryType, brandType, styleType, productType],
 }

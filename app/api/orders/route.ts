@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@sanity/client";
+import { prisma } from "@/lib/db";
 import { validateTelegramInitData } from "@/lib/telegram-auth";
 import { z } from "zod";
 
@@ -20,18 +20,6 @@ const bodySchema = z.object({
   promoCode: z.string().optional(),
   discount: z.number().nonnegative().optional(),
 });
-
-function makeSanityClient() {
-  const token = process.env.SANITY_API_TOKEN;
-  if (!token) return null;
-  return createClient({
-    projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-    dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
-    apiVersion: "2024-01-01",
-    useCdn: false,
-    token,
-  });
-}
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -66,32 +54,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid initData" }, { status: 401 });
   }
 
-  const client = makeSanityClient();
-  if (!client) {
-    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-  }
-
   try {
-    let userDoc = await client.fetch(
-      `*[_type == "user" && telegramId == $tid][0]{ _id }`,
-      { tid: String(tgUser.id) }
-    );
-    if (!userDoc) {
-      userDoc = await client.create({
-        _type: "user",
-        telegramId: String(tgUser.id),
-        username: tgUser.username || "",
+    const telegramId = String(tgUser.id);
+
+    const userDoc = await prisma.user.upsert({
+      where: { telegramId },
+      update: {},
+      create: {
+        telegramId,
+        username: tgUser.username || null,
         firstName: tgUser.first_name,
-        status: "ROOKIE",
-        totalSpent: 0,
-        cashbackBalance: 0,
-      });
-    }
+      },
+    });
 
     const orderId = `${Date.now().toString(36).toUpperCase()}`;
     const items = parsed.data.items.map((it) => ({
-      _key: `k${Math.random().toString(36).slice(2, 8)}`,
-      _type: "orderItem" as const,
       productId: it.productId,
       title: it.title,
       brand: it.brand,
@@ -101,40 +78,38 @@ export async function POST(request: NextRequest) {
       quantity: it.quantity,
     }));
 
-    const orderDoc: Record<string, unknown> & { _type: string } = {
-      _type: "order",
-      orderId,
-      user: { _type: "reference", _ref: userDoc._id },
-      items,
-      total: parsed.data.total,
-      status: "new",
-      createdAt: new Date().toISOString(),
-    };
-
-    if (parsed.data.promoCode) orderDoc.promoCode = parsed.data.promoCode;
-    if (parsed.data.discount) orderDoc.discount = parsed.data.discount;
-
-    await client.create(orderDoc);
+    await prisma.order.create({
+      data: {
+        orderId,
+        userId: userDoc.id,
+        items,
+        total: parsed.data.total,
+        status: "new",
+        promoCode: parsed.data.promoCode ?? null,
+        discount: parsed.data.discount ?? null,
+      },
+    });
 
     // Record promo code usage if applied
     if (parsed.data.promoCode) {
       try {
-        const promo = await client.fetch(
-          `*[_type == "promoCode" && upper(code) == $code][0]{ _id }`,
-          { code: parsed.data.promoCode.trim().toUpperCase() }
-        );
+        const upperCode = parsed.data.promoCode.trim().toUpperCase();
+        const promo = await prisma.promoCode.findUnique({ where: { code: upperCode } });
         if (promo) {
-          await client
-            .patch(promo._id)
-            .inc({ usedCount: 1 })
-            .append("usedBy", [
-              {
-                _key: `${tgUser.id}_${Date.now()}`,
-                telegramId: String(tgUser.id),
-                usedAt: new Date().toISOString(),
-              },
-            ])
-            .commit();
+          const alreadyUsed = await prisma.promoUsage.findFirst({
+            where: { promoCodeId: promo.id, userId: userDoc.id },
+          });
+          if (!alreadyUsed) {
+            await prisma.$transaction([
+              prisma.promoCode.update({
+                where: { id: promo.id },
+                data: { usedCount: { increment: 1 } },
+              }),
+              prisma.promoUsage.create({
+                data: { promoCodeId: promo.id, userId: userDoc.id },
+              }),
+            ]);
+          }
         }
       } catch (promoErr) {
         console.error("Failed to record promo usage:", promoErr);

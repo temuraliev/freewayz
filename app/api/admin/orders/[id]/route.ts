@@ -1,27 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@sanity/client";
+import { prisma } from "@/lib/db";
 import { validateAdminInitData } from "@/lib/admin-auth";
 import { z } from "zod";
-
-const orderFields = `
-  _id,
-  orderId,
-  total,
-  cost,
-  status,
-  trackNumber,
-  trackUrl,
-  carrier,
-  track17Registered,
-  trackingStatus,
-  trackingEvents,
-  shippingMethod,
-  notes,
-  createdAt,
-  updatedAt,
-  "user": user->{ _id, telegramId, username, firstName },
-  items
-`;
 
 const bodySchema = z.object({
   initData: z.string(),
@@ -34,22 +14,7 @@ const bodySchema = z.object({
   cost: z.number().min(0).optional().nullable(),
 });
 
-function makeSanityClient() {
-  const token = process.env.SANITY_API_TOKEN;
-  if (!token) return null;
-  return createClient({
-    projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-    dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
-    apiVersion: "2024-01-01",
-    useCdn: false,
-    token,
-  });
-}
-
-async function notifyCustomer(
-  telegramId: string,
-  text: string
-) {
+async function notifyCustomer(telegramId: string, text: string) {
   const botToken = (
     process.env.BOT_TOKEN ||
     process.env.ADMIN_BOT_TOKEN ||
@@ -94,20 +59,28 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const client = makeSanityClient();
-  if (!client) {
-    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-  }
-
   try {
-    const order = await client.fetch(
-      `*[_type == "order" && _id == $id][0]{ ${orderFields} }`,
-      { id }
-    );
+    // Support lookup by numeric DB id OR by orderId string
+    const numericId = parseInt(id, 10);
+    const order = await prisma.order.findFirst({
+      where: isNaN(numericId)
+        ? { orderId: id }
+        : { OR: [{ id: numericId }, { orderId: id }] },
+      include: {
+        user: {
+          select: { id: true, telegramId: true, username: true, firstName: true },
+        },
+      },
+    });
+
     if (!order) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    return NextResponse.json(order);
+
+    return NextResponse.json({
+      ...order,
+      user: order.user ?? null,
+    });
   } catch (e) {
     console.error("Order fetch error:", e);
     return NextResponse.json({ error: "Fetch failed" }, { status: 500 });
@@ -137,69 +110,55 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const client = makeSanityClient();
-  if (!client) {
-    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-  }
-
-  const patch: Record<string, unknown> = {
-    updatedAt: new Date().toISOString(),
-  };
-  if (parsed.data.status !== undefined) patch.status = parsed.data.status;
-  if (parsed.data.trackNumber !== undefined)
-    patch.trackNumber = parsed.data.trackNumber;
-  if (parsed.data.trackUrl !== undefined) patch.trackUrl = parsed.data.trackUrl;
-  if (parsed.data.notes !== undefined) patch.notes = parsed.data.notes;
-  if (parsed.data.cost !== undefined) patch.cost = parsed.data.cost;
-
   try {
-    const prev = await client.getDocument(id).catch(() => null);
-    await client.patch(id).set(patch).commit();
+    const numericId = parseInt(id, 10);
+    const prev = await prisma.order.findFirst({
+      where: isNaN(numericId)
+        ? { orderId: id }
+        : { OR: [{ id: numericId }, { orderId: id }] },
+      include: { user: { select: { telegramId: true } } },
+    });
 
-    if (
-      parsed.data.trackNumber &&
-      !prev?.track17Registered
-    ) {
+    if (!prev) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (parsed.data.status !== undefined) updateData.status = parsed.data.status;
+    if (parsed.data.trackNumber !== undefined) updateData.trackNumber = parsed.data.trackNumber;
+    if (parsed.data.trackUrl !== undefined) updateData.trackUrl = parsed.data.trackUrl;
+    if (parsed.data.notes !== undefined) updateData.notes = parsed.data.notes;
+    if (parsed.data.cost !== undefined) updateData.cost = parsed.data.cost;
+
+    await prisma.order.update({ where: { id: prev.id }, data: updateData });
+
+    // Register with 17track if new tracking number
+    if (parsed.data.trackNumber && !prev.track17Registered) {
       const ok = await registerWith17track(parsed.data.trackNumber);
       if (ok) {
-        await client.patch(id).set({ track17Registered: true }).commit();
+        await prisma.order.update({
+          where: { id: prev.id },
+          data: { track17Registered: true },
+        });
       }
       if (!parsed.data.trackUrl) {
         const url = `https://t.17track.net/en#nums=${encodeURIComponent(parsed.data.trackNumber)}`;
-        await client.patch(id).set({ trackUrl: url }).commit();
+        await prisma.order.update({ where: { id: prev.id }, data: { trackUrl: url } });
       }
     }
 
-    const telegramId = prev?.user?._ref
-      ? (
-          await client
-            .fetch(`*[_id == $ref][0]{ telegramId }`, {
-              ref: prev.user._ref,
-            })
-            .catch(() => null)
-        )?.telegramId
-      : null;
-
+    const telegramId = prev.user?.telegramId ?? null;
     if (telegramId) {
-      const orderId = prev?.orderId ?? id;
+      const orderId = prev.orderId;
       if (parsed.data.status === "shipped") {
         const trackInfo = parsed.data.trackNumber
           ? `\nТрек: ${parsed.data.trackNumber}${parsed.data.trackUrl ? `\n${parsed.data.trackUrl}` : ""}`
           : "";
-        await notifyCustomer(
-          telegramId,
-          `Ваш заказ #${orderId} отправлен!${trackInfo}`
-        );
+        await notifyCustomer(telegramId, `Ваш заказ #${orderId} отправлен!${trackInfo}`);
       } else if (parsed.data.status === "delivered") {
-        await notifyCustomer(
-          telegramId,
-          `Ваш заказ #${orderId} доставлен! Спасибо за покупку!`
-        );
+        await notifyCustomer(telegramId, `Ваш заказ #${orderId} доставлен! Спасибо за покупку!`);
       } else if (parsed.data.status === "cancelled") {
-        await notifyCustomer(
-          telegramId,
-          `Заказ #${orderId} отменён. Свяжитесь с нами, если есть вопросы.`
-        );
+        await notifyCustomer(telegramId, `Заказ #${orderId} отменён. Свяжитесь с нами, если есть вопросы.`);
       }
     }
 

@@ -4,8 +4,6 @@ import { createContext, useContext, useEffect, useState, ReactNode, useRef } fro
 import { useRouter } from "next/navigation";
 import { useUserStore, useCartStore } from "@/lib/store";
 import { TelegramUser } from "@/lib/types";
-import { client } from "@/lib/sanity/client";
-import { userByTelegramIdQuery } from "@/lib/sanity/queries";
 
 interface TelegramContextType {
   isReady: boolean;
@@ -181,12 +179,16 @@ export function TelegramProvider({ children }: TelegramProviderProps) {
     if (!telegramUser?.id || fetchedRef.current) return;
     fetchedRef.current = true;
 
-    client
-      .fetch(userByTelegramIdQuery, { telegramId: String(telegramUser.id) })
-      .then((doc) => {
-        if (doc) setUser(doc);
-      })
-      .catch((err) => console.error("Failed to fetch user from Sanity:", err));
+    const tg = typeof window !== "undefined" ? window.Telegram?.WebApp : null;
+    const initData = tg?.initData || "";
+    if (!initData) return;
+
+    fetch("/api/user/me", {
+      headers: { "X-Telegram-Init-Data": initData },
+    })
+      .then((res) => res.json())
+      .then((doc) => { if (doc && !doc.error) setUser(doc); })
+      .catch((err) => console.error("Failed to fetch user:", err));
   }, [telegramUser, setUser]);
 
   // Sync Cart with Backend

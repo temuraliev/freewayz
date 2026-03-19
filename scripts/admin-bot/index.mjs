@@ -3,23 +3,12 @@
  * Admin Telegram Bot (grammY).
  * Only users listed in ADMIN_TELEGRAM_IDS can use the bot.
  *
- * Commands:
- *  /start        — main menu
- *  /orders       — list recent orders
- *  /order <id>   — show order details
- *  /neworder     — create an order manually
- *  /track <orderId> <trackNum> — attach tracking number
- *  /confirm <orderId> — confirm (new → ordered)
- *  /suppliers    — list Yupoo suppliers
- *  /addsupplier  — add a new supplier
- *  /expense      — record an expense
- *  /importcategory <url> ... — add Yupoo category import to queue (runs one by one)
- *  /importqueue — show import queue and current job
- *
- * Callback queries handle the interactive Yupoo import flow.
+ * CRM data (orders, users, expenses, promos, suppliers) → PostgreSQL via Prisma
+ * Product catalog (brands, styles, categories, products) → Sanity (read-only)
  */
 import { Bot, session, InlineKeyboard } from 'grammy';
 import { createClient } from '@sanity/client';
+import { PrismaClient } from '@prisma/client';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
@@ -51,7 +40,6 @@ function loadEnvLocal() {
 loadEnvLocal();
 
 const token = (process.env.ADMIN_BOT_TOKEN || '').replace(/\r\n?|\n/g, '').trim();
-
 const adminIdsStr = (process.env.ADMIN_TELEGRAM_IDS || '').replace(/\r\n?|\n/g, '').trim();
 const webAppUrl = (process.env.ADMIN_WEBAPP_URL || process.env.NEXT_PUBLIC_APP_URL || '').trim().replace(/\/+$/, '');
 
@@ -77,8 +65,12 @@ if (adminIds.size === 0) {
   console.warn('ADMIN_TELEGRAM_IDS is empty. No one will be able to use the bot.');
 }
 
+// ── Prisma (CRM data) ───────────────────────────────────────
+const prisma = new PrismaClient();
+
+// ── Sanity (catalog: brands, styles, categories — read-only) ─
 const sanityToken = (process.env.SANITY_API_TOKEN || '').replace(/\r\n?|\n/g, '').trim();
-const client = sanityToken && process.env.NEXT_PUBLIC_SANITY_PROJECT_ID
+const sanity = sanityToken && process.env.NEXT_PUBLIC_SANITY_PROJECT_ID
   ? createClient({
       projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID,
       dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || 'production',
@@ -145,7 +137,7 @@ async function registerWith17track(trackNumber) {
   }
 }
 
-// ── /start (один бот: админам — админ-меню, остальным — приветствие и кнопки каталога) ─
+// ── /start ───────────────────────────────────────────────────
 
 bot.command('start', async (ctx) => {
   const from = ctx.from;
@@ -186,45 +178,22 @@ const ADMIN_HELP = (
   '📋 Справка по командам бота\n\n' +
   '🛒 Заказы\n' +
   '/orders — список последних 15 заказов (номер, статус, сумма, трек).\n' +
-  'Пример: /orders\n\n' +
-  '/order <orderId> — детали заказа (клиент, товары, трек, заметки).\n' +
-  'Пример: /order 42\n' +
-  'Пример: /order ORDER-abc123\n\n' +
+  '/order <orderId> — детали заказа.\n' +
   '/neworder @username товар1, товар2 сумма — создать заказ вручную.\n' +
-  'Пример: /neworder @ivan худи sp5der, футболка denim tears 990000\n\n' +
   '/track <orderId> <трек-номер> — привязать трек к заказу.\n' +
-  'Пример: /track 42 1Z999AA10123456784\n\n' +
-  '/confirm <orderId> — перевести заказ в статус «заказан».\n' +
-  'Пример: /confirm 42\n\n' +
+  '/confirm <orderId> — перевести заказ в статус «заказан».\n\n' +
   '📦 Поставщики и импорт\n' +
   '/suppliers — список Yupoo-поставщиков.\n' +
-  'Пример: /suppliers\n\n' +
-  '/addsupplier <url> — добавить поставщика по URL магазина.\n' +
-  'Пример: /addsupplier https://tophotfashion.x.yupoo.com\n\n' +
-  '/importcategory <URL> --brand SLUG --style SLUG [опции] — добавить импорт категории в очередь. Выполняется по одному.\n' +
-  'Опции: --tier top|ultimate, --from N, --to M, --min-image-size KB, --category SLUG, --ai, --publish\n' +
-  'Пример: /importcategory https://tophotfashion.x.yupoo.com/categories/4644883 --brand chrome-hearts --style opium --tier top --from 1 --to 50 --min-image-size 100 --ai\n\n' +
-  '/importqueue — показать очередь импортов и текущую задачу.\n' +
-  'Пример: /importqueue\n' +
-  '/importqueue remove <N> — удалить N-ю задачу из очереди.\n' +
-  'Пример: /importqueue remove 2\n' +
-  '/importqueue clear — очистить очередь ожидания (текущий импорт не трогает).\n' +
-  'Пример: /importqueue clear\n\n' +
-  '/importcancel — остановить текущий импорт и перейти к следующему.\n' +
-  'Пример: /importcancel\n\n' +
+  '/addsupplier <url> — добавить поставщика.\n' +
+  '/importcategory <URL> --brand SLUG --style SLUG [опции] — добавить импорт в очередь.\n' +
+  '/importqueue — показать очередь импортов.\n' +
+  '/importcancel — остановить текущий импорт.\n\n' +
   '💰 Финансы\n' +
-  '/expense <сумма> <описание> — записать расход.\n' +
-  'Пример: /expense 50000 Доставка из Китая\n\n' +
+  '/expense <сумма> <описание> — записать расход.\n\n' +
   '🎟 Промокоды\n' +
   '/promo create CODE TYPE VALUE [maxUses] [maxUsesPerUser] — создать промокод.\n' +
-  'TYPE: discount_percent, discount_fixed, balance_topup\n' +
-  'Пример: /promo create SUMMER10 discount_percent 10\n' +
-  'Пример: /promo create GIFT50K balance_topup 50000 100\n\n' +
   '/promo list — список активных промокодов.\n' +
-  'Пример: /promo list\n\n' +
-  '/promo disable CODE — отключить промокод.\n' +
-  'Пример: /promo disable SUMMER10\n\n' +
-  '/start — главное меню с кнопкой панели.'
+  '/promo disable CODE — деактивировать промокод.'
 );
 
 const USER_HELP = (
@@ -248,11 +217,12 @@ bot.command('menu', async (ctx) => {
 // ── /orders ─────────────────────────────────────────────────
 
 bot.command('orders', async (ctx) => {
-  if (!client) { await ctx.reply('Sanity не настроен.'); return; }
   try {
-    const orders = await client.fetch(
-      `*[_type == "order"] | order(createdAt desc) [0...15] { _id, orderId, total, status, trackNumber }`
-    );
+    const orders = await prisma.order.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 15,
+      select: { id: true, orderId: true, total: true, status: true, trackNumber: true },
+    });
     if (!orders?.length) { await ctx.reply('Заказов нет.'); return; }
     const lines = orders.map((o, i) =>
       `${i + 1}. #${o.orderId} — ${o.status} — ${(o.total || 0).toLocaleString()} UZS${o.trackNumber ? ` · ${o.trackNumber}` : ''}`
@@ -270,18 +240,16 @@ bot.command('orders', async (ctx) => {
 
 bot.command('order', async (ctx) => {
   const arg = ctx.message?.text?.replace(/^\/order\s+/i, '').trim() || '';
-  if (!client) { await ctx.reply('Sanity не настроен.'); return; }
   if (!arg) { await ctx.reply('Использование: /order <orderId>'); return; }
   try {
-    const order = await client.fetch(
-      `*[_type == "order" && (orderId == $id || _id == $id)][0]{
-        _id, orderId, total, status, trackNumber, trackUrl, trackingStatus, notes,
-        "user": user->{ telegramId, username },
-        "items": items[]{ title, brand, size, price, quantity }
-      }`,
-      { id: arg }
-    );
+    const numericId = parseInt(arg, 10);
+    const order = await prisma.order.findFirst({
+      where: isNaN(numericId) ? { orderId: arg } : { OR: [{ id: numericId }, { orderId: arg }] },
+      include: { user: { select: { telegramId: true, username: true } } },
+    });
     if (!order) { await ctx.reply('Заказ не найден.'); return; }
+
+    const items = Array.isArray(order.items) ? order.items : [];
     let text = `#${order.orderId}\n` +
       `Статус: ${order.status}\n` +
       `Сумма: ${(order.total || 0).toLocaleString()} UZS\n`;
@@ -290,14 +258,14 @@ bot.command('order', async (ctx) => {
     if (order.trackingStatus) text += `17track: ${order.trackingStatus}\n`;
     if (order.trackUrl) text += `Ссылка: ${order.trackUrl}\n`;
     if (order.notes) text += `Заметки: ${order.notes}\n`;
-    if (order.items?.length) {
+    if (items.length) {
       text += '\nТовары:\n';
-      order.items.forEach((it, i) => {
+      items.forEach((it, i) => {
         text += `  ${i + 1}. ${it.brand || ''} ${it.title} — ${it.size || ''} — ${(it.price || 0).toLocaleString()} UZS x${it.quantity || 1}\n`;
       });
     }
     const kb = new InlineKeyboard();
-    if (webAppUrl) kb.webApp('Открыть в панели', `${webAppUrl}/admin/orders/${order._id}`);
+    if (webAppUrl) kb.webApp('Открыть в панели', `${webAppUrl}/admin/orders/${order.id}`);
     await ctx.reply(text.trim(), kb.inline_keyboard?.length ? { reply_markup: kb } : {});
   } catch (e) {
     await ctx.reply('Ошибка: ' + (e.message || 'fetch failed'));
@@ -307,7 +275,6 @@ bot.command('order', async (ctx) => {
 // ── /neworder @username items total ─────────────────────────
 
 bot.command('neworder', async (ctx) => {
-  if (!client) { await ctx.reply('Sanity не настроен.'); return; }
   const rest = ctx.message?.text?.replace(/^\/neworder\s+/i, '').trim() || '';
   if (!rest) {
     await ctx.reply(
@@ -333,26 +300,19 @@ bot.command('neworder', async (ctx) => {
   }
 
   try {
-    let userDoc = await client.fetch(
-      `*[_type == "user" && username == $u][0]{ _id }`,
-      { u: usernameRaw }
-    );
-    if (!userDoc) {
-      userDoc = await client.create({
-        _type: 'user',
-        telegramId: `manual-${Date.now()}`,
+    const userDoc = await prisma.user.upsert({
+      where: { telegramId: `manual-${usernameRaw}` },
+      update: {},
+      create: {
+        telegramId: `manual-${usernameRaw}`,
         username: usernameRaw,
         firstName: usernameRaw,
-        status: 'ROOKIE',
-        totalSpent: 0,
-        cashbackBalance: 0,
-      });
-    }
+      },
+    });
 
     const orderId = `M${Date.now().toString(36).toUpperCase()}`;
     const items = itemNames.map((name) => ({
-      _key: `k${Math.random().toString(36).slice(2, 8)}`,
-      _type: 'orderItem',
+      productId: '',
       title: name,
       brand: '',
       size: 'One Size',
@@ -361,14 +321,14 @@ bot.command('neworder', async (ctx) => {
       quantity: 1,
     }));
 
-    await client.create({
-      _type: 'order',
-      orderId,
-      user: { _type: 'reference', _ref: userDoc._id },
-      items,
-      total,
-      status: 'new',
-      createdAt: new Date().toISOString(),
+    await prisma.order.create({
+      data: {
+        orderId,
+        userId: userDoc.id,
+        items,
+        total,
+        status: 'new',
+      },
     });
 
     await ctx.reply(`Заказ #${orderId} создан для @${usernameRaw} на ${total.toLocaleString()} UZS`);
@@ -380,7 +340,6 @@ bot.command('neworder', async (ctx) => {
 // ── /track <orderId> <trackNumber> ──────────────────────────
 
 bot.command('track', async (ctx) => {
-  if (!client) { await ctx.reply('Sanity не настроен.'); return; }
   const rest = ctx.message?.text?.replace(/^\/track\s+/i, '').trim() || '';
   const parts = rest.split(/\s+/);
   if (parts.length < 2) {
@@ -389,29 +348,28 @@ bot.command('track', async (ctx) => {
   }
   const [orderIdArg, trackNum] = parts;
   try {
-    const order = await client.fetch(
-      `*[_type == "order" && (orderId == $id || _id == $id)][0]{ _id, orderId, status }`,
-      { id: orderIdArg }
-    );
+    const numericId = parseInt(orderIdArg, 10);
+    const order = await prisma.order.findFirst({
+      where: isNaN(numericId) ? { orderId: orderIdArg } : { OR: [{ id: numericId }, { orderId: orderIdArg }] },
+    });
     if (!order) { await ctx.reply('Заказ не найден.'); return; }
 
     const trackUrl = `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`;
-    await client.patch(order._id).set({
-      trackNumber: trackNum,
-      trackUrl,
-      updatedAt: new Date().toISOString(),
-    }).commit();
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { trackNumber: trackNum, trackUrl },
+    });
 
     let statusMsg = `Трек ${trackNum} привязан к заказу #${order.orderId}`;
 
     const reg = await registerWith17track(trackNum);
     if (reg) {
-      await client.patch(order._id).set({ track17Registered: true }).commit();
+      await prisma.order.update({ where: { id: order.id }, data: { track17Registered: true } });
       statusMsg += '\n17track: зарегистрирован для отслеживания';
     }
 
     if (order.status === 'ordered' || order.status === 'paid') {
-      await client.patch(order._id).set({ status: 'shipped' }).commit();
+      await prisma.order.update({ where: { id: order.id }, data: { status: 'shipped' } });
       statusMsg += '\nСтатус обновлён на: shipped';
     }
 
@@ -424,17 +382,14 @@ bot.command('track', async (ctx) => {
 // ── /confirm <orderId> ──────────────────────────────────────
 
 bot.command('confirm', async (ctx) => {
-  if (!client) { await ctx.reply('Sanity не настроен.'); return; }
   const arg = ctx.message?.text?.replace(/^\/confirm\s+/i, '').trim() || '';
   if (!arg) { await ctx.reply('Использование: /confirm <orderId>'); return; }
   try {
-    const order = await client.fetch(
-      `*[_type == "order" && (orderId == $id || _id == $id)][0]{ 
-        _id, orderId, status, total,
-        user->{ _id, telegramId, referredBy, totalSpent, cashbackBalance, status, firstName }
-      }`,
-      { id: arg }
-    );
+    const numericId = parseInt(arg, 10);
+    const order = await prisma.order.findFirst({
+      where: isNaN(numericId) ? { orderId: arg } : { OR: [{ id: numericId }, { orderId: arg }] },
+      include: { user: true },
+    });
     if (!order) { await ctx.reply('Заказ не найден.'); return; }
     if (order.status !== 'new' && order.status !== 'paid') {
       await ctx.reply(`Заказ #${order.orderId} уже в статусе: ${order.status}`);
@@ -446,71 +401,55 @@ bot.command('confirm', async (ctx) => {
     let replyText = `Заказ #${order.orderId} подтверждён (ordered)`;
 
     if (user) {
-      // 1. Update Total Spent
       const newTotalSpent = (user.totalSpent || 0) + orderTotal;
-      
-      // 2. Recalculate Loyalty Status
-      // Thresholds: PRO = 4M, LEGEND = 7M (as per lib/utils.ts)
+
       let newStatus = 'ROOKIE';
       if (newTotalSpent >= 7000000) newStatus = 'LEGEND';
       else if (newTotalSpent >= 4000000) newStatus = 'PRO';
 
-      // 3. Referral Bonus (50,000 UZS)
-      let referrerUpdate = null;
-      let userBonusSuffix = '';
-      
+      let userCashbackIncrement = 0;
+
+      // Referral bonus (50,000 UZS) on first order
       if (user.referredBy && (!user.totalSpent || user.totalSpent === 0)) {
         const REFERRER_BONUS = 50000;
-        const referrerId = user.referredBy;
-        
-        // Find referrer in Sanity
-        const referrer = await client.fetch(`*[_type == "user" && telegramId == $id][0]`, { id: referrerId });
-        
+        const referrer = await prisma.user.findUnique({ where: { telegramId: user.referredBy } });
+
         if (referrer) {
-          referrerUpdate = client
-            .patch(referrer._id)
-            .inc({ cashbackBalance: REFERRER_BONUS })
-            .commit();
-          
-          // Notify referrer via bot if possible
-          bot.api.sendMessage(referrer.telegramId, 
+          await prisma.user.update({
+            where: { id: referrer.id },
+            data: { cashbackBalance: { increment: REFERRER_BONUS } },
+          });
+
+          bot.api.sendMessage(referrer.telegramId,
             `💰 <b>Бонус начислен!</b>\n\nТвой друг ${user.firstName || ''} @${user.username || ''} сделал первый заказ. Тебе начислено <b>50,000 UZS</b> кэшбэка!`,
             { parse_mode: 'HTML' }
           ).catch(() => {});
 
-          // Add bonus to the buyer too
-          userBonusSuffix = ` + Начислен реферальный бонус 50,000 UZS`;
-          replyText += userBonusSuffix;
+          userCashbackIncrement = REFERRER_BONUS;
+          replyText += ' + Начислен реферальный бонус 50,000 UZS';
         }
       }
 
-      // Final User Patch
-      const userPatch = client.patch(user._id).set({
-        totalSpent: newTotalSpent,
-        status: newStatus,
-      });
-
-      if (userBonusSuffix) {
-        userPatch.inc({ cashbackBalance: 50000 });
-      }
-
-      await Promise.all([
-        userPatch.commit(),
-        referrerUpdate,
-        client.patch(order._id).set({
-          status: 'ordered',
-          updatedAt: new Date().toISOString(),
-        }).commit()
+      await prisma.$transaction([
+        prisma.user.update({
+          where: { id: user.id },
+          data: {
+            totalSpent: newTotalSpent,
+            status: newStatus,
+            ...(userCashbackIncrement > 0 ? { cashbackBalance: { increment: userCashbackIncrement } } : {}),
+          },
+        }),
+        prisma.order.update({
+          where: { id: order.id },
+          data: { status: 'ordered' },
+        }),
       ]);
 
       if (newStatus !== user.status) {
         replyText += `\n⬆️ Статус клиента повышен до <b>${newStatus}</b>!`;
       }
     } else {
-      await client.patch(order._id).set({
-        status: 'ordered',
-        updatedAt: new Date().toISOString(),
-      }).commit();
+      await prisma.order.update({ where: { id: order.id }, data: { status: 'ordered' } });
     }
 
     await ctx.reply(replyText, { parse_mode: 'HTML' });
@@ -522,11 +461,12 @@ bot.command('confirm', async (ctx) => {
 // ── /suppliers ──────────────────────────────────────────────
 
 bot.command('suppliers', async (ctx) => {
-  if (!client) { await ctx.reply('Sanity не настроен.'); return; }
   try {
-    const list = await client.fetch(
-      `*[_type == "yupooSupplier" && isActive == true] | order(name asc) { name, url, lastAlbumCount }`
-    );
+    const list = await prisma.supplier.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+      select: { name: true, url: true, lastAlbumCount: true },
+    });
     if (!list?.length) { await ctx.reply('Нет поставщиков. Добавьте: /addsupplier <url>'); return; }
     const lines = list.map((s) => `${s.name}: ${s.lastAlbumCount ?? '?'} альбомов`);
     const keyboard = webAppUrl
@@ -542,19 +482,14 @@ bot.command('suppliers', async (ctx) => {
 
 bot.command('addsupplier', async (ctx) => {
   const url = ctx.message?.text?.replace(/^\/addsupplier\s+/i, '').trim() || '';
-  if (!client) { await ctx.reply('Sanity не настроен.'); return; }
   if (!url || !url.startsWith('http')) {
     await ctx.reply('Использование: /addsupplier <url>');
     return;
   }
   try {
     const name = url.replace(/^https?:\/\//, '').split('/')[0] || 'Supplier';
-    await client.create({
-      _type: 'yupooSupplier',
-      name,
-      url,
-      isActive: true,
-      knownAlbumIds: [],
+    await prisma.supplier.create({
+      data: { name, url, isActive: true, knownAlbumIds: [] },
     });
     await ctx.reply(`Поставщик добавлен: ${name}`);
   } catch (e) {
@@ -566,7 +501,6 @@ bot.command('addsupplier', async (ctx) => {
 
 bot.command('expense', async (ctx) => {
   const rest = ctx.message?.text?.replace(/^\/expense\s+/i, '').trim() || '';
-  if (!client) { await ctx.reply('Sanity не настроен.'); return; }
   const parts = rest.split(/\s+/);
   const amount = parts[0] ? parseInt(parts[0], 10) : NaN;
   const description = parts.slice(1).join(' ') || 'Расход';
@@ -575,13 +509,14 @@ bot.command('expense', async (ctx) => {
     return;
   }
   try {
-    await client.create({
-      _type: 'expense',
-      date: new Date().toISOString(),
-      amount,
-      currency: 'UZS',
-      category: 'other',
-      description,
+    await prisma.expense.create({
+      data: {
+        date: new Date(),
+        amount,
+        currency: 'UZS',
+        category: 'other',
+        description,
+      },
     });
     await ctx.reply(`Расход записан: ${amount.toLocaleString()} UZS — ${description}`);
   } catch (e) {
@@ -627,7 +562,6 @@ const state = loadImportQueueState();
 const importQueue = Array.isArray(state.queue) ? state.queue : [];
 let importRunning = null;
 
-// If bot restarted mid-import, put that job back to the front of the queue.
 if (state.runningJob) {
   importQueue.unshift({ ...state.runningJob, requeuedAfterRestart: true, requeuedAt: new Date().toISOString() });
 }
@@ -641,8 +575,7 @@ function runNextImport() {
 
   const scriptPath = join(PROJECT_ROOT, 'scripts', 'import-yupoo-to-sanity.mjs');
   const spawnArgs = [
-    scriptPath,
-    url,
+    scriptPath, url,
     '--brand', brand,
     '--style', style,
     '--tier', tier,
@@ -677,7 +610,7 @@ function runNextImport() {
     if (wasCancelled) {
       notifyAdmins(`Импорт остановлен админом.\nURL: ${url}\n\n${errTail}`).catch(() => {});
     } else if (code === 0) {
-      notifyAdmins(`Импорт завершён.\nURL: ${url}\nБренд: ${brand}, стиль: ${style}\nКод: 0.\n\n${errTail}`).catch(() => {});
+      notifyAdmins(`Импорт завершён.\nURL: ${url}\nБренд: ${brand}, стиль: ${style}\n\n${errTail}`).catch(() => {});
     } else {
       notifyAdmins(`Импорт с ошибкой (код ${code}${signal ? `, ${signal}` : ''}).\nURL: ${url}\n\n${errTail}`).catch(() => {});
     }
@@ -694,7 +627,7 @@ function runNextImport() {
   });
 }
 
-// ── /importcategory — добавить импорт в очередь ─────────────────────────────
+// ── /importcategory ──────────────────────────────────────────
 
 bot.command('importcategory', async (ctx) => {
   const raw = ctx.message?.text?.replace(/^\/importcategory\s+/i, '').trim() || '';
@@ -703,91 +636,55 @@ bot.command('importcategory', async (ctx) => {
       'Импорт категории Yupoo (очередь).\n\n' +
       'Использование:\n' +
       '/importcategory <URL> --brand SLUG --style SLUG [--tier top|ultimate] [--from N] [--to M] [--min-image-size KB] [--ai] [--publish]\n\n' +
-      'Пример:\n' +
-      '/importcategory https://... --brand x --style y --from 1 --to 50 --min-image-size 100 --ai\n\n' +
       '/importqueue — показать очередь'
     );
     return;
   }
 
   const args = raw.split(/\s+/);
-  let url = null;
-  let brand = null;
-  let style = null;
-  let category = null;
-  let from = 1;
-  let to = 20;
-  let tier = 'ultimate';
-  let minImageSize = null;
-  let concurrency = 3;
-  let ai = false;
-  let publish = false;
+  let url = null, brand = null, style = null, category = null;
+  let from = 1, to = 20;
+  let tier = 'ultimate', minImageSize = null, concurrency = 3;
+  let ai = false, publish = false;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith('http') && args[i].includes('yupoo')) {
       url = args[i];
-    } else if (args[i] === '--brand' && args[i + 1]) {
-      brand = args[i + 1].trim();
-      i++;
-    } else if (args[i] === '--style' && args[i + 1]) {
-      style = args[i + 1].trim();
-      i++;
-    } else if (args[i] === '--category' && args[i + 1]) {
-      category = args[i + 1].trim();
-      i++;
-    } else if (args[i] === '--tier' && args[i + 1]) {
-      tier = args[i + 1].trim().toLowerCase();
-      i++;
-    } else if (args[i] === '--min-image-size' && args[i + 1]) {
-      const n = parseInt(args[i + 1], 10);
-      minImageSize = Number.isNaN(n) ? null : Math.max(0, n);
-      i++;
-    } else if (args[i] === '--concurrency' && args[i + 1]) {
-      concurrency = parseInt(args[i + 1], 10) || 3;
-      i++;
-    } else if (args[i] === '--from' && args[i + 1]) {
-      from = parseInt(args[i + 1], 10) || 1;
-      i++;
-    } else if (args[i] === '--to' && args[i + 1]) {
-      to = parseInt(args[i + 1], 10) || 20;
-      i++;
-    } else if (args[i] === '--ai') {
-      ai = true;
-    } else if (args[i] === '--publish') {
-      publish = true;
-    }
+    } else if (args[i] === '--brand' && args[i + 1]) { brand = args[++i].trim(); }
+    else if (args[i] === '--style' && args[i + 1]) { style = args[++i].trim(); }
+    else if (args[i] === '--category' && args[i + 1]) { category = args[++i].trim(); }
+    else if (args[i] === '--tier' && args[i + 1]) { tier = args[++i].trim().toLowerCase(); }
+    else if (args[i] === '--min-image-size' && args[i + 1]) { const n = parseInt(args[++i], 10); minImageSize = Number.isNaN(n) ? null : Math.max(0, n); }
+    else if (args[i] === '--concurrency' && args[i + 1]) { concurrency = parseInt(args[++i], 10) || 3; }
+    else if (args[i] === '--from' && args[i + 1]) { from = parseInt(args[++i], 10) || 1; }
+    else if (args[i] === '--to' && args[i + 1]) { to = parseInt(args[++i], 10) || 20; }
+    else if (args[i] === '--ai') { ai = true; }
+    else if (args[i] === '--publish') { publish = true; }
   }
 
   if (!url || !brand || !style) {
-    await ctx.reply('Нужны: URL категории Yupoo, --brand SLUG и --style SLUG. Опционально: --tier top|ultimate --from N --to M --ai --publish --category SLUG');
+    await ctx.reply('Нужны: URL категории Yupoo, --brand SLUG и --style SLUG.');
     return;
   }
-
   if (tier !== 'top' && tier !== 'ultimate') {
-    await ctx.reply('--tier должен быть "top" или "ultimate" (по умолчанию: ultimate)');
+    await ctx.reply('--tier должен быть "top" или "ultimate"');
     return;
   }
 
   const job = { url, brand, style, category, from, to, tier, minImageSize, concurrency, ai, publish };
   importQueue.push(job);
   saveImportQueueState(importQueue, importRunning?.job || null);
-  const pos = importQueue.length;
-  const running = importRunning ? 1 : 0;
 
   const minImg = minImageSize != null ? `, мин. фото: ${minImageSize} KB` : '';
-  const concLog = concurrency !== 3 ? `, потоков: ${concurrency}` : '';
   await ctx.reply(
-    `Добавлено в очередь. Позиция: ${pos} (в очереди: ${importQueue.length}, выполняется: ${running}).\n` +
-    `${brand} / ${style}, ${from}–${to}, tier: ${tier}${minImg}${concLog}${ai ? ', ИИ' : ''}. Уведомлю по окончании.`
+    `Добавлено в очередь. Позиция: ${importQueue.length}.\n` +
+    `${brand} / ${style}, ${from}–${to}, tier: ${tier}${minImg}${ai ? ', ИИ' : ''}. Уведомлю по окончании.`
   );
 
   runNextImport();
 });
 
-// ── /importqueue — управление очередью импортов ─────────────────────────────
-// /importqueue                — показать очередь
-// /importqueue remove <N>     — удалить N-ю задачу из очереди
-// /importqueue clear          — очистить очередь
+// ── /importqueue ─────────────────────────────────────────────
 
 bot.command('importqueue', async (ctx) => {
   const rest = ctx.message?.text?.replace(/^\/importqueue(\s+)?/i, '').trim() || '';
@@ -805,20 +702,12 @@ bot.command('importqueue', async (ctx) => {
   if (sub === 'remove') {
     const n = parts[1] ? parseInt(parts[1], 10) : NaN;
     if (Number.isNaN(n) || n < 1 || n > importQueue.length) {
-      await ctx.reply(
-        'Использование:\n' +
-        '/importqueue remove <N>\n\n' +
-        `Сейчас в очереди: ${importQueue.length}\n` +
-        'Пример: /importqueue remove 2'
-      );
+      await ctx.reply(`Использование:\n/importqueue remove <N>\n\nСейчас в очереди: ${importQueue.length}`);
       return;
     }
     const removedJob = importQueue.splice(n - 1, 1)[0];
     saveImportQueueState(importQueue, importRunning?.job || null);
-    await ctx.reply(
-      `Удалено из очереди (#${n}):\n` +
-      `${removedJob.brand} / ${removedJob.style} — ${removedJob.url} (${removedJob.from}–${removedJob.to})`
-    );
+    await ctx.reply(`Удалено из очереди (#${n}):\n${removedJob.brand} / ${removedJob.style} — ${removedJob.url}`);
     return;
   }
 
@@ -831,7 +720,7 @@ bot.command('importqueue', async (ctx) => {
   await ctx.reply(running + 'Очередь:\n' + list);
 });
 
-// ── /importcancel — остановить текущий импорт ───────────────────────────────
+// ── /importcancel ─────────────────────────────────────────────
 
 bot.command('importcancel', async (ctx) => {
   if (!importRunning?.child) {
@@ -843,11 +732,8 @@ bot.command('importcancel', async (ctx) => {
   job.cancelled = true;
   saveImportQueueState(importQueue, job);
 
-  // Try graceful stop first
   const pid = child.pid;
   try { child.kill('SIGTERM'); } catch {}
-
-  // Force kill if still running after 5s
   setTimeout(() => {
     if (importRunning?.child?.pid === pid) {
       try { importRunning.child.kill('SIGKILL'); } catch {}
@@ -861,16 +747,14 @@ bot.command('importcancel', async (ctx) => {
   );
 });
 
-// ── Promo code management ────────────────────────────────────
+// ── /promo ───────────────────────────────────────────────────
 
 bot.command('promo', async (ctx) => {
-  if (!client) { await ctx.reply('Sanity не настроен.'); return; }
   const rest = ctx.message?.text?.replace(/^\/promo\s+/i, '').trim() || '';
   const parts = rest.split(/\s+/);
   const subCmd = parts[0]?.toLowerCase();
 
   if (subCmd === 'create') {
-    // /promo create CODE TYPE VALUE [maxUses] [maxUsesPerUser]
     const code = parts[1]?.toUpperCase();
     const type = parts[2];
     const value = parseInt(parts[3], 10);
@@ -880,38 +764,31 @@ bot.command('promo', async (ctx) => {
     const validTypes = ['discount_percent', 'discount_fixed', 'balance_topup'];
     if (!code || !validTypes.includes(type) || isNaN(value) || value <= 0) {
       await ctx.reply(
-        'Использование:\n' +
-        '/promo create CODE TYPE VALUE [maxUses] [maxUsesPerUser]\n\n' +
+        'Использование:\n/promo create CODE TYPE VALUE [maxUses] [maxUsesPerUser]\n\n' +
         'TYPE: discount_percent, discount_fixed, balance_topup\n' +
-        'Пример: /promo create SUMMER10 discount_percent 10\n' +
-        'Пример: /promo create GIFT50K balance_topup 50000 100'
+        'Пример: /promo create SUMMER10 discount_percent 10'
       );
       return;
     }
 
     try {
-      const existing = await client.fetch(
-        `*[_type == "promoCode" && upper(code) == $code][0]{ _id }`,
-        { code }
-      );
+      const existing = await prisma.promoCode.findUnique({ where: { code } });
       if (existing) {
         await ctx.reply(`Промокод ${code} уже существует.`);
         return;
       }
 
-      const doc = {
-        _type: 'promoCode',
-        code,
-        type,
-        value,
-        isActive: true,
-        usedCount: 0,
-        maxUsesPerUser,
-        usedBy: [],
-      };
-      if (maxUses) doc.maxUses = maxUses;
-
-      await client.create(doc);
+      await prisma.promoCode.create({
+        data: {
+          code,
+          type,
+          value,
+          isActive: true,
+          usedCount: 0,
+          maxUsesPerUser,
+          ...(maxUses ? { maxUses } : {}),
+        },
+      });
 
       const typeLabel = type === 'discount_percent'
         ? `${value}%`
@@ -920,9 +797,7 @@ bot.command('promo', async (ctx) => {
           : `+${value.toLocaleString()} UZS (баланс)`;
 
       await ctx.reply(
-        `Промокод создан:\n` +
-        `Код: ${code}\n` +
-        `Тип: ${typeLabel}\n` +
+        `Промокод создан:\nКод: ${code}\nТип: ${typeLabel}\n` +
         (maxUses ? `Макс. использований: ${maxUses}\n` : 'Без лимита\n') +
         `На пользователя: ${maxUsesPerUser}`
       );
@@ -934,11 +809,11 @@ bot.command('promo', async (ctx) => {
 
   if (subCmd === 'list') {
     try {
-      const codes = await client.fetch(
-        `*[_type == "promoCode" && isActive == true] | order(code asc) {
-          code, type, value, usedCount, maxUses, isActive
-        }`
-      );
+      const codes = await prisma.promoCode.findMany({
+        where: { isActive: true },
+        orderBy: { code: 'asc' },
+        select: { code: true, type: true, value: true, usedCount: true, maxUses: true },
+      });
       if (!codes?.length) {
         await ctx.reply('Нет активных промокодов.');
         return;
@@ -968,15 +843,12 @@ bot.command('promo', async (ctx) => {
       return;
     }
     try {
-      const promo = await client.fetch(
-        `*[_type == "promoCode" && upper(code) == $code][0]{ _id, code }`,
-        { code }
-      );
+      const promo = await prisma.promoCode.findUnique({ where: { code } });
       if (!promo) {
         await ctx.reply(`Промокод ${code} не найден.`);
         return;
       }
-      await client.patch(promo._id).set({ isActive: false }).commit();
+      await prisma.promoCode.update({ where: { id: promo.id }, data: { isActive: false } });
       await ctx.reply(`Промокод ${promo.code} деактивирован.`);
     } catch (e) {
       await ctx.reply('Ошибка: ' + (e.message || 'patch failed'));
@@ -993,26 +865,33 @@ bot.command('promo', async (ctx) => {
 });
 
 // ── Callback queries for Yupoo import flow ──────────────────
+// Brands/styles still come from Sanity (catalog data)
 
 bot.callbackQuery(/^import:(.+):(.+)$/, async (ctx) => {
-  if (!client) { await ctx.answerCallbackQuery('Sanity не настроен'); return; }
+  if (!sanity) { await ctx.answerCallbackQuery('Sanity не настроен'); return; }
   const supplierId = ctx.match[1];
   const albumId = ctx.match[2];
 
-  const supplier = await client.fetch(
-    `*[_type == "yupooSupplier" && _id == $id][0]{ url }`,
-    { id: supplierId }
-  );
-  const baseUrl = supplier?.url?.replace(/\/$/, '') || '';
+  // Supplier now in Postgres (by numeric id or original sanity id stored as string)
+  let supplierUrl = null;
+  const numId = parseInt(supplierId, 10);
+  if (!isNaN(numId)) {
+    const s = await prisma.supplier.findUnique({ where: { id: numId } });
+    supplierUrl = s?.url || null;
+  } else {
+    // fallback: try Sanity if supplierId looks like a Sanity ID
+    const s = await sanity.fetch(`*[_type == "yupooSupplier" && _id == $id][0]{ url }`, { id: supplierId });
+    supplierUrl = s?.url || null;
+  }
+
+  const baseUrl = supplierUrl?.replace(/\/$/, '') || '';
   const albumUrl = `${baseUrl.split('/categories')[0].split('/albums')[0]}/albums/${albumId}`;
 
   ctx.session.importAlbumUrl = albumUrl;
   ctx.session.importSupplierId = supplierId;
   ctx.session.state = 'selectBrand';
 
-  const brands = await client.fetch(
-    `*[_type == "brand"] | order(title asc) { _id, title }`
-  );
+  const brands = await sanity.fetch(`*[_type == "brand"] | order(title asc) { _id, title }`);
   if (!brands?.length) {
     await ctx.reply('Нет брендов в Sanity. Создайте хотя бы один.');
     await ctx.answerCallbackQuery();
@@ -1030,13 +909,11 @@ bot.callbackQuery(/^import:(.+):(.+)$/, async (ctx) => {
 });
 
 bot.callbackQuery(/^brand:(.+)$/, async (ctx) => {
-  if (!client) { await ctx.answerCallbackQuery(); return; }
+  if (!sanity) { await ctx.answerCallbackQuery(); return; }
   ctx.session.importBrandId = ctx.match[1];
   ctx.session.state = 'selectStyle';
 
-  const styles = await client.fetch(
-    `*[_type == "style"] | order(title asc) { _id, title }`
-  );
+  const styles = await sanity.fetch(`*[_type == "style"] | order(title asc) { _id, title }`);
   if (!styles?.length) {
     await ctx.reply('Нет стилей в Sanity.');
     await ctx.answerCallbackQuery();
@@ -1065,7 +942,7 @@ bot.callbackQuery(/^close:(.+)$/, async (ctx) => {
   await ctx.answerCallbackQuery('Закрыто');
 });
 
-// ── Text handler (subtype input for import + fallback) ──────
+// ── Text handler ─────────────────────────────────────────────
 
 bot.on('message:text', async (ctx) => {
   if (ctx.session.state === 'awaitingSubtype' && ctx.session.importAlbumUrl) {
@@ -1085,7 +962,7 @@ bot.on('message:text', async (ctx) => {
         brandId: importBrandId,
         styleId: importStyleId,
         subtype,
-        sanityClient: client,
+        sanityClient: sanity,
       });
 
       if (result?.ok) {
@@ -1110,7 +987,7 @@ bot.on('message:text', async (ctx) => {
   await ctx.reply('Используйте /start для меню.');
 });
 
-// ── Menu button ─────────────────────────────────────────────
+// ── Menu button ──────────────────────────────────────────────
 
 async function setMenuButton() {
   if (!webAppUrl) return;
@@ -1123,8 +1000,7 @@ async function setMenuButton() {
   }
 }
 
-// ── Export notifyAdmins for use by other modules ────────────
-export { notifyAdmins, bot, client as sanityClient };
+export { notifyAdmins, bot, sanity as sanityClient };
 
 bot.start().then(() => {
   console.log('Admin bot is running (long polling).');

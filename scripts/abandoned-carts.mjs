@@ -1,9 +1,9 @@
-import { createClient } from "@sanity/client";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import * as path from "path";
 import pc from "picocolors";
 import fetch from "node-fetch";
+import { PrismaClient } from "@prisma/client";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PROJECT_ROOT = path.join(__dirname, "..");
@@ -24,23 +24,14 @@ try {
     });
 } catch (e) {}
 
-const SANITY_PROJECT_ID = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
-const SANITY_DATASET = process.env.NEXT_PUBLIC_SANITY_DATASET || "production";
-const SANITY_API_TOKEN = (process.env.SANITY_API_TOKEN || "").replace(/\r\n?|\n/g, "").trim();
 const BOT_TOKEN = (process.env.BOT_TOKEN || "").replace(/\r\n?|\n/g, "").trim();
 
-if (!SANITY_PROJECT_ID || !SANITY_API_TOKEN || !BOT_TOKEN) {
-  console.error(pc.red("Missing credentials in .env.local (Sanity or Bot Token)"));
+if (!process.env.DATABASE_URL || !BOT_TOKEN) {
+  console.error(pc.red("Missing DATABASE_URL or BOT_TOKEN in .env.local"));
   process.exit(1);
 }
 
-const client = createClient({
-  projectId: SANITY_PROJECT_ID,
-  dataset: SANITY_DATASET,
-  apiVersion: "2024-03-01",
-  token: SANITY_API_TOKEN,
-  useCdn: false,
-});
+const prisma = new PrismaClient();
 
 async function sendTelegramMessage(chatId, text) {
   const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
@@ -69,19 +60,17 @@ async function sendTelegramMessage(chatId, text) {
 async function main() {
   console.log(pc.cyan("=== Freewayz: Abandoned Cart Recovery ==="));
 
-  // Find users with non-empty cart, updated more than 2 hours ago, and not yet notified
-  // cartItems is stored as a JSON string
-  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-  
-  const query = `*[_type == "user" && defined(cartItems) && cartUpdatedAt < $twoHoursAgo && abandonedCartNotified == false]{
-    _id,
-    telegramId,
-    firstName,
-    cartItems
-  }`;
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
   console.log(pc.blue("Fetching candidates..."));
-  const users = await client.fetch(query, { twoHoursAgo });
+  const users = await prisma.user.findMany({
+    where: {
+      cartItems: { not: null },
+      cartUpdatedAt: { lt: twoHoursAgo },
+      abandonedCartNotified: false,
+    },
+    select: { id: true, telegramId: true, firstName: true, cartItems: true },
+  });
 
   console.log(pc.green(`Found ${users.length} potential abandoned carts.`));
 
@@ -104,23 +93,27 @@ async function main() {
     const success = await sendTelegramMessage(user.telegramId, message);
 
     if (success) {
-      // Mark as notified so we don't spam
-      await client
-        .patch(user._id)
-        .set({ abandonedCartNotified: true })
-        .commit();
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { abandonedCartNotified: true },
+      });
       sentCount++;
       console.log(pc.green(`  ✔ Sent!`));
     } else {
       console.log(pc.red(`  ✖ Failed.`));
     }
 
-    // Rate limiting for Telegram
     await new Promise(r => setTimeout(r, 1000));
   }
 
   console.log(pc.cyan(`\n=== Report ===`));
   console.log(`Users Notified: ${pc.green(sentCount)}`);
+
+  await prisma.$disconnect();
 }
 
-main().catch(console.error);
+main().catch(async (e) => {
+  console.error(e);
+  await prisma.$disconnect();
+  process.exit(1);
+});

@@ -1,18 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@sanity/client";
+import { prisma } from "@/lib/db";
 import { validateAdminInitData } from "@/lib/admin-auth";
-
-function makeSanityClient() {
-  const token = process.env.SANITY_API_TOKEN;
-  if (!token) return null;
-  return createClient({
-    projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-    dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
-    apiVersion: "2024-01-01",
-    useCdn: false,
-    token,
-  });
-}
+import { Prisma } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
@@ -21,43 +10,50 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const client = makeSanityClient();
-  if (!client) {
-    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-  }
-
   const search = request.nextUrl.searchParams.get("q") || "";
 
   try {
-    let filter = `_type == "user"`;
-    const params: Record<string, string> = {};
+    const where: Prisma.UserWhereInput = {};
 
     if (search) {
-      filter += ` && (username match $q || firstName match $q || telegramId == $exact)`;
-      params.q = `*${search}*`;
-      params.exact = search;
+      where.OR = [
+        { username: { contains: search, mode: "insensitive" } },
+        { firstName: { contains: search, mode: "insensitive" } },
+        { telegramId: search },
+      ];
     }
 
-    const users = await client.fetch(
-      `*[${filter}] | order(totalSpent desc) [0...200] {
-        _id,
-        telegramId,
-        username,
-        firstName,
-        lastName,
-        phone,
-        address,
-        adminNotes,
-        totalSpent,
-        status,
-        cashbackBalance,
-        "orderCount": count(*[_type == "order" && user._ref == ^._id]),
-        "lastOrderDate": *[_type == "order" && user._ref == ^._id] | order(createdAt desc) [0].createdAt
-      }`,
-      params
-    );
+    const users = await prisma.user.findMany({
+      where,
+      orderBy: { totalSpent: "desc" },
+      take: 200,
+      include: {
+        _count: { select: { orders: true } },
+        orders: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { createdAt: true },
+        },
+      },
+    });
 
-    return NextResponse.json(users ?? []);
+    const formatted = users.map((u) => ({
+      id: u.id,
+      telegramId: u.telegramId,
+      username: u.username,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      phone: u.phone,
+      address: u.address,
+      adminNotes: u.adminNotes,
+      totalSpent: u.totalSpent,
+      status: u.status,
+      cashbackBalance: u.cashbackBalance,
+      orderCount: u._count.orders,
+      lastOrderDate: u.orders[0]?.createdAt ?? null,
+    }));
+
+    return NextResponse.json(formatted);
   } catch (e) {
     console.error("Customers fetch error:", e);
     return NextResponse.json({ error: "Fetch failed" }, { status: 500 });

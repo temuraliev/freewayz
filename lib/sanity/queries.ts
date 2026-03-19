@@ -189,22 +189,6 @@ export const categoriesQuery = groq`
   }
 `;
 
-// User queries
-export const userByTelegramIdQuery = groq`
-  *[_type == "user" && telegramId == $telegramId][0] {
-    _id,
-    telegramId,
-    username,
-    firstName,
-    totalSpent,
-    status,
-    cashbackBalance,
-    onboardingDone,
-    "preferredBrands": preferredBrands[]->{ _id, title, slug },
-    "preferredStyles": preferredStyles[]->{ _id, title, slug }
-  }
-`;
-
 // Get all unique styles
 export const stylesQuery = groq`
   *[_type == "style"] | order(isFeatured desc, title asc) {
