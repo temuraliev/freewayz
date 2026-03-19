@@ -29,7 +29,6 @@ export async function GET(request: NextRequest) {
           telegramId,
           firstName: user.first_name,
           username: user.username || null,
-          photoUrl: user.photo_url || null,
         },
       });
     }
