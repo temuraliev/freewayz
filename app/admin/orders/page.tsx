@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 
 interface Order {
-  _id: string;
+  id: number;
   orderId: string;
   total: number;
   status: string;
@@ -153,8 +153,8 @@ export default function AdminOrdersPage() {
         <div className="space-y-2">
           {orders.map((o) => (
             <Link
-              key={o._id}
-              href={`/admin/orders/${o._id}`}
+              key={o.id}
+              href={`/admin/orders/${o.id}`}
               className="block border border-border bg-card p-4 transition hover:bg-muted/50"
             >
               <div className="flex items-center justify-between">
