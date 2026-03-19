@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { validateAdminInitData } from "@/lib/admin-auth";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
@@ -15,12 +14,12 @@ export async function GET(request: NextRequest) {
   const to = request.nextUrl.searchParams.get("to") ?? "";
 
   try {
-    const expenseWhere: Prisma.ExpenseWhereInput = {};
-    if (from) expenseWhere.date = { ...(expenseWhere.date as object), gte: new Date(from) };
+    const expenseWhere: { date?: { gte?: Date; lte?: Date } } = {};
+    if (from) expenseWhere.date = { ...(expenseWhere.date ?? {}), gte: new Date(from) };
     if (to) {
       const toEnd = new Date(to);
       toEnd.setHours(23, 59, 59, 999);
-      expenseWhere.date = { ...(expenseWhere.date as object), lte: toEnd };
+      expenseWhere.date = { ...(expenseWhere.date ?? {}), lte: toEnd };
     }
 
     const expenses = await prisma.expense.findMany({
@@ -29,12 +28,15 @@ export async function GET(request: NextRequest) {
       select: { id: true, date: true, amount: true, currency: true, category: true, description: true },
     });
 
-    const orderWhere: Prisma.OrderWhereInput = { status: { not: "cancelled" } };
-    if (from) orderWhere.createdAt = { ...(orderWhere.createdAt as object), gte: new Date(from) };
+    const orderWhere: {
+      status: { not: "cancelled" };
+      createdAt?: { gte?: Date; lte?: Date };
+    } = { status: { not: "cancelled" } };
+    if (from) orderWhere.createdAt = { ...(orderWhere.createdAt ?? {}), gte: new Date(from) };
     if (to) {
       const toEnd = new Date(to);
       toEnd.setHours(23, 59, 59, 999);
-      orderWhere.createdAt = { ...(orderWhere.createdAt as object), lte: toEnd };
+      orderWhere.createdAt = { ...(orderWhere.createdAt ?? {}), lte: toEnd };
     }
 
     const orders = await prisma.order.findMany({

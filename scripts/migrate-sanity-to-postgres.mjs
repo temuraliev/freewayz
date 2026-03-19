@@ -12,7 +12,9 @@
  */
 
 import { createClient } from '@sanity/client';
-import { PrismaClient } from '@prisma/client';
+import prismaPkg from '@prisma/client';
+
+const { PrismaClient } = prismaPkg;
 
 const dryRun = process.argv.includes('--dry-run');
 

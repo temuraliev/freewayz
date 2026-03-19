@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { validateAdminInitData } from "@/lib/admin-auth";
-import { Prisma } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
@@ -13,7 +12,13 @@ export async function GET(request: NextRequest) {
   const search = request.nextUrl.searchParams.get("q") || "";
 
   try {
-    const where: Prisma.UserWhereInput = {};
+    const where: {
+      OR?: Array<
+        | { username: { contains: string; mode: "insensitive" } }
+        | { firstName: { contains: string; mode: "insensitive" } }
+        | { telegramId: string }
+      >;
+    } = {};
 
     if (search) {
       where.OR = [

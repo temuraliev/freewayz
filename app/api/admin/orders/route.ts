@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { validateAdminInitData } from "@/lib/admin-auth";
-import { Prisma } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
@@ -14,10 +13,16 @@ export async function GET(request: NextRequest) {
   const search = request.nextUrl.searchParams.get("q") || "";
 
   try {
-    const where: Prisma.OrderWhereInput = {};
+    const where: {
+      status?: "new" | "paid" | "ordered" | "shipped" | "delivered" | "cancelled";
+      OR?: Array<
+        | { orderId: { contains: string; mode: "insensitive" } }
+        | { user: { username: { contains: string; mode: "insensitive" } } }
+      >;
+    } = {};
 
     if (status && status !== "all") {
-      where.status = status as Prisma.EnumOrderStatusFilter;
+      where.status = status as "new" | "paid" | "ordered" | "shipped" | "delivered" | "cancelled";
     }
 
     if (search) {

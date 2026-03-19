@@ -3,7 +3,9 @@ import { fileURLToPath } from "url";
 import * as path from "path";
 import pc from "picocolors";
 import fetch from "node-fetch";
-import { PrismaClient } from "@prisma/client";
+import prismaPkg from "@prisma/client";
+
+const { PrismaClient } = prismaPkg;
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PROJECT_ROOT = path.join(__dirname, "..");

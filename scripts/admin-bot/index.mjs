@@ -8,11 +8,13 @@
  */
 import { Bot, session, InlineKeyboard } from 'grammy';
 import { createClient } from '@sanity/client';
-import { PrismaClient } from '@prisma/client';
+import prismaPkg from '@prisma/client';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
+
+const { PrismaClient } = prismaPkg;
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..', '..');
