@@ -111,7 +111,15 @@ function FilterView({
   products: Product[] | null;
   count: number;
   loading: boolean;
-  filterParams: Record<string, unknown>;
+  filterParams: {
+    saleOnly: boolean;
+    style: string;
+    brand: string;
+    category: string;
+    subtype: string;
+    minPrice: number;
+    maxPrice: number;
+  };
   subtypes: string[];
   activeSubtype: string | null;
   onSubtypeChange: (s: string | null) => void;
@@ -146,7 +154,7 @@ function FilterView({
       ) : (
         <InfiniteFilterGrid
           initialProducts={products || []}
-          filterParams={filterParams as Parameters<typeof InfiniteFilterGrid>[0]["filterParams"]}
+          filterParams={filterParams}
           totalCount={count}
         />
       )}
