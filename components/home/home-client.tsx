@@ -113,7 +113,7 @@ function FilterView({
   loading: boolean;
   filterParams: Record<string, unknown>;
   subtypes: string[];
-  activeSubtype: string;
+  activeSubtype: string | null;
   onSubtypeChange: (s: string | null) => void;
 }) {
   return (
