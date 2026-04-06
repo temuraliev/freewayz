@@ -21,6 +21,24 @@ jobs:
           key: ${{ secrets.DEPLOY_KEY }}
           script: |
             cd /opt/freewayz || exit 1
-            git pull
-            npx pm2 restart admin-bot
+            PREV_COMMIT=$(git rev-parse HEAD)
+            git pull || exit 1
+            npm ci --omit=dev || { git checkout "$PREV_COMMIT"; exit 1; }
+            npx pm2 restart all
+            sleep 3
             npx pm2 list
+            # Check both bots are online
+            npx pm2 jlist | node -e "
+              const apps = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+              const failed = apps.filter(a => a.pm2_env.status !== 'online');
+              if (failed.length) {
+                console.error('FAILED:', failed.map(a => a.name).join(', '));
+                process.exit(1);
+              }
+              console.log('All bots online');
+            " || {
+              echo "Bots failed to start, rolling back..."
+              git checkout "$PREV_COMMIT"
+              npx pm2 restart all
+              exit 1
+            }

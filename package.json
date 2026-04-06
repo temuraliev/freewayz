@@ -7,14 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint --dir .",
-    "upload-images": "node --env-file=.env.local scripts/upload-images-to-sanity.mjs",
-    "upload-images-from-url": "node --env-file=.env.local scripts/upload-images-from-url.mjs",
-    "check-sanity-token": "node --env-file=.env.local scripts/check-sanity-token.mjs",
-    "import-yupoo": "node --env-file=.env.local scripts/import-yupoo-to-sanity.mjs",
+    "upload-images": "node --env-file=.env.local scripts/import/upload-images-to-sanity.mjs",
+    "upload-images-from-url": "node --env-file=.env.local scripts/import/upload-images-from-url.mjs",
+    "check-sanity-token": "node --env-file=.env.local scripts/maintenance/check-sanity-token.mjs",
+    "import-yupoo": "node --env-file=.env.local scripts/import/import-yupoo-to-sanity.mjs",
     "admin-bot": "node scripts/admin-bot/index.mjs",
     "customer-bot": "node scripts/customer-bot/index.mjs",
-    "set-brand-style": "node --env-file=.env.local scripts/set-brand-style.mjs",
-    "normalize-subtype-zippie": "node --env-file=.env.local scripts/normalize-subtype-zippie.mjs"
+    "set-brand-style": "node --env-file=.env.local scripts/catalog/set-brand-style.mjs",
+    "normalize-subtype-zippie": "node --env-file=.env.local scripts/catalog/normalize-subtype-zippie.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",

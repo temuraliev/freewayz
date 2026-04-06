@@ -19,6 +19,7 @@ const bodySchema = z.object({
   total: z.number().nonnegative(),
   promoCode: z.string().optional(),
   discount: z.number().nonnegative().optional(),
+  idempotencyKey: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -67,6 +68,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Idempotency check: if the client sends the same key, return existing order
+    const idempotencyKey = parsed.data.idempotencyKey || request.headers.get("X-Idempotency-Key");
+    if (idempotencyKey) {
+      const existing = await prisma.order.findUnique({
+        where: { idempotencyKey },
+        select: { orderId: true },
+      });
+      if (existing) {
+        return NextResponse.json({ ok: true, orderId: existing.orderId });
+      }
+    }
+
     const orderId = `${Date.now().toString(36).toUpperCase()}`;
     const items = parsed.data.items.map((it) => ({
       productId: it.productId,
@@ -87,32 +100,34 @@ export async function POST(request: NextRequest) {
         status: "new",
         promoCode: parsed.data.promoCode ?? null,
         discount: parsed.data.discount ?? null,
+        ...(idempotencyKey ? { idempotencyKey } : {}),
       },
     });
 
     // Record promo code usage if applied
+    // Uses unique constraint on (promoCodeId, userId) to prevent race conditions
     if (parsed.data.promoCode) {
       try {
         const upperCode = parsed.data.promoCode.trim().toUpperCase();
         const promo = await prisma.promoCode.findUnique({ where: { code: upperCode } });
         if (promo) {
-          const alreadyUsed = await prisma.promoUsage.findFirst({
-            where: { promoCodeId: promo.id, userId: userDoc.id },
-          });
-          if (!alreadyUsed) {
-            await prisma.$transaction([
-              prisma.promoCode.update({
-                where: { id: promo.id },
-                data: { usedCount: { increment: 1 } },
-              }),
-              prisma.promoUsage.create({
-                data: { promoCodeId: promo.id, userId: userDoc.id },
-              }),
-            ]);
-          }
+          await prisma.$transaction([
+            prisma.promoCode.update({
+              where: { id: promo.id },
+              data: { usedCount: { increment: 1 } },
+            }),
+            prisma.promoUsage.create({
+              data: { promoCodeId: promo.id, userId: userDoc.id },
+            }),
+          ]);
         }
-      } catch (promoErr) {
-        console.error("Failed to record promo usage:", promoErr);
+      } catch (promoErr: unknown) {
+        // P2002 = unique constraint violation = already used, which is fine
+        const isPrismaUniqueError =
+          promoErr && typeof promoErr === "object" && "code" in promoErr && promoErr.code === "P2002";
+        if (!isPrismaUniqueError) {
+          console.error("Failed to record promo usage:", promoErr);
+        }
       }
     }
 

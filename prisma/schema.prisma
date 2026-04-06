@@ -65,6 +65,11 @@ model User {
   promoUsages           PromoUsage[]
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
+
+  @@index([username])
+  @@index([status])
+  @@index([referredBy])
+  @@index([abandonedCartNotified, cartUpdatedAt])
 }
 
 model Order {
@@ -86,9 +91,15 @@ model Order {
   promoCode         String?
   discount          Float?
   notes             String?
+  idempotencyKey    String?     @unique
   expenses          Expense[]
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
+
+  @@index([status])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([trackNumber])
 }
 
 model Expense {
@@ -101,6 +112,9 @@ model Expense {
   orderId     Int?
   order       Order?          @relation(fields: [orderId], references: [id])
   createdAt   DateTime        @default(now())
+
+  @@index([date])
+  @@index([orderId])
 }
 
 model PromoCode {
@@ -126,6 +140,8 @@ model PromoUsage {
   userId      Int
   user        User      @relation(fields: [userId], references: [id])
   usedAt      DateTime  @default(now())
+
+  @@unique([promoCodeId, userId])
 }
 
 model Supplier {
