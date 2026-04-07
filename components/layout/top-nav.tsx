@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Search, ShoppingBag, SlidersHorizontal, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useCartStore, useFilterStore, useAdminStore, useTierStore } from "@/lib/store";
+import { useCartStore, useFilterStore, useAdminStore } from "@/lib/store";
 import { FilterDrawer } from "@/components/layout/filter-drawer";
 import { ru } from "@/lib/i18n/ru";
 import { cn } from "@/lib/utils";
@@ -17,8 +17,6 @@ export function TopNav() {
   const setSearchQuery = useFilterStore((s) => s.setSearchQuery);
   const itemCount = useCartStore((state) => state.getItemCount());
   const isAdmin = useAdminStore((s) => s.isAdmin);
-  const tier = useTierStore((s) => s.tier);
-  const toggleTier = useTierStore((s) => s.toggleTier);
 
   useEffect(() => { setMounted(true); }, []);
   const safeItemCount = mounted ? itemCount : 0;
@@ -27,49 +25,6 @@ export function TopNav() {
     <>
       <header className="sticky top-0 z-40 w-full border-b border-border bg-background/90 backdrop-blur-xl">
         <div className="flex h-14 items-center gap-3 px-4">
-
-          {/* Tier toggle */}
-          {mounted && (
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={toggleTier}
-              className={cn(
-                "relative flex h-7 shrink-0 items-center overflow-hidden border text-[9px] font-extrabold uppercase tracking-[0.14em] transition-all duration-300",
-                tier === "ultimate"
-                  ? "border-amber-500/50 bg-gradient-to-r from-amber-500/15 to-yellow-500/10"
-                  : "border-border bg-secondary/40"
-              )}
-              style={{ borderRadius: "2px", minWidth: "88px" }}
-            >
-              <motion.div
-                className={cn(
-                  "absolute inset-y-0 w-1/2 transition-colors duration-300",
-                  tier === "ultimate"
-                    ? "bg-gradient-to-r from-amber-500 to-yellow-500"
-                    : "bg-foreground"
-                )}
-                animate={{ x: tier === "ultimate" ? "100%" : "0%" }}
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                style={{ borderRadius: "1px" }}
-              />
-              <span
-                className={cn(
-                  "relative z-10 flex-1 text-center transition-colors duration-200",
-                  tier === "top" ? "text-background" : "text-muted-foreground"
-                )}
-              >
-                TOP
-              </span>
-              <span
-                className={cn(
-                  "relative z-10 flex-1 text-center transition-colors duration-200",
-                  tier === "ultimate" ? "text-background" : "text-muted-foreground"
-                )}
-              >
-                ULT
-              </span>
-            </motion.button>
-          )}
 
           {/* Search bar */}
           <div className="relative flex-1">

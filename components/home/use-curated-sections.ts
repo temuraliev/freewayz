@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Product } from "@/lib/types";
 import { client } from "@/lib/sanity/client";
-import { useAdminStore, useTierStore } from "@/lib/store";
+import { useAdminStore } from "@/lib/store";
 import {
   hotDropsPaginatedQuery,
   saleProductsPaginatedQuery,
@@ -22,14 +22,13 @@ export function useCuratedSections(initial: CuratedSections) {
   const [freshArrivals, setFreshArrivals] = useState<Product[]>(initial.freshArrivals);
 
   const catalogInvalidated = useAdminStore((s) => s.catalogInvalidated);
-  const tier = useTierStore((s) => s.tier);
 
   useEffect(() => {
-    if (catalogInvalidated === 0 && tier === "ultimate") return;
+    if (catalogInvalidated === 0) return;
 
     const fetchProducts = async () => {
       try {
-        const params = { tier, offset: 0, limit: 20 };
+        const params = { offset: 0, limit: 20 };
         const [hotData, saleData, freshData] = await Promise.all([
           client.fetch<Product[]>(hotDropsPaginatedQuery, params),
           client.fetch<Product[]>(saleProductsPaginatedQuery, params),
@@ -43,7 +42,7 @@ export function useCuratedSections(initial: CuratedSections) {
       }
     };
     fetchProducts();
-  }, [catalogInvalidated, tier]);
+  }, [catalogInvalidated]);
 
   return { hotDrops, saleProducts, freshArrivals };
 }

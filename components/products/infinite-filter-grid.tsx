@@ -5,7 +5,6 @@ import { Product } from "@/lib/types";
 import { ProductCard } from "@/components/products/product-card";
 import { client } from "@/lib/sanity/client";
 import { productsByFilterPaginatedQuery } from "@/lib/sanity/queries";
-import { useTierStore } from "@/lib/store";
 import { useInfiniteScroll, PAGE_SIZE } from "./use-infinite-scroll";
 import { ru } from "@/lib/i18n/ru";
 
@@ -30,17 +29,14 @@ export function InfiniteFilterGrid({
   filterParams,
   totalCount,
 }: InfiniteFilterGridProps) {
-  const tier = useTierStore((s) => s.tier);
-
   const fetchPage = useCallback(
     async (offset: number) =>
       client.fetch<Product[]>(productsByFilterPaginatedQuery, {
         offset,
         limit: offset + PAGE_SIZE,
-        tier,
         ...filterParams,
       }),
-    [tier, filterParams]
+    [filterParams]
   );
 
   const { items: products, loading, hasMore, sentinelRef } = useInfiniteScroll<Product>({

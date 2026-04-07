@@ -3,40 +3,18 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { useTierStore } from "@/lib/store";
 
-const HERO_TOP = {
-    tag: "FREEWAYZ TOP",
+const HERO = {
+    tag: "FREEWAYZ",
     title: "STYLE\nFOR ALL",
     subtitle: "Premium streetwear. Affordable prices.",
     cta: "Shop Now",
     href: "/",
 };
 
-const HERO_ULTIMATE = {
-    tag: "FREEWAYZ ULTIMATE",
-    title: "HELLSTAR\nSEASON IV",
-    subtitle: "1:1 Quality. No compromises. Ever.",
-    cta: "Shop Now",
-    href: "/product/product_graphic_ders_70",
-};
-
 export function HeroSection() {
-    const tier = useTierStore((s) => s.tier);
-    const isUlt = tier === "ultimate";
-    const hero = isUlt ? HERO_ULTIMATE : HERO_TOP;
-
-    const gradient = isUlt
-        ? "from-black via-amber-950/30 to-black"
-        : "from-black via-zinc-900 to-black";
-
-    const glowColor = isUlt
-        ? "radial-gradient(circle, #f59e0b 0%, transparent 70%)"
-        : "radial-gradient(circle, #ffffff 0%, transparent 70%)";
-
     return (
         <motion.div
-            key={tier}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
@@ -44,7 +22,7 @@ export function HeroSection() {
             style={{ borderRadius: "4px" }}
         >
             <div
-                className={`relative flex flex-col justify-end bg-gradient-to-br ${gradient}`}
+                className="relative flex flex-col justify-end bg-gradient-to-br from-black via-zinc-900 to-black"
                 style={{ minHeight: "280px", padding: "0" }}
             >
                 {/* Grid texture overlay */}
@@ -70,31 +48,21 @@ export function HeroSection() {
                 {/* Glow blob */}
                 <div
                     className="absolute -bottom-10 -right-10 h-48 w-48 rounded-full opacity-20 blur-3xl"
-                    style={{ background: glowColor }}
+                    style={{ background: "radial-gradient(circle, #ffffff 0%, transparent 70%)" }}
                 />
-
-                {isUlt && (
-                    <div
-                        className="absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-10 blur-3xl"
-                        style={{ background: "radial-gradient(circle, #f59e0b 0%, transparent 70%)" }}
-                    />
-                )}
 
                 {/* Content */}
                 <div className="relative z-10 p-6 pb-7">
                     <div className="mb-4 inline-flex items-center gap-2">
-                        <span
-                            className="h-px w-8"
-                            style={{ background: isUlt ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.4)" }}
-                        />
+                        <span className="h-px w-8" style={{ background: "rgba(255,255,255,0.4)" }} />
                         <span
                             className="text-[9px] font-bold uppercase tracking-[0.22em]"
                             style={{
                                 fontFamily: "var(--font-mono)",
-                                color: isUlt ? "rgba(245,158,11,0.7)" : "rgba(255,255,255,0.5)",
+                                color: "rgba(255,255,255,0.5)",
                             }}
                         >
-                            {hero.tag}
+                            {HERO.tag}
                         </span>
                     </div>
 
@@ -104,40 +72,33 @@ export function HeroSection() {
                             fontFamily: "var(--font-display)",
                             textTransform: "uppercase",
                             letterSpacing: "-0.02em",
-                            ...(isUlt
-                                ? {
-                                    background: "linear-gradient(135deg, #fff 0%, #f59e0b 60%, #eab308 100%)",
-                                    WebkitBackgroundClip: "text",
-                                    WebkitTextFillColor: "transparent",
-                                    backgroundClip: "text",
-                                  }
-                                : { color: "#fff" }),
+                            color: "#fff",
                         }}
                     >
-                        {hero.title.split("\n").map((line, i) => (
+                        {HERO.title.split("\n").map((line, i) => (
                             <span key={i} className="block">{line}</span>
                         ))}
                     </h2>
 
                     <p
                         className="mb-5 text-[11px] tracking-widest font-mono"
-                        style={{ color: isUlt ? "rgba(245,158,11,0.45)" : "rgba(255,255,255,0.4)" }}
+                        style={{ color: "rgba(255,255,255,0.4)" }}
                     >
-                        {hero.subtitle}
+                        {HERO.subtitle}
                     </p>
 
-                    <Link href={hero.href}>
+                    <Link href={HERO.href}>
                         <motion.button
                             whileTap={{ scale: 0.97 }}
                             className="inline-flex items-center gap-2 px-5 py-2.5 text-[11px] font-bold uppercase tracking-widest backdrop-blur-sm transition-all"
                             style={{
                                 borderRadius: "2px",
-                                border: isUlt ? "1px solid rgba(245,158,11,0.4)" : "1px solid rgba(255,255,255,0.3)",
-                                background: isUlt ? "rgba(245,158,11,0.12)" : "rgba(255,255,255,0.1)",
-                                color: isUlt ? "#f59e0b" : "#fff",
+                                border: "1px solid rgba(255,255,255,0.3)",
+                                background: "rgba(255,255,255,0.1)",
+                                color: "#fff",
                             }}
                         >
-                            {hero.cta}
+                            {HERO.cta}
                             <ArrowRight className="h-3 w-3" />
                         </motion.button>
                     </Link>

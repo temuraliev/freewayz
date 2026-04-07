@@ -11,23 +11,17 @@ import { MOCK_PRODUCTS } from "@/lib/mock-data";
 export const revalidate = 60;
 
 export default async function HomePage() {
-  // Default tier for SSR (until Next.js implements better cookie access in Server Components, 
-  // we assume the default "ultimate" tier on initial server load)
-  const defaultTier = "ultimate";
-
   let initialHotDrops = [];
   let initialSaleProducts = [];
   let initialFreshArrivals = [];
 
   try {
-    // Fetch initial data on the server!
     [initialHotDrops, initialSaleProducts, initialFreshArrivals] = await Promise.all([
-      client.fetch(hotDropsQuery, { tier: defaultTier }),
-      client.fetch(saleProductsQuery, { tier: defaultTier }),
-      client.fetch(freshArrivalsQuery, { tier: defaultTier }),
+      client.fetch(hotDropsQuery),
+      client.fetch(saleProductsQuery),
+      client.fetch(freshArrivalsQuery),
     ]);
 
-    // Ensure they are arrays
     initialHotDrops = initialHotDrops || [];
     initialSaleProducts = initialSaleProducts || [];
     initialFreshArrivals = initialFreshArrivals || [];

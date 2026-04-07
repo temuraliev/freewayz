@@ -4,7 +4,6 @@ import { useCallback } from "react";
 import { Product } from "@/lib/types";
 import { ProductCard } from "@/components/products/product-card";
 import { client } from "@/lib/sanity/client";
-import { useTierStore } from "@/lib/store";
 import { useInfiniteScroll, PAGE_SIZE } from "./use-infinite-scroll";
 import { ru } from "@/lib/i18n/ru";
 
@@ -14,12 +13,10 @@ interface InfiniteProductGridProps {
 }
 
 export function InfiniteProductGrid({ initialProducts, query }: InfiniteProductGridProps) {
-    const tier = useTierStore((s) => s.tier);
-
     const fetchPage = useCallback(
         async (offset: number) =>
-            client.fetch<Product[]>(query, { offset, limit: offset + PAGE_SIZE, tier }),
-        [query, tier]
+            client.fetch<Product[]>(query, { offset, limit: offset + PAGE_SIZE }),
+        [query]
     );
 
     const { items: products, loading, hasMore, sentinelRef } = useInfiniteScroll<Product>({

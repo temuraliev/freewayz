@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { client } from "@/lib/sanity/client";
-import { useFilterStore, useAdminStore, useTierStore } from "@/lib/store";
+import { useFilterStore, useAdminStore } from "@/lib/store";
 import { distinctSubtypesQuery } from "@/lib/sanity/queries";
 
 export function useSubtypes() {
@@ -10,7 +10,6 @@ export function useSubtypes() {
 
   const { style, brand, category, saleOnly, hasActiveFilters, minPrice, maxPrice } = useFilterStore();
   const catalogInvalidated = useAdminStore((s) => s.catalogInvalidated);
-  const tier = useTierStore((s) => s.tier);
   const filtersActive = hasActiveFilters();
 
   useEffect(() => {
@@ -22,7 +21,6 @@ export function useSubtypes() {
     const fetchSubtypes = async () => {
       try {
         const data = await client.fetch(distinctSubtypesQuery, {
-          tier,
           saleOnly: !!saleOnly,
           style: style || "",
           brand: brand || "",
@@ -46,7 +44,7 @@ export function useSubtypes() {
       }
     };
     fetchSubtypes();
-  }, [filtersActive, style, brand, category, saleOnly, minPrice, maxPrice, catalogInvalidated, tier]);
+  }, [filtersActive, style, brand, category, saleOnly, minPrice, maxPrice, catalogInvalidated]);
 
   return subtypes;
 }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Product } from "@/lib/types";
 import { formatPrice, optimizeImage } from "@/lib/utils";
-import { useTierStore, useQuickViewStore, useWishlistStore, useCartStore } from "@/lib/store";
+import { useQuickViewStore, useWishlistStore, useCartStore } from "@/lib/store";
 import { ru } from "@/lib/i18n/ru";
 import { AdminEditButton } from "@/components/admin/admin-edit-button";
 import { Heart } from "lucide-react";
@@ -20,8 +20,6 @@ interface ProductCardProps {
 export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const brandName = typeof product.brand === "string" ? product.brand : product.brand?.title;
   const styleName = typeof product.style === "string" ? product.style : product.style?.title;
-  const tier = useTierStore((s) => s.tier);
-  const isUlt = tier === "ultimate";
   const openQuickView = useQuickViewStore((s) => s.openQuickView);
   const { isInWishlist, toggleItem } = useWishlistStore();
   const isLiked = isInWishlist(product._id);
@@ -95,7 +93,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               <div className="flex items-baseline gap-2">
                 {product.isOnSale && product.originalPrice != null ? (
                   <>
-                    <span className={`font-mono text-[13px] font-bold ${isUlt ? "text-amber-500" : "text-red-500"}`}>
+                    <span className="font-mono text-[13px] font-bold text-red-500">
                       {formatPrice(product.price)}
                     </span>
                     <span className="font-mono text-[11px] text-muted-foreground line-through">

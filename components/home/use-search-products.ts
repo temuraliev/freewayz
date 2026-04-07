@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Product } from "@/lib/types";
 import { client } from "@/lib/sanity/client";
-import { useFilterStore, useTierStore } from "@/lib/store";
+import { useFilterStore } from "@/lib/store";
 import { searchProductsQuery } from "@/lib/sanity/queries";
 import { buildSearchTerms } from "@/lib/search-utils";
 
@@ -12,7 +12,6 @@ export function useSearchProducts() {
   const [loading, setLoading] = useState(false);
 
   const { searchQuery, saleOnly } = useFilterStore();
-  const tier = useTierStore((s) => s.tier);
   const searchActive = searchQuery.length >= 2;
 
   useEffect(() => {
@@ -30,7 +29,7 @@ export function useSearchProducts() {
           setLoading(false);
           return;
         }
-        const data = await client.fetch(searchProductsQuery, { searchTerms, tier });
+        const data = await client.fetch(searchProductsQuery, { searchTerms });
         setSearchProducts(Array.isArray(data) ? data : []);
       } catch {
         setSearchProducts([]);
@@ -39,7 +38,7 @@ export function useSearchProducts() {
     }, 300);
 
     return () => clearTimeout(t);
-  }, [searchQuery, searchActive, tier]);
+  }, [searchQuery, searchActive]);
 
   // Apply sale filter to search results
   const displayProducts = saleOnly

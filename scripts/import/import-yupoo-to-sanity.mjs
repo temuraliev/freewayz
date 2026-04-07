@@ -589,7 +589,6 @@ async function main() {
   let useAi = false;
   let autoPublish = false;
   let resumeMode = false;
-  let tierValue = 'ultimate';
   let fromIdx = 1;
   let toIdx = null;
 
@@ -599,7 +598,6 @@ async function main() {
     else if (args[i] === '--brand' && args[i + 1]) { brandSlug = args[i + 1].trim(); i++; }
     else if (args[i] === '--category' && args[i + 1]) { categorySlug = args[i + 1].trim(); i++; }
     else if (args[i] === '--style' && args[i + 1]) { styleSlug = args[i + 1].trim(); i++; }
-    else if (args[i] === '--tier' && args[i + 1]) { tierValue = args[i + 1].trim().toLowerCase(); i++; }
     else if (args[i] === '--from' && args[i + 1]) { fromIdx = parseInt(args[i + 1], 10); i++; }
     else if (args[i] === '--to' && args[i + 1]) { toIdx = parseInt(args[i + 1], 10); i++; }
     else if (args[i] === '--min-image-size' && args[i + 1]) { 
@@ -783,7 +781,7 @@ async function main() {
       const productId = autoPublish ? 'product-' + slug : 'drafts.product-' + slug;
 
       const doc = {
-        _id: productId, _type: 'product', tier: tierValue, title: docTitle,
+        _id: productId, _type: 'product', title: docTitle,
         slug: { _type: 'slug', current: slug }, price: docPrice,
         images: imageRefs, sizes: ['S', 'M', 'L', 'XL'], colors: docColors,
         isHotDrop: false, isOnSale: isSale, sourceUrl: albumUrl || undefined,

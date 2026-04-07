@@ -1,10 +1,7 @@
 // TypeScript types for the FreeWayz store
 
-export type ProductTier = "top" | "ultimate";
-
 export interface Product {
   _id: string;
-  tier: ProductTier;
   title: string;
   slug: {
     current: string;

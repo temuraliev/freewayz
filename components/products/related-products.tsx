@@ -5,7 +5,6 @@ import { Product } from "@/lib/types";
 import { client } from "@/lib/sanity/client";
 import { relatedProductsQuery } from "@/lib/sanity/queries";
 import { ProductCard } from "@/components/products/product-card";
-import { useTierStore } from "@/lib/store";
 import { SectionHeader } from "@/components/products/section-header";
 import { ru } from "@/lib/i18n/ru";
 
@@ -19,7 +18,6 @@ interface RelatedProductsProps {
 export function RelatedProducts({ currentProductId, brandId, styleId, categoryId }: RelatedProductsProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const tier = useTierStore((s) => s.tier);
 
   useEffect(() => {
     async function fetchRelated() {
@@ -27,14 +25,13 @@ export function RelatedProducts({ currentProductId, brandId, styleId, categoryId
         setLoading(false);
         return;
       }
-      
+
       try {
         const data = await client.fetch(relatedProductsQuery, {
           currentProductId,
           brandId: brandId || "",
           styleId: styleId || "",
           categoryId: categoryId || "",
-          tier
         });
         
         setProducts(Array.isArray(data) ? data : []);
@@ -46,7 +43,7 @@ export function RelatedProducts({ currentProductId, brandId, styleId, categoryId
     }
 
     fetchRelated();
-  }, [currentProductId, brandId, styleId, categoryId, tier]);
+  }, [currentProductId, brandId, styleId, categoryId]);
 
   if (loading) {
     return (

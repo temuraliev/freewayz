@@ -54,7 +54,6 @@ export async function GET(request: NextRequest) {
       .split(",")
       .filter(Boolean);
     const maxPrice = Number(params.get("maxPrice")) || 99999999;
-    const productTier = params.get("tier") || "ultimate";
 
     // Step 1: subtype compatibility map
     const complementarySubtypes = new Set<string>();
@@ -68,7 +67,7 @@ export async function GET(request: NextRequest) {
     if (complementarySubtypes.size > 0) {
       const compArr = Array.from(complementarySubtypes);
       products = await sanity.fetch(
-        groq`*[_type == "product" && tier == $productTier && !(_id in $exclude) && lower(subtype) in $subtypes]
+        groq`*[_type == "product" && !(_id in $exclude) && lower(subtype) in $subtypes]
           | order(brand->slug.current in $brands desc, _createdAt desc)
           [0...$limit] ${PROJECTION}`,
         {
@@ -76,7 +75,6 @@ export async function GET(request: NextRequest) {
           subtypes: compArr,
           brands,
           limit: TARGET,
-          productTier,
         }
       );
     }
@@ -90,7 +88,7 @@ export async function GET(request: NextRequest) {
       const remaining = TARGET - products.length;
 
       const fallback = await sanity.fetch(
-        groq`*[_type == "product" && tier == $productTier && !(_id in $exclude)
+        groq`*[_type == "product" && !(_id in $exclude)
           && brand->slug.current in $brands
           && !(lower(subtype) in $cartSubtypes)
           && price <= $maxPrice
@@ -101,7 +99,6 @@ export async function GET(request: NextRequest) {
           cartSubtypes: subtypes,
           maxPrice,
           remaining,
-          productTier,
         }
       );
 

@@ -14,7 +14,6 @@ const sanity = createClient({
 
 const PRODUCT_PROJECTION = `{
   _id,
-  tier,
   title,
   slug,
   price,
@@ -38,7 +37,6 @@ export async function GET(request: NextRequest) {
 
     let telegramId = request.nextUrl.searchParams.get("telegramId");
     if (user) telegramId = String(user.id);
-    const productTier = request.nextUrl.searchParams.get("tier") || "ultimate";
 
     let products: unknown[] = [];
     let tier = 3;
@@ -78,9 +76,9 @@ export async function GET(request: NextRequest) {
           const brandArr = Array.from(purchasedBrandSlugs);
 
           products = await sanity.fetch(
-            groq`*[_type == "product" && tier == $productTier && !(_id in $excludeIds) && brand->slug.current in $brands]
+            groq`*[_type == "product" && !(_id in $excludeIds) && brand->slug.current in $brands]
               | order(_createdAt desc) [0...$limit] ${PRODUCT_PROJECTION}`,
-            { excludeIds: excludeArr, brands: brandArr, limit: LIMIT, productTier }
+            { excludeIds: excludeArr, brands: brandArr, limit: LIMIT }
           );
         }
 
@@ -96,7 +94,7 @@ export async function GET(request: NextRequest) {
           const remaining = LIMIT - products.length;
 
           const prefProducts = await sanity.fetch(
-            groq`*[_type == "product" && tier == $productTier && !(_id in $excludeIds) && (
+            groq`*[_type == "product" && !(_id in $excludeIds) && (
               brand._ref in $brandIds || style._ref in $styleIds
             )] | order(_createdAt desc) [0...$remaining] ${PRODUCT_PROJECTION}`,
             {
@@ -104,7 +102,6 @@ export async function GET(request: NextRequest) {
               brandIds: userDoc.preferredBrandIds,
               styleIds: userDoc.preferredStyleIds,
               remaining,
-              productTier,
             }
           );
 
@@ -125,19 +122,19 @@ export async function GET(request: NextRequest) {
       const needed = LIMIT - products.length;
 
       const hot = await sanity.fetch(
-        groq`*[_type == "product" && tier == $productTier && isHotDrop == true && !(_id in $ex)]
+        groq`*[_type == "product" && isHotDrop == true && !(_id in $ex)]
           | order(_createdAt desc) [0...7] ${PRODUCT_PROJECTION}`,
-        { ex: existingIds, productTier }
+        { ex: existingIds }
       );
 
       const fresh = await sanity.fetch(
-        groq`*[_type == "product" && tier == $productTier && isNewArrival == true && !(_id in $ex)]
+        groq`*[_type == "product" && isNewArrival == true && !(_id in $ex)]
           | order(_createdAt desc) [0...7] ${PRODUCT_PROJECTION}`,
-        { ex: [...existingIds, ...(hot as { _id: string }[]).map((p) => p._id)], productTier }
+        { ex: [...existingIds, ...(hot as { _id: string }[]).map((p) => p._id)] }
       );
 
       const sale = await sanity.fetch(
-        groq`*[_type == "product" && tier == $productTier && isOnSale == true && !(_id in $ex)]
+        groq`*[_type == "product" && isOnSale == true && !(_id in $ex)]
           | order(_createdAt desc) [0...6] ${PRODUCT_PROJECTION}`,
         {
           ex: [
@@ -145,7 +142,6 @@ export async function GET(request: NextRequest) {
             ...(hot as { _id: string }[]).map((p) => p._id),
             ...(fresh as { _id: string }[]).map((p) => p._id),
           ],
-          productTier,
         }
       );
 

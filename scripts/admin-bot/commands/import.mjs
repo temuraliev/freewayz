@@ -54,14 +54,13 @@ function runNextImport(notifyAdmins) {
   if (importRunning || importQueue.length === 0) return;
 
   const job = importQueue.shift();
-  const { url, brand, style, category, from, to, tier, ai, publish, minImageSize } = job;
+  const { url, brand, style, category, from, to, ai, publish, minImageSize } = job;
 
   const scriptPath = join(PROJECT_ROOT, 'scripts', 'import', 'import-yupoo-to-sanity.mjs');
   const spawnArgs = [
     scriptPath, url,
     '--brand', brand,
     '--style', style,
-    '--tier', tier,
     '--from', String(from),
     '--to', String(to),
   ];
@@ -120,7 +119,7 @@ export function register(bot, { prisma, sanity, webAppUrl, notifyAdmins }) {
       await ctx.reply(
         'Импорт категории Yupoo (очередь).\n\n' +
         'Использование:\n' +
-        '/importcategory <URL> --brand SLUG --style SLUG [--tier top|ultimate] [--from N] [--to M] [--min-image-size KB] [--ai] [--publish]\n\n' +
+        '/importcategory <URL> --brand SLUG --style SLUG [--from N] [--to M] [--min-image-size KB] [--ai] [--publish]\n\n' +
         '/importqueue — показать очередь'
       );
       return;
@@ -129,7 +128,7 @@ export function register(bot, { prisma, sanity, webAppUrl, notifyAdmins }) {
     const args = raw.split(/\s+/);
     let url = null, brand = null, style = null, category = null;
     let from = 1, to = 20;
-    let tier = 'ultimate', minImageSize = null, concurrency = 3;
+    let minImageSize = null, concurrency = 3;
     let ai = false, publish = false;
 
     for (let i = 0; i < args.length; i++) {
@@ -138,7 +137,6 @@ export function register(bot, { prisma, sanity, webAppUrl, notifyAdmins }) {
       } else if (args[i] === '--brand' && args[i + 1]) { brand = args[++i].trim(); }
       else if (args[i] === '--style' && args[i + 1]) { style = args[++i].trim(); }
       else if (args[i] === '--category' && args[i + 1]) { category = args[++i].trim(); }
-      else if (args[i] === '--tier' && args[i + 1]) { tier = args[++i].trim().toLowerCase(); }
       else if (args[i] === '--min-image-size' && args[i + 1]) { const n = parseInt(args[++i], 10); minImageSize = Number.isNaN(n) ? null : Math.max(0, n); }
       else if (args[i] === '--concurrency' && args[i + 1]) { concurrency = parseInt(args[++i], 10) || 3; }
       else if (args[i] === '--from' && args[i + 1]) { from = parseInt(args[++i], 10) || 1; }
@@ -151,19 +149,15 @@ export function register(bot, { prisma, sanity, webAppUrl, notifyAdmins }) {
       await ctx.reply('Нужны: URL категории Yupoo, --brand SLUG и --style SLUG.');
       return;
     }
-    if (tier !== 'top' && tier !== 'ultimate') {
-      await ctx.reply('--tier должен быть "top" или "ultimate"');
-      return;
-    }
 
-    const job = { url, brand, style, category, from, to, tier, minImageSize, concurrency, ai, publish };
+    const job = { url, brand, style, category, from, to, minImageSize, concurrency, ai, publish };
     importQueue.push(job);
     saveImportQueueState(importQueue, importRunning?.job || null);
 
     const minImg = minImageSize != null ? `, мин. фото: ${minImageSize} KB` : '';
     await ctx.reply(
       `Добавлено в очередь. Позиция: ${importQueue.length}.\n` +
-      `${brand} / ${style}, ${from}–${to}, tier: ${tier}${minImg}${ai ? ', ИИ' : ''}. Уведомлю по окончании.`
+      `${brand} / ${style}, ${from}–${to}${minImg}${ai ? ', ИИ' : ''}. Уведомлю по окончании.`
     );
 
     runNextImport(notifyAdmins);

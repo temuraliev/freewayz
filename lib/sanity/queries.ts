@@ -3,7 +3,6 @@ import groq from "groq";
 // Base product fields projection
 const productFields = `
   _id,
-  tier,
   title,
   slug,
   description,
@@ -26,7 +25,6 @@ const productFields = `
 // Lighter projection for search (no 3d models, sizes, colors, description)
 const searchProductFields = `
   _id,
-  tier,
   title,
   slug,
   price,
@@ -41,9 +39,9 @@ const searchProductFields = `
   isNewArrival
 `;
 
-// All products query (all products are order-only / под заказ)
+// All products query
 export const productsQuery = groq`
-  *[_type == "product" && tier == $tier] | order(_createdAt desc) {
+  *[_type == "product"] | order(_createdAt desc) {
     ${productFields}
   }
 `;
@@ -58,7 +56,6 @@ export const productBySlugQuery = groq`
 // Products with filters — first page (limited to 20)
 export const productsByFilterQuery = groq`
   *[_type == "product"
-    && tier == $tier
     && ($saleOnly == false || isOnSale == true)
     && ($style == "" || style->slug.current == $style)
     && ($brand == "" || brand->slug.current == $brand)
@@ -74,7 +71,6 @@ export const productsByFilterQuery = groq`
 // Products with filters — paginated (infinite scroll)
 export const productsByFilterPaginatedQuery = groq`
   *[_type == "product"
-    && tier == $tier
     && ($saleOnly == false || isOnSale == true)
     && ($style == "" || style->slug.current == $style)
     && ($brand == "" || brand->slug.current == $brand)
@@ -87,10 +83,9 @@ export const productsByFilterPaginatedQuery = groq`
   }
 `;
 
-// Count of filtered products (for "Found: N" badge)
+// Count of filtered products
 export const productsByFilterCountQuery = groq`
   count(*[_type == "product"
-    && tier == $tier
     && ($saleOnly == false || isOnSale == true)
     && ($style == "" || style->slug.current == $style)
     && ($brand == "" || brand->slug.current == $brand)
@@ -103,51 +98,51 @@ export const productsByFilterCountQuery = groq`
 
 // Hot Drops - first page
 export const hotDropsQuery = groq`
-  *[_type == "product" && tier == $tier && isHotDrop == true && isOnSale != true] | order(_createdAt desc) [0...20] {
+  *[_type == "product" && isHotDrop == true && isOnSale != true] | order(_createdAt desc) [0...20] {
     ${productFields}
   }
 `;
 
 // Hot Drops paginated
 export const hotDropsPaginatedQuery = groq`
-  *[_type == "product" && tier == $tier && isHotDrop == true && isOnSale != true] | order(_createdAt desc) [$offset...$limit] {
+  *[_type == "product" && isHotDrop == true && isOnSale != true] | order(_createdAt desc) [$offset...$limit] {
     ${productFields}
   }
 `;
 
 // Fresh Arrivals paginated
 export const freshArrivalsPaginatedQuery = groq`
-  *[_type == "product" && tier == $tier && isNewArrival == true] | order(_createdAt desc) [$offset...$limit] {
+  *[_type == "product" && isNewArrival == true] | order(_createdAt desc) [$offset...$limit] {
     ${productFields}
   }
 `;
 
 // Sale products - first page
 export const saleProductsQuery = groq`
-  *[_type == "product" && tier == $tier && isOnSale == true] | order(_createdAt desc) [0...20] {
+  *[_type == "product" && isOnSale == true] | order(_createdAt desc) [0...20] {
     ${productFields}
   }
 `;
 
 // Sale products paginated
 export const saleProductsPaginatedQuery = groq`
-  *[_type == "product" && tier == $tier && isOnSale == true] | order(_createdAt desc) [$offset...$limit] {
+  *[_type == "product" && isOnSale == true] | order(_createdAt desc) [$offset...$limit] {
     ${productFields}
   }
 `;
 
-// Fresh Arrivals - products marked as new (first page)
+// Fresh Arrivals - first page
 export const freshArrivalsQuery = groq`
-  *[_type == "product" && tier == $tier && isNewArrival == true] | order(_createdAt desc) [0...20] {
+  *[_type == "product" && isNewArrival == true] | order(_createdAt desc) [0...20] {
     ${productFields}
   }
 `;
 
 export const searchProductsQuery = groq`
-  *[_type == "product" && tier == $tier && (
-    title match $searchTerms || 
-    brand->title match $searchTerms || 
-    category->title match $searchTerms || 
+  *[_type == "product" && (
+    title match $searchTerms ||
+    brand->title match $searchTerms ||
+    category->title match $searchTerms ||
     style->title match $searchTerms ||
     subtype match $searchTerms ||
     pt::text(description) match $searchTerms ||
@@ -157,10 +152,9 @@ export const searchProductsQuery = groq`
   }
 `;
 
-// Distinct subtypes for current filters (brand, style, category, saleOnly) — for dynamic subtype chips
+// Distinct subtypes for current filters
 export const distinctSubtypesQuery = groq`
   *[_type == "product"
-    && tier == $tier
     && ($saleOnly == false || isOnSale == true)
     && ($style == "" || style->slug.current == $style)
     && ($brand == "" || brand->slug.current == $brand)
@@ -171,7 +165,7 @@ export const distinctSubtypesQuery = groq`
 `;
 
 export const relatedProductsQuery = groq`
-  *[_type == "product" && _id != $currentProductId && tier == $tier && (
+  *[_type == "product" && _id != $currentProductId && (
     brand._ref == $brandId || style._ref == $styleId || category._ref == $categoryId
   )] | order(isHotDrop desc, _createdAt desc) [0...6] {
     ${productFields}

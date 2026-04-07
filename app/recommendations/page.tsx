@@ -6,7 +6,7 @@ import { ArrowLeft, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { ProductGrid } from "@/components/products/product-grid";
-import { useUserStore, useTierStore } from "@/lib/store";
+import { useUserStore } from "@/lib/store";
 import { Product } from "@/lib/types";
 
 export default function RecommendationsPage() {
@@ -14,7 +14,6 @@ export default function RecommendationsPage() {
   const user = useUserStore((s) => s.user);
   const telegramUser = useUserStore((s) => s.telegramUser);
   const isInitialized = useUserStore((s) => s.isInitialized);
-  const productTier = useTierStore((s) => s.tier);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [tier, setTier] = useState(3);
@@ -27,7 +26,7 @@ export default function RecommendationsPage() {
         : "";
 
     try {
-      const res = await fetch(`/api/recommendations?tier=${productTier}`, {
+      const res = await fetch(`/api/recommendations`, {
         headers: {
           "X-Telegram-Init-Data": initData,
         },
@@ -42,7 +41,7 @@ export default function RecommendationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [productTier]);
+  }, []);
 
   useEffect(() => {
     if (!isInitialized) return;

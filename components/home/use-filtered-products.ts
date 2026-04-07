@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Product } from "@/lib/types";
 import { client } from "@/lib/sanity/client";
-import { useFilterStore, useAdminStore, useTierStore } from "@/lib/store";
+import { useFilterStore, useAdminStore } from "@/lib/store";
 import {
   productsByFilterQuery,
   productsByFilterCountQuery,
@@ -16,7 +16,6 @@ export function useFilteredProducts() {
 
   const { style, brand, category, subtype, saleOnly, hasActiveFilters, minPrice, maxPrice } = useFilterStore();
   const catalogInvalidated = useAdminStore((s) => s.catalogInvalidated);
-  const tier = useTierStore((s) => s.tier);
   const filtersActive = hasActiveFilters();
 
   const filterParams = useMemo(() => ({
@@ -40,8 +39,8 @@ export function useFilteredProducts() {
       setLoading(true);
       try {
         const [data, count] = await Promise.all([
-          client.fetch(productsByFilterQuery, { tier, ...filterParams }),
-          client.fetch(productsByFilterCountQuery, { tier, ...filterParams }),
+          client.fetch(productsByFilterQuery, filterParams),
+          client.fetch(productsByFilterCountQuery, filterParams),
         ]);
         setFilteredProducts(Array.isArray(data) ? data : []);
         setFilteredCount(typeof count === "number" ? count : 0);
@@ -54,7 +53,7 @@ export function useFilteredProducts() {
     };
 
     fetchFiltered();
-  }, [style, brand, category, subtype, saleOnly, filtersActive, catalogInvalidated, tier, filterParams]);
+  }, [style, brand, category, subtype, saleOnly, filtersActive, catalogInvalidated, filterParams]);
 
   return { filteredProducts, filteredCount, loading, filterParams, filtersActive };
 }
