@@ -15,9 +15,11 @@ import { useState } from "react";
 interface ProductCardProps {
   product: Product;
   index?: number;
+  /** Set true for above-the-fold products — enables Next.js Image priority/preload */
+  priority?: boolean;
 }
 
-export function ProductCard({ product, index = 0 }: ProductCardProps) {
+export function ProductCard({ product, index = 0, priority = false }: ProductCardProps) {
   const brandName = typeof product.brand === "string" ? product.brand : product.brand?.title;
   const styleName = typeof product.style === "string" ? product.style : product.style?.title;
   const openQuickView = useQuickViewStore((s) => s.openQuickView);
@@ -66,6 +68,8 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 50vw, 33vw"
+                priority={priority}
+                fetchPriority={priority ? "high" : "auto"}
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">

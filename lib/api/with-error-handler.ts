@@ -1,5 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Optional Sentry — only captures if SENTRY_DSN is configured
+async function captureException(error: unknown, context: Record<string, unknown>) {
+  if (!process.env.SENTRY_DSN) return;
+  try {
+    const Sentry = await import("@sentry/nextjs");
+    Sentry.captureException(error, { extra: context });
+  } catch {
+    // Sentry not installed — silently ignore
+  }
+}
+
 type RouteHandler = (
   req: NextRequest,
   ctx?: { params: Record<string, string> }
@@ -38,9 +49,13 @@ export function withErrorHandler(handler: RouteHandler): RouteHandler {
         );
       }
 
-      // Unknown errors
+      // Unknown errors — send to Sentry
       const message = error instanceof Error ? error.message : "Internal server error";
       console.error(`[API Error] ${req.method} ${req.nextUrl.pathname}:`, error);
+      await captureException(error, {
+        method: req.method,
+        path: req.nextUrl.pathname,
+      });
 
       return NextResponse.json<ErrorResponse>(
         { error: message, code: "INTERNAL_ERROR" },

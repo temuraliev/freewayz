@@ -72,9 +72,18 @@ export default function AdminOrdersPage() {
     <div className="p-4">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-semibold">Заказы</h2>
-        <Link href="/admin" className="text-sm text-muted-foreground underline">
-          Дашборд
-        </Link>
+        <div className="flex items-center gap-3">
+          <a
+            href={`/api/admin/orders/export${activeTab !== "all" ? `?status=${activeTab}` : ""}`}
+            className="text-sm text-muted-foreground underline hover:text-foreground"
+            download
+          >
+            Экспорт CSV
+          </a>
+          <Link href="/admin" className="text-sm text-muted-foreground underline">
+            Дашборд
+          </Link>
+        </div>
       </div>
 
       <div className="mb-4 flex gap-2">

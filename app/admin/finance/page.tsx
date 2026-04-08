@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { RevenueChart } from "./revenue-chart";
 
 interface Expense {
   _id: string;
@@ -134,6 +135,11 @@ export default function AdminFinancePage() {
         >
           Дашборд
         </Link>
+      </div>
+
+      {/* Revenue chart (last 30 days) */}
+      <div className="mb-6">
+        <RevenueChart days={30} />
       </div>
 
       {/* Summary cards: Доход − Себестоимость − Расходы = Прибыль */}

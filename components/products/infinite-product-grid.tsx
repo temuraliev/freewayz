@@ -28,7 +28,12 @@ export function InfiniteProductGrid({ initialProducts, query }: InfiniteProductG
         <div>
             <div className="grid grid-cols-2 gap-3 px-4">
                 {products.map((product, i) => (
-                    <ProductCard key={product._id} product={product} index={i} />
+                    <ProductCard
+                        key={product._id}
+                        product={product}
+                        index={i}
+                        priority={i < 2}
+                    />
                 ))}
             </div>
 

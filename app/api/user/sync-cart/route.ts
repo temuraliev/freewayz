@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { validateUserInitData } from "@/lib/validate-user";
+import { syncCart } from "@/lib/cart-service";
 import {
   withErrorHandler,
   UnauthorizedError,
@@ -49,6 +50,8 @@ export const POST = withErrorHandler(async (req: NextRequest) => {
   const cartItemsStr = hasItems ? JSON.stringify(parsed.data.cartItems) : null;
   const cartUpdatedAt = hasItems ? new Date() : null;
 
+  // Write to both legacy JSON field and new CartItem model
+  // (legacy will be removed once the new model is verified in production)
   await prisma.user.update({
     where: { id: user.id },
     data: {
@@ -57,6 +60,23 @@ export const POST = withErrorHandler(async (req: NextRequest) => {
       abandonedCartNotified: false,
     },
   });
+
+  // Sync to new CartItem table — non-blocking, errors don't fail the request
+  try {
+    await syncCart(
+      user.id,
+      parsed.data.cartItems.map((it) => ({
+        productId: it.productId,
+        title: it.title,
+        size: it.size || "One Size",
+        color: it.color,
+        price: it.price ?? 0,
+        quantity: it.quantity,
+      }))
+    );
+  } catch (err) {
+    console.error("CartItem sync failed (legacy data still saved):", err);
+  }
 
   return NextResponse.json({ success: true });
 });

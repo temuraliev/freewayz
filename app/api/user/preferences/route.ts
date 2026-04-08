@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { validateUserInitData } from "@/lib/validate-user";
+import { setPreferences } from "@/lib/preferences-service";
 import {
   withErrorHandler,
   UnauthorizedError,
@@ -42,6 +43,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   const brandIds = Array.from(new Set(parsed.data.brandIds));
   const styleIds = Array.from(new Set(parsed.data.styleIds));
 
+  // Write to legacy string[] fields
   await prisma.user.update({
     where: { id: userDoc.id },
     data: {
@@ -50,6 +52,13 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
       onboardingDone: true,
     },
   });
+
+  // Also write to new UserPreference table
+  try {
+    await setPreferences(userDoc.id, brandIds, styleIds);
+  } catch (err) {
+    console.error("UserPreference sync failed (legacy data still saved):", err);
+  }
 
   return NextResponse.json({ ok: true });
 });

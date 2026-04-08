@@ -186,6 +186,51 @@ bot.start().then(() => {
   setMenuButton();
 });
 
-bot.catch((err) => {
+// Track recent errors to avoid flooding admins with duplicates
+const recentErrors = new Map();
+const ERROR_DEDUP_WINDOW_MS = 5 * 60 * 1000; // 5 min
+
+function shouldNotifyError(key) {
+  const now = Date.now();
+  const last = recentErrors.get(key);
+  // Cleanup old entries
+  for (const [k, ts] of recentErrors) {
+    if (now - ts > ERROR_DEDUP_WINDOW_MS) recentErrors.delete(k);
+  }
+  if (last && now - last < ERROR_DEDUP_WINDOW_MS) return false;
+  recentErrors.set(key, now);
+  return true;
+}
+
+bot.catch(async (err) => {
   console.error('Bot error:', err);
+  const message = err?.error?.message || err?.message || String(err);
+  const stack = err?.error?.stack || err?.stack || '';
+  const dedupKey = message.slice(0, 100);
+
+  if (!shouldNotifyError(dedupKey)) return;
+
+  const ctx = err?.ctx;
+  const userInfo = ctx?.from
+    ? `User: ${ctx.from.id} ${ctx.from.username ? '@' + ctx.from.username : ''}`
+    : '';
+  const update = ctx?.update?.message?.text ? `Text: ${ctx.update.message.text.slice(0, 100)}` : '';
+
+  const text =
+    `🚨 <b>Bot error</b>\n\n` +
+    `<code>${message.slice(0, 500)}</code>\n\n` +
+    (userInfo ? `${userInfo}\n` : '') +
+    (update ? `${update}\n` : '') +
+    (stack ? `\n<code>${stack.slice(0, 500)}</code>` : '');
+
+  try {
+    await notifyAdmins(text, { parse_mode: 'HTML' });
+  } catch (notifyErr) {
+    console.error('Failed to notify admins of error:', notifyErr?.message);
+  }
 });
+
+// Send startup notification
+bot.api.getMe().then((me) => {
+  console.log(`Bot @${me.username} ready.`);
+}).catch(() => {});

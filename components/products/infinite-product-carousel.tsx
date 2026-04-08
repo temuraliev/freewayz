@@ -106,6 +106,8 @@ export function InfiniteProductCarousel({
                                         fill
                                         className="object-cover transition-transform duration-500 hover:scale-105"
                                         sizes={isLarge ? "190px" : "160px"}
+                                        priority={index < 3}
+                                        fetchPriority={index < 3 ? "high" : "auto"}
                                     />
                                 ) : (
                                     <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
