@@ -20,9 +20,9 @@ import { register as registerPromo } from './commands/promo.mjs';
 
 loadEnvLocal();
 
-const token = cleanEnv('ADMIN_BOT_TOKEN');
+const token = cleanEnv('BOT_TOKEN') || cleanEnv('ADMIN_BOT_TOKEN');
 const adminIdsStr = cleanEnv('ADMIN_TELEGRAM_IDS');
-const webAppUrl = (process.env.ADMIN_WEBAPP_URL || process.env.NEXT_PUBLIC_APP_URL || '').trim().replace(/\/+$/, '');
+const webAppUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.ADMIN_WEBAPP_URL || '').trim().replace(/\/+$/, '');
 
 const adminIds = new Set(
   adminIdsStr.split(',').map((s) => s.trim()).filter(Boolean)
@@ -33,7 +33,7 @@ function isAdmin(userId) {
   return adminIds.size > 0 && adminIds.has(userId);
 }
 
-if (!token) { console.error('ADMIN_BOT_TOKEN is not set.'); process.exit(1); }
+if (!token) { console.error('BOT_TOKEN is not set.'); process.exit(1); }
 if (adminIds.size === 0) { console.warn('ADMIN_TELEGRAM_IDS is empty.'); }
 
 const prisma = getPrisma();

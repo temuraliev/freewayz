@@ -64,14 +64,12 @@ npx prisma generate
 if [ ! -f "$APP_DIR/.env.local" ]; then
   echo "==> Creating .env.local template..."
   cat > "$APP_DIR/.env.local" <<'EOF'
-# Telegram bot tokens (from @BotFather)
+# Telegram bot token (from @BotFather)
 BOT_TOKEN=
-ADMIN_BOT_TOKEN=
 ADMIN_TELEGRAM_IDS=
 
-# App URLs (your Vercel deployment)
+# App URL (your Vercel deployment)
 NEXT_PUBLIC_APP_URL=
-ADMIN_WEBAPP_URL=
 
 # PostgreSQL (same DB as Vercel)
 DATABASE_URL=

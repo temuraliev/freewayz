@@ -1,25 +1,15 @@
 /**
- * PM2 ecosystem config — два бота на сервере.
+ * PM2 ecosystem config — один бот на сервере.
  *
  * На Vercel: Next.js (Mini App + API), cron.
- * На сервере: admin-bot (CRM, заказы, импорт) + customer-bot (каталог, профиль).
- * Импорт категорий (/importcategory) запускается с сервера как дочерний процесс.
+ * На сервере: bot — обслуживает и клиентов (каталог, профиль), и админов (CRM команды).
+ * Роль определяется по ADMIN_TELEGRAM_IDS: админы видят CRM меню, остальные — каталог.
  */
 module.exports = {
   apps: [
     {
-      name: 'admin-bot',
+      name: 'bot',
       script: 'scripts/admin-bot/index.mjs',
-      cwd: __dirname,
-      interpreter: 'node',
-      autorestart: true,
-      max_restarts: 10,
-      min_uptime: '10s',
-      env: { NODE_ENV: 'production' },
-    },
-    {
-      name: 'customer-bot',
-      script: 'scripts/customer-bot/index.mjs',
       cwd: __dirname,
       interpreter: 'node',
       autorestart: true,
