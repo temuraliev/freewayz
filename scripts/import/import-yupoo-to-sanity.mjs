@@ -38,8 +38,8 @@ import {
   guessWeightKg,
   roundPriceToNiceUzs,
   normalizeSubtype,
-} from './lib/gemini-enrich.mjs';
-import { compressImageToMaxBytes } from './lib/compress-image.mjs';
+} from '../lib/gemini-enrich.mjs';
+import { compressImageToMaxBytes } from '../lib/compress-image.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
