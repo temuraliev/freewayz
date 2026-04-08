@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr-fetcher";
 
 interface Order {
   id: number;
@@ -24,6 +26,11 @@ interface Counts {
   cancelled: number;
 }
 
+interface OrdersResponse {
+  orders: Order[];
+  counts: Counts;
+}
+
 const TABS: { key: string; label: string }[] = [
   { key: "all", label: "Все" },
   { key: "new", label: "Новые" },
@@ -44,82 +51,48 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function AdminOrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [counts, setCounts] = useState<Counts | null>(null);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [search, setSearch] = useState("");
+  const [committedSearch, setCommittedSearch] = useState("");
 
-  const initData =
-    typeof window !== "undefined" && window.Telegram?.WebApp?.initData
-      ? window.Telegram.WebApp.initData
-      : "";
+  const params = new URLSearchParams();
+  if (activeTab !== "all") params.set("status", activeTab);
+  if (committedSearch) params.set("q", committedSearch);
+  const key = `/api/admin/orders?${params.toString()}`;
 
-  const fetchOrders = useCallback(
-    async (status: string, q: string) => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams();
-        if (status && status !== "all") params.set("status", status);
-        if (q) params.set("q", q);
-        const res = await fetch(
-          `/api/admin/orders?${params.toString()}`,
-          {
-            headers: { "X-Telegram-Init-Data": initData },
-          }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setOrders(Array.isArray(data.orders) ? data.orders : Array.isArray(data) ? data : []);
-          if (data.counts) setCounts(data.counts);
-        }
-      } catch {
-        setOrders([]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [initData]
-  );
+  const { data, isLoading } = useSWR<OrdersResponse>(key, fetcher, {
+    keepPreviousData: true,
+    revalidateOnFocus: false,
+  });
 
-  useEffect(() => {
-    fetchOrders(activeTab, search);
-  }, [initData, activeTab, fetchOrders]);
-
-  const handleSearch = () => {
-    fetchOrders(activeTab, search);
-  };
+  const orders = data?.orders ?? [];
+  const counts = data?.counts ?? null;
 
   return (
     <div className="p-4">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-semibold">Заказы</h2>
-        <Link
-          href="/admin"
-          className="text-sm text-muted-foreground underline"
-        >
+        <Link href="/admin" className="text-sm text-muted-foreground underline">
           Дашборд
         </Link>
       </div>
 
-      {/* Search */}
       <div className="mb-4 flex gap-2">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          onKeyDown={(e) => e.key === "Enter" && setCommittedSearch(search)}
           placeholder="Поиск по ID или @username..."
           className="flex-1 border border-border bg-background px-3 py-2 text-sm"
         />
         <button
-          onClick={handleSearch}
+          onClick={() => setCommittedSearch(search)}
           className="bg-foreground px-4 py-2 text-sm font-medium text-background"
         >
           Найти
         </button>
       </div>
 
-      {/* Status tabs */}
       <div className="mb-4 flex gap-1 overflow-x-auto">
         {TABS.map((tab) => {
           const count = counts ? counts[tab.key as keyof Counts] : null;
@@ -134,16 +107,13 @@ export default function AdminOrdersPage() {
               }`}
             >
               {tab.label}
-              {count != null && count > 0 && (
-                <span className="ml-1 opacity-70">{count}</span>
-              )}
+              {count != null && count > 0 && <span className="ml-1 opacity-70">{count}</span>}
             </button>
           );
         })}
       </div>
 
-      {/* Orders list */}
-      {loading ? (
+      {isLoading && !data ? (
         <div className="flex min-h-[20vh] items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
         </div>
@@ -160,7 +130,9 @@ export default function AdminOrdersPage() {
               <div className="flex items-center justify-between">
                 <span className="font-mono font-medium">#{o.orderId}</span>
                 <span
-                  className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[o.status] || "bg-muted text-muted-foreground"}`}
+                  className={`rounded px-2 py-0.5 text-xs font-medium ${
+                    STATUS_COLORS[o.status] || "bg-muted text-muted-foreground"
+                  }`}
                 >
                   {o.status}
                 </span>
@@ -169,16 +141,12 @@ export default function AdminOrdersPage() {
                 <span>
                   {o.user?.username ? `@${o.user.username}` : o.user?.firstName || "—"}
                 </span>
-                <span className="font-mono">
-                  {(o.total || 0).toLocaleString()} UZS
-                </span>
+                <span className="font-mono">{(o.total || 0).toLocaleString()} UZS</span>
               </div>
               {(o.trackNumber || o.trackingStatus) && (
                 <div className="mt-1 text-xs text-muted-foreground">
                   {o.trackNumber && <span>Трек: {o.trackNumber}</span>}
-                  {o.trackingStatus && (
-                    <span className="ml-2">({o.trackingStatus})</span>
-                  )}
+                  {o.trackingStatus && <span className="ml-2">({o.trackingStatus})</span>}
                 </div>
               )}
               {o.createdAt && (

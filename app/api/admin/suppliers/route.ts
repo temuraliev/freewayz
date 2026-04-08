@@ -1,84 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@sanity/client";
 import { isAdminRequest } from "@/lib/admin-gate";
+import {
+  withErrorHandler,
+  UnauthorizedError,
+  ValidationError,
+  ApiError,
+} from "@/lib/api/with-error-handler";
 
-export async function GET(request: NextRequest) {
+function getSanityClient() {
+  const token = process.env.SANITY_API_TOKEN;
+  if (!token) throw new ApiError("Sanity token not configured", 500, "CONFIG_ERROR");
+  return createClient({
+    projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
+    dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
+    apiVersion: "2024-01-01",
+    useCdn: false,
+    token,
+  });
+}
+
+export const GET = withErrorHandler(async (request: NextRequest) => {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
   const auth = isAdminRequest(request, initData);
-  if (!auth.ok) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!auth.ok) throw new UnauthorizedError();
 
-  const token = process.env.SANITY_API_TOKEN;
-  if (!token) {
-    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-  }
+  const client = getSanityClient();
+  const list = await client.fetch(
+    `*[_type == "yupooSupplier"] | order(name asc) { _id, name, url, lastCheckedAt, lastAlbumCount, isActive }`
+  );
+  return NextResponse.json(list ?? []);
+});
 
-  const client = createClient({
-    projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-    dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
-    apiVersion: "2024-01-01",
-    useCdn: false,
-    token,
+const createSchema = z.object({
+  initData: z.string().optional(),
+  name: z.string().min(1).max(200),
+  url: z.string().url(),
+});
+
+export const POST = withErrorHandler(async (request: NextRequest) => {
+  const body = await request.json();
+  const parsed = createSchema.safeParse(body);
+  if (!parsed.success) throw new ValidationError("Invalid supplier payload");
+
+  const auth = isAdminRequest(request, parsed.data.initData ?? "");
+  if (!auth.ok) throw new UnauthorizedError();
+
+  const client = getSanityClient();
+  const doc = await client.create({
+    _type: "yupooSupplier",
+    name: parsed.data.name.trim(),
+    url: parsed.data.url.trim(),
+    isActive: true,
   });
-
-  try {
-    const list = await client.fetch(
-      `*[_type == "yupooSupplier"] | order(name asc) { _id, name, url, lastCheckedAt, lastAlbumCount, isActive }`
-    );
-    return NextResponse.json(list ?? []);
-  } catch (e) {
-    console.error("Suppliers fetch error:", e);
-    return NextResponse.json({ error: "Fetch failed" }, { status: 500 });
-  }
-}
-
-const bodySchema = { name: "string", url: "string" };
-
-export async function POST(request: NextRequest) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const initData = (body as Record<string, unknown>)?.initData;
-  const initDataStr = typeof initData === "string" ? initData : "";
-  const auth = isAdminRequest(request, initDataStr);
-  if (!auth.ok) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const name = (body as Record<string, unknown>)?.name as string | undefined;
-  const url = (body as Record<string, unknown>)?.url as string | undefined;
-  if (!name?.trim() || !url?.trim()) {
-    return NextResponse.json({ error: "name and url required" }, { status: 400 });
-  }
-
-  const token = process.env.SANITY_API_TOKEN;
-  if (!token) {
-    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-  }
-
-  const client = createClient({
-    projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-    dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
-    apiVersion: "2024-01-01",
-    useCdn: false,
-    token,
-  });
-
-  try {
-    const doc = await client.create({
-      _type: "yupooSupplier",
-      name: name.trim(),
-      url: url.trim(),
-      isActive: true,
-    });
-    return NextResponse.json({ ok: true, id: doc._id });
-  } catch (e) {
-    console.error("Supplier create error:", e);
-    return NextResponse.json({ error: "Create failed" }, { status: 500 });
-  }
-}
+  return NextResponse.json({ ok: true, id: doc._id });
+});

@@ -1,108 +1,98 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { validateUserInitData } from "@/lib/validate-user";
+import {
+  withErrorHandler,
+  ApiError,
+  UnauthorizedError,
+  NotFoundError,
+  ValidationError,
+} from "@/lib/api/with-error-handler";
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { initData, code, context } = body as {
-      initData?: string;
-      code?: string;
-      context?: "cart" | "profile";
-    };
+const bodySchema = z.object({
+  initData: z.string().min(1),
+  code: z.string().min(1).max(64),
+  context: z.enum(["cart", "profile"]).optional(),
+});
 
-    const user = validateUserInitData(
-      initData ?? "",
-      request.headers.get("host")
-    );
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export const POST = withErrorHandler(async (request: NextRequest) => {
+  const body = await request.json();
+  const parsed = bodySchema.safeParse(body);
+  if (!parsed.success) {
+    throw new ValidationError("Invalid promo payload");
+  }
 
-    if (!code || typeof code !== "string") {
-      return NextResponse.json({ error: "Промокод не указан" }, { status: 400 });
-    }
+  const user = validateUserInitData(parsed.data.initData, request.headers.get("host"));
+  if (!user) {
+    throw new UnauthorizedError();
+  }
 
-    const upperCode = code.trim().toUpperCase();
-    const telegramId = String(user.id);
+  const upperCode = parsed.data.code.trim().toUpperCase();
+  const telegramId = String(user.id);
 
-    const promo = await prisma.promoCode.findUnique({
-      where: { code: upperCode },
-      include: {
-        usedBy: {
-          include: { user: { select: { telegramId: true } } },
-        },
+  const promo = await prisma.promoCode.findUnique({
+    where: { code: upperCode },
+    include: {
+      usedBy: {
+        include: { user: { select: { telegramId: true } } },
       },
+    },
+  });
+
+  if (!promo) throw new NotFoundError("Промокод не найден");
+  if (!promo.isActive) throw new ApiError("Промокод неактивен", 400, "PROMO_INACTIVE");
+  if (promo.expiresAt && new Date(promo.expiresAt) < new Date()) {
+    throw new ApiError("Срок действия промокода истёк", 400, "PROMO_EXPIRED");
+  }
+  if (promo.maxUses && promo.usedCount >= promo.maxUses) {
+    throw new ApiError("Промокод исчерпан", 400, "PROMO_EXHAUSTED");
+  }
+
+  const userUses = promo.usedBy.filter((u) => u.user.telegramId === telegramId).length;
+  if (userUses >= (promo.maxUsesPerUser || 1)) {
+    throw new ApiError("Вы уже использовали этот промокод", 400, "PROMO_ALREADY_USED");
+  }
+
+  // Handle balance_topup immediately
+  if (promo.type === "balance_topup") {
+    const userDoc = await prisma.user.findUnique({
+      where: { telegramId },
+      select: { id: true, cashbackBalance: true },
     });
 
-    if (!promo) {
-      return NextResponse.json({ error: "Промокод не найден" }, { status: 404 });
-    }
+    if (!userDoc) throw new NotFoundError("Пользователь не найден");
 
-    if (!promo.isActive) {
-      return NextResponse.json({ error: "Промокод неактивен" }, { status: 400 });
-    }
+    const newBalance = (userDoc.cashbackBalance || 0) + promo.value;
 
-    if (promo.expiresAt && new Date(promo.expiresAt) < new Date()) {
-      return NextResponse.json({ error: "Срок действия промокода истёк" }, { status: 400 });
-    }
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userDoc.id },
+        data: { cashbackBalance: newBalance },
+      }),
+      prisma.promoCode.update({
+        where: { id: promo.id },
+        data: { usedCount: { increment: 1 } },
+      }),
+      prisma.promoUsage.create({
+        data: { promoCodeId: promo.id, userId: userDoc.id },
+      }),
+    ]);
 
-    if (promo.maxUses && promo.usedCount >= promo.maxUses) {
-      return NextResponse.json({ error: "Промокод исчерпан" }, { status: 400 });
-    }
-
-    const userUses = promo.usedBy.filter((u) => u.user.telegramId === telegramId).length;
-    if (userUses >= (promo.maxUsesPerUser || 1)) {
-      return NextResponse.json({ error: "Вы уже использовали этот промокод" }, { status: 400 });
-    }
-
-    // Handle balance_topup immediately
-    if (promo.type === "balance_topup") {
-      const userDoc = await prisma.user.findUnique({
-        where: { telegramId },
-        select: { id: true, cashbackBalance: true },
-      });
-
-      if (!userDoc) {
-        return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
-      }
-
-      const newBalance = (userDoc.cashbackBalance || 0) + promo.value;
-
-      await prisma.$transaction([
-        prisma.user.update({
-          where: { id: userDoc.id },
-          data: { cashbackBalance: newBalance },
-        }),
-        prisma.promoCode.update({
-          where: { id: promo.id },
-          data: { usedCount: { increment: 1 } },
-        }),
-        prisma.promoUsage.create({
-          data: { promoCodeId: promo.id, userId: userDoc.id },
-        }),
-      ]);
-
-      return NextResponse.json({
-        ok: true,
-        type: promo.type,
-        value: promo.value,
-        newBalance,
-      });
-    }
-
-    // For discount codes, validate and return discount info.
-    // Actual usage is recorded when the order is created.
-    void context; // context not needed for Prisma flow
     return NextResponse.json({
       ok: true,
       type: promo.type,
       value: promo.value,
-      code: promo.code,
-      minOrderTotal: promo.minOrderTotal,
+      newBalance,
     });
-  } catch (err) {
-    console.error("promo apply error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-}
+
+  // For discount codes — return info, actual usage recorded on order creation
+  return NextResponse.json({
+    ok: true,
+    type: promo.type,
+    value: promo.value,
+    code: promo.code,
+    minOrderTotal: promo.minOrderTotal,
+  });
+});

@@ -99,3 +99,70 @@ export interface FilterState {
   subtype: string | null;
   saleOnly: boolean;
 }
+
+// ── Order types (shared between admin pages, API, bot) ────
+
+export interface OrderItem {
+  productId: string;
+  title: string;
+  brand?: string;
+  size: string;
+  color?: string;
+  price: number;
+  quantity: number;
+  imageUrl?: string;
+}
+
+export interface TrackingEvent {
+  time: string;
+  location?: string;
+  stage?: string;
+  text: string;
+}
+
+export type OrderStatus =
+  | "new"
+  | "paid"
+  | "ordered"
+  | "shipped"
+  | "delivered"
+  | "cancelled";
+
+export interface Order {
+  id: number;
+  orderId: string;
+  userId: number;
+  items: OrderItem[];
+  total: number;
+  cost?: number | null;
+  status: OrderStatus;
+  trackNumber?: string | null;
+  trackUrl?: string | null;
+  carrier?: string | null;
+  trackingStatus?: string | null;
+  trackingEvents?: TrackingEvent[] | null;
+  shippingMethod?: string | null;
+  promoCode?: string | null;
+  discount?: number | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user?: {
+    id: number;
+    telegramId: string;
+    username: string | null;
+    firstName: string | null;
+  } | null;
+}
+
+// ── API response types ────────────────────────────────────
+
+export interface ApiErrorResponse {
+  error: string;
+  code: string;
+}
+
+export interface RecommendationsResponse {
+  products: Product[];
+  tier: 1 | 2 | 3;
+}

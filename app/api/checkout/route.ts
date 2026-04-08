@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Rate limit ──────────────────────────────────────────────
-    const { success, reset } = limiter.check(5, ip);
+    const { success, reset } = await limiter.check(5, ip);
     if (!success) {
         logSecurityEvent({ type: "RATE_LIMITED", ip, detail: "/api/checkout" });
         return NextResponse.json(

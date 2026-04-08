@@ -14,7 +14,9 @@
     "import-yupoo": "node --env-file=.env.local scripts/import/import-yupoo-to-sanity.mjs",
     "bot": "node scripts/admin-bot/index.mjs",
     "set-brand-style": "node --env-file=.env.local scripts/catalog/set-brand-style.mjs",
-    "normalize-subtype-zippie": "node --env-file=.env.local scripts/catalog/normalize-subtype-zippie.mjs"
+    "normalize-subtype-zippie": "node --env-file=.env.local scripts/catalog/normalize-subtype-zippie.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",
@@ -44,6 +46,7 @@
     "react-remove-scroll": "^2.7.2",
     "sanity": "^4.22.0",
     "styled-components": "^6.3.8",
+    "swr": "^2.3.0",
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^4.3.6",
@@ -62,6 +65,7 @@
     "postcss": "^8.4.35",
     "sharp": "^0.34.5",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^2.1.0"
   }
 }

@@ -42,8 +42,8 @@ enum PromoType {
 }
 
 model User {
-  id                    Int          @id @default(autoincrement())
-  telegramId            String       @unique
+  id                    Int              @id @default(autoincrement())
+  telegramId            String           @unique
   username              String?
   firstName             String?
   lastName              String?
@@ -51,25 +51,65 @@ model User {
   phone                 String?
   address               String?
   adminNotes            String?
-  totalSpent            Float        @default(0)
-  status                UserStatus   @default(ROOKIE)
-  cashbackBalance       Float        @default(0)
-  onboardingDone        Boolean      @default(false)
-  referredBy            String?      // telegramId of referrer
-  preferredBrandIds     String[]     // Sanity brand _id values
-  preferredStyleIds     String[]     // Sanity style _id values
-  cartItems             String?      // JSON stringified cart items
+  totalSpent            Float            @default(0)
+  status                UserStatus       @default(ROOKIE)
+  cashbackBalance       Float            @default(0)
+  onboardingDone        Boolean          @default(false)
+  referredBy            String?          // telegramId of referrer
+  // DEPRECATED: use userPreferences relation instead
+  preferredBrandIds     String[]
+  preferredStyleIds     String[]
+  // DEPRECATED: use cartItemsRel relation instead
+  cartItems             String?
   cartUpdatedAt         DateTime?
-  abandonedCartNotified Boolean      @default(false)
+  abandonedCartNotified Boolean          @default(false)
   orders                Order[]
   promoUsages           PromoUsage[]
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
+  cartItemsRel          CartItem[]
+  userPreferences       UserPreference[]
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
 
   @@index([username])
   @@index([status])
   @@index([referredBy])
   @@index([abandonedCartNotified, cartUpdatedAt])
+}
+
+model CartItem {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId  String   // Sanity product _id
+  title      String?
+  brand      String?
+  size       String
+  color      String?
+  price      Float
+  quantity   Int      @default(1)
+  imageUrl   String?
+  addedAt    DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, productId, size, color])
+  @@index([userId])
+}
+
+enum PreferenceType {
+  brand
+  style
+}
+
+model UserPreference {
+  id             Int            @id @default(autoincrement())
+  userId         Int
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  preferenceType PreferenceType
+  externalId     String         // Sanity _id of brand or style
+  createdAt      DateTime       @default(now())
+
+  @@unique([userId, preferenceType, externalId])
+  @@index([userId])
 }
 
 model Order {

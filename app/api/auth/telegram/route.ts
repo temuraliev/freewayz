@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Rate limit ──────────────────────────────────────────────
-    const { success, remaining, reset } = limiter.check(10, ip);
+    const { success, remaining, reset } = await limiter.check(10, ip);
 
     if (!success) {
         logSecurityEvent({ type: "RATE_LIMITED", ip, detail: "/api/auth/telegram" });

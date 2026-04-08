@@ -3,6 +3,7 @@ import { createClient } from "@sanity/client";
 import groq from "groq";
 import { validateUserInitData } from "@/lib/validate-user";
 import { prisma } from "@/lib/db";
+import { withErrorHandler } from "@/lib/api/with-error-handler";
 
 const sanity = createClient({
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
@@ -30,133 +31,127 @@ const PRODUCT_PROJECTION = `{
 
 const LIMIT = 20;
 
-export async function GET(request: NextRequest) {
-  try {
-    const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
-    const user = validateUserInitData(initData, request.headers.get("host"));
+type SanityProduct = { _id: string };
 
-    let telegramId = request.nextUrl.searchParams.get("telegramId");
-    if (user) telegramId = String(user.id);
+export const GET = withErrorHandler(async (request: NextRequest) => {
+  const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
+  const user = validateUserInitData(initData, request.headers.get("host"));
 
-    let products: unknown[] = [];
-    let tier = 3;
+  let telegramId = request.nextUrl.searchParams.get("telegramId");
+  if (user) telegramId = String(user.id);
 
-    if (telegramId && telegramId !== "0") {
-      const userDoc = await prisma.user.findUnique({
-        where: { telegramId },
-        select: {
-          id: true,
-          onboardingDone: true,
-          preferredBrandIds: true,
-          preferredStyleIds: true,
-        },
+  let products: SanityProduct[] = [];
+  let tier = 3;
+
+  if (telegramId && telegramId !== "0") {
+    const userDoc = await prisma.user.findUnique({
+      where: { telegramId },
+      select: {
+        id: true,
+        onboardingDone: true,
+        preferredBrandIds: true,
+        preferredStyleIds: true,
+      },
+    });
+
+    if (userDoc) {
+      const orders = await prisma.order.findMany({
+        where: { userId: userDoc.id, status: { not: "cancelled" } },
+        select: { items: true },
       });
 
-      if (userDoc) {
-        // Fetch order history from Postgres
-        const orders = await prisma.order.findMany({
-          where: { userId: userDoc.id, status: { not: "cancelled" } },
-          select: { items: true },
-        });
-
-        const purchasedIds = new Set<string>();
-        const purchasedBrandSlugs = new Set<string>();
-        for (const o of orders) {
-          const items = o.items as { productId?: string; brand?: string }[];
-          for (const item of items || []) {
-            if (item.productId) purchasedIds.add(item.productId);
-            if (item.brand) purchasedBrandSlugs.add(item.brand.toLowerCase());
-          }
-        }
-
-        // Tier 1: user has orders — recommend from same brands
-        if (purchasedIds.size > 0) {
-          tier = 1;
-          const excludeArr = Array.from(purchasedIds);
-          const brandArr = Array.from(purchasedBrandSlugs);
-
-          products = await sanity.fetch(
-            groq`*[_type == "product" && !(_id in $excludeIds) && brand->slug.current in $brands]
-              | order(_createdAt desc) [0...$limit] ${PRODUCT_PROJECTION}`,
-            { excludeIds: excludeArr, brands: brandArr, limit: LIMIT }
-          );
-        }
-
-        // Tier 2: has preferences but not enough order-based results
-        if (
-          products.length < LIMIT &&
-          userDoc.onboardingDone &&
-          ((userDoc.preferredBrandIds?.length || 0) > 0 ||
-            (userDoc.preferredStyleIds?.length || 0) > 0)
-        ) {
-          tier = products.length === 0 ? 2 : tier;
-          const existingIds = new Set((products as { _id: string }[]).map((p) => p._id));
-          const remaining = LIMIT - products.length;
-
-          const prefProducts = await sanity.fetch(
-            groq`*[_type == "product" && !(_id in $excludeIds) && (
-              brand._ref in $brandIds || style._ref in $styleIds
-            )] | order(_createdAt desc) [0...$remaining] ${PRODUCT_PROJECTION}`,
-            {
-              excludeIds: Array.from(new Set([...Array.from(purchasedIds), ...Array.from(existingIds)])),
-              brandIds: userDoc.preferredBrandIds,
-              styleIds: userDoc.preferredStyleIds,
-              remaining,
-            }
-          );
-
-          products = [
-            ...products,
-            ...(prefProducts as unknown[]).filter(
-              (p) => !existingIds.has((p as { _id: string })._id)
-            ),
-          ].slice(0, LIMIT);
+      const purchasedIds = new Set<string>();
+      const purchasedBrandSlugs = new Set<string>();
+      for (const o of orders) {
+        const items = o.items as { productId?: string; brand?: string }[];
+        for (const item of items || []) {
+          if (item.productId) purchasedIds.add(item.productId);
+          if (item.brand) purchasedBrandSlugs.add(item.brand.toLowerCase());
         }
       }
+
+      // Tier 1: user has orders — recommend from same brands
+      if (purchasedIds.size > 0) {
+        tier = 1;
+        products = await sanity.fetch<SanityProduct[]>(
+          groq`*[_type == "product" && !(_id in $excludeIds) && brand->slug.current in $brands]
+            | order(_createdAt desc) [0...$limit] ${PRODUCT_PROJECTION}`,
+          {
+            excludeIds: Array.from(purchasedIds),
+            brands: Array.from(purchasedBrandSlugs),
+            limit: LIMIT,
+          }
+        );
+      }
+
+      // Tier 2: has preferences but not enough order-based results
+      if (
+        products.length < LIMIT &&
+        userDoc.onboardingDone &&
+        ((userDoc.preferredBrandIds?.length || 0) > 0 ||
+          (userDoc.preferredStyleIds?.length || 0) > 0)
+      ) {
+        tier = products.length === 0 ? 2 : tier;
+        const existingIds = new Set(products.map((p) => p._id));
+        const remaining = LIMIT - products.length;
+
+        const prefProducts = await sanity.fetch<SanityProduct[]>(
+          groq`*[_type == "product" && !(_id in $excludeIds) && (
+            brand._ref in $brandIds || style._ref in $styleIds
+          )] | order(_createdAt desc) [0...$remaining] ${PRODUCT_PROJECTION}`,
+          {
+            excludeIds: Array.from(new Set([...Array.from(purchasedIds), ...Array.from(existingIds)])),
+            brandIds: userDoc.preferredBrandIds,
+            styleIds: userDoc.preferredStyleIds,
+            remaining,
+          }
+        );
+
+        products = [
+          ...products,
+          ...prefProducts.filter((p) => !existingIds.has(p._id)),
+        ].slice(0, LIMIT);
+      }
     }
+  }
 
-    // Tier 3: new user / not enough results — curated mix
-    if (products.length < LIMIT) {
-      tier = products.length === 0 ? 3 : tier;
-      const existingIds = (products as { _id: string }[]).map((p) => p._id);
-      const needed = LIMIT - products.length;
+  // Tier 3: new user / not enough results — curated mix (parallel fetch)
+  if (products.length < LIMIT) {
+    tier = products.length === 0 ? 3 : tier;
+    const existingIds = products.map((p) => p._id);
+    const needed = LIMIT - products.length;
 
-      const hot = await sanity.fetch(
+    const [hot, fresh, sale] = await Promise.all([
+      sanity.fetch<SanityProduct[]>(
         groq`*[_type == "product" && isHotDrop == true && !(_id in $ex)]
           | order(_createdAt desc) [0...7] ${PRODUCT_PROJECTION}`,
         { ex: existingIds }
-      );
-
-      const fresh = await sanity.fetch(
+      ),
+      sanity.fetch<SanityProduct[]>(
         groq`*[_type == "product" && isNewArrival == true && !(_id in $ex)]
           | order(_createdAt desc) [0...7] ${PRODUCT_PROJECTION}`,
-        { ex: [...existingIds, ...(hot as { _id: string }[]).map((p) => p._id)] }
-      );
-
-      const sale = await sanity.fetch(
+        { ex: existingIds }
+      ),
+      sanity.fetch<SanityProduct[]>(
         groq`*[_type == "product" && isOnSale == true && !(_id in $ex)]
           | order(_createdAt desc) [0...6] ${PRODUCT_PROJECTION}`,
-        {
-          ex: [
-            ...existingIds,
-            ...(hot as { _id: string }[]).map((p) => p._id),
-            ...(fresh as { _id: string }[]).map((p) => p._id),
-          ],
-        }
-      );
+        { ex: existingIds }
+      ),
+    ]);
 
-      const filler = [
-        ...(hot as unknown[]),
-        ...(fresh as unknown[]),
-        ...(sale as unknown[]),
-      ].slice(0, needed);
-
-      products = [...products, ...filler].slice(0, LIMIT);
+    // Dedupe filler results
+    const seen = new Set(existingIds);
+    const filler: SanityProduct[] = [];
+    for (const p of [...hot, ...fresh, ...sale]) {
+      if (!seen.has(p._id)) {
+        filler.push(p);
+        seen.add(p._id);
+        if (filler.length >= needed) break;
+      }
     }
 
-    return NextResponse.json({ products, tier });
-  } catch (err) {
-    console.error("recommendations error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    products = [...products, ...filler].slice(0, LIMIT);
   }
-}
+
+  return NextResponse.json({ products, tier });
+});

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
-import { motion } from "framer-motion";
 
 import {
   Sheet,
@@ -18,12 +17,11 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { useFilterStore } from "@/lib/store";
-import { Brand, Category, Style } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { client } from "@/lib/sanity/client";
-import { brandsQuery, categoriesQuery, stylesQuery } from "@/lib/sanity/queries";
 import { ru } from "@/lib/i18n/ru";
 import { PriceRangeSlider } from "@/components/products/price-range-slider";
+import { useFilterData } from "./use-filter-data";
+import { FilterChip } from "./filter-chip";
 
 const PRICE_MIN = 0;
 const PRICE_MAX = 15_000_000;
@@ -39,10 +37,9 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
     setStyle, setBrand, setCategory, setSubtype, setSaleOnly, setPriceRange, clearFilters,
   } = useFilterStore();
 
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [styles, setStyles] = useState<Style[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
+  const { categories, styles, brands } = useFilterData();
 
+  // Local (temp) state — only committed on Apply
   const [tempStyle, setTempStyle] = useState<string | null>(style);
   const [tempBrand, setTempBrand] = useState<string | null>(brand);
   const [tempCategory, setTempCategory] = useState<string | null>(category);
@@ -63,54 +60,6 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
       setTempMaxPrice(maxPrice);
     }
   }, [open, style, brand, category, subtype, saleOnly, minPrice, maxPrice]);
-
-  // Fetch categories
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const data = await client.fetch(categoriesQuery);
-        if (Array.isArray(data) && data.length > 0) {
-          setCategories(data);
-          return;
-        }
-        setCategories([
-          { _id: "1", title: "Hoodies", slug: { current: "hoodies" }, image: null },
-          { _id: "2", title: "T-Shirts", slug: { current: "t-shirts" }, image: null },
-          { _id: "3", title: "Pants", slug: { current: "pants" }, image: null },
-          { _id: "4", title: "Outerwear", slug: { current: "outerwear" }, image: null },
-          { _id: "5", title: "Footwear", slug: { current: "footwear" }, image: null },
-          { _id: "6", title: "Accessories", slug: { current: "accessories" }, image: null },
-        ]);
-      } catch {
-        setCategories([
-          { _id: "1", title: "Hoodies", slug: { current: "hoodies" }, image: null },
-          { _id: "2", title: "T-Shirts", slug: { current: "t-shirts" }, image: null },
-          { _id: "3", title: "Pants", slug: { current: "pants" }, image: null },
-          { _id: "4", title: "Outerwear", slug: { current: "outerwear" }, image: null },
-          { _id: "5", title: "Footwear", slug: { current: "footwear" }, image: null },
-          { _id: "6", title: "Accessories", slug: { current: "accessories" }, image: null },
-        ]);
-      }
-    };
-    fetchCategories();
-  }, []);
-
-  // Fetch styles + brands
-  useEffect(() => {
-    const fetchTaxonomy = async () => {
-      try {
-        const [styleData, brandData] = await Promise.all([
-          client.fetch(stylesQuery),
-          client.fetch(brandsQuery),
-        ]);
-        if (Array.isArray(styleData)) setStyles(styleData);
-        if (Array.isArray(brandData)) setBrands(brandData);
-      } catch {
-        // silent
-      }
-    };
-    fetchTaxonomy();
-  }, []);
 
   const handleApply = () => {
     setStyle(tempStyle);
@@ -154,9 +103,7 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
           </SheetTitle>
         </SheetHeader>
 
-        {/* Scrollable Filter Content */}
         <div className="flex-1 overflow-y-auto py-4 space-y-4">
-
           {/* Sale only toggle */}
           <div className="flex items-center justify-between rounded-xl border border-border bg-secondary/30 px-4 py-3">
             <span className="text-sm font-medium">{ru.saleOnly}</span>
@@ -221,23 +168,16 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
                     </p>
                   )}
                   {categories.map((cat) => (
-                    <motion.button
+                    <FilterChip
                       key={cat._id}
-                      whileTap={{ scale: 0.95 }}
+                      label={cat.title}
+                      active={tempCategory === cat.slug?.current}
                       onClick={() => {
                         const next = tempCategory === cat.slug?.current ? null : (cat.slug?.current ?? null);
                         setTempCategory(next);
                         if (next !== tempCategory) setTempSubtype(null);
                       }}
-                      className={cn(
-                        "rounded-full border px-3 py-1.5 text-sm font-medium transition-all",
-                        tempCategory === cat.slug?.current
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-secondary/50 text-muted-foreground hover:border-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {cat.title}
-                    </motion.button>
+                    />
                   ))}
                 </div>
               </AccordionContent>
@@ -251,21 +191,12 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
               <AccordionContent>
                 <div className="flex flex-wrap gap-2">
                   {styles.map((s) => (
-                    <motion.button
+                    <FilterChip
                       key={s._id}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() =>
-                        setTempStyle(tempStyle === s.slug.current ? null : s.slug.current)
-                      }
-                      className={cn(
-                        "rounded-full border px-3 py-1.5 text-sm transition-all",
-                        tempStyle === s.slug.current
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-secondary/50 text-muted-foreground hover:border-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {s.title}
-                    </motion.button>
+                      label={s.title}
+                      active={tempStyle === s.slug.current}
+                      onClick={() => setTempStyle(tempStyle === s.slug.current ? null : s.slug.current)}
+                    />
                   ))}
                 </div>
               </AccordionContent>
@@ -279,21 +210,12 @@ export function FilterDrawer({ open, onOpenChange }: FilterDrawerProps) {
               <AccordionContent>
                 <div className="flex flex-wrap gap-2">
                   {brands.map((b) => (
-                    <motion.button
+                    <FilterChip
                       key={b._id}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() =>
-                        setTempBrand(tempBrand === b.slug.current ? null : b.slug.current)
-                      }
-                      className={cn(
-                        "rounded-full border px-3 py-1.5 text-sm transition-all",
-                        tempBrand === b.slug.current
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-secondary/50 text-muted-foreground hover:border-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {b.title}
-                    </motion.button>
+                      label={b.title}
+                      active={tempBrand === b.slug.current}
+                      onClick={() => setTempBrand(tempBrand === b.slug.current ? null : b.slug.current)}
+                    />
                   ))}
                 </div>
               </AccordionContent>

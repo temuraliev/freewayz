@@ -19,37 +19,35 @@ export function withErrorHandler(handler: RouteHandler): RouteHandler {
     try {
       return await handler(req, ctx);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Internal server error";
-      const code = getErrorCode(error);
-      const status = getHttpStatus(error);
+      // Handle ApiError subclasses with explicit status/code
+      if (error instanceof ApiError) {
+        console.error(`[API Error ${error.statusCode}] ${req.method} ${req.nextUrl.pathname}:`, error.message);
+        return NextResponse.json<ErrorResponse>(
+          { error: error.message, code: error.code },
+          { status: error.statusCode }
+        );
+      }
 
-      console.error(`[API Error] ${req.method} ${req.nextUrl.pathname}:`, message);
+      // Handle Zod validation errors
+      if (error && typeof error === "object" && "issues" in error) {
+        const zodError = error as { issues: unknown[] };
+        console.error(`[Validation Error] ${req.method} ${req.nextUrl.pathname}:`, zodError.issues);
+        return NextResponse.json<ErrorResponse>(
+          { error: "Validation failed", code: "VALIDATION_ERROR" },
+          { status: 400 }
+        );
+      }
+
+      // Unknown errors
+      const message = error instanceof Error ? error.message : "Internal server error";
+      console.error(`[API Error] ${req.method} ${req.nextUrl.pathname}:`, error);
 
       return NextResponse.json<ErrorResponse>(
-        { error: message, code },
-        { status }
+        { error: message, code: "INTERNAL_ERROR" },
+        { status: 500 }
       );
     }
   };
-}
-
-function getErrorCode(error: unknown): string {
-  if (error instanceof Error) {
-    if (error.message.includes("not found")) return "NOT_FOUND";
-    if (error.message.includes("unauthorized")) return "UNAUTHORIZED";
-    if (error.message.includes("validation")) return "VALIDATION_ERROR";
-  }
-  return "INTERNAL_ERROR";
-}
-
-function getHttpStatus(error: unknown): number {
-  if (error instanceof Error) {
-    if (error.message.includes("not found")) return 404;
-    if (error.message.includes("unauthorized")) return 401;
-    if (error.message.includes("validation")) return 400;
-  }
-  return 500;
 }
 
 /**
