@@ -1,11 +1,11 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { validateAdminInitData } from "@/lib/admin-auth";
-import { withErrorHandler, UnauthorizedError } from "@/lib/api/with-error-handler";
 
 /**
  * GET /api/admin/orders/export[?status=&from=&to=]
  * Returns CSV with all orders matching filters.
+ * Not wrapped in withErrorHandler — returns raw Response (CSV), not JSON.
  */
 
 function csvEscape(value: unknown): string {
@@ -22,10 +22,12 @@ function formatDate(d: Date | null | undefined): string {
   return new Date(d).toISOString();
 }
 
-export const GET = withErrorHandler(async (request: NextRequest) => {
+export async function GET(request: NextRequest) {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
   const auth = validateAdminInitData(initData, request.headers.get("host"));
-  if (!auth.ok) throw new UnauthorizedError();
+  if (!auth.ok) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const params = request.nextUrl.searchParams;
   const status = params.get("status") || "";
@@ -105,4 +107,4 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
       "Content-Disposition": `attachment; filename="${filename}"`,
     },
   });
-});
+}
