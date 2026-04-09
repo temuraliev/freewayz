@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+
+export const runtime = "nodejs";
 import { prisma } from "@/lib/db";
 import { withErrorHandler, UnauthorizedError } from "@/lib/api/with-error-handler";
 

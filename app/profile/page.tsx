@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Crown, Star, Flame, Gift, TrendingUp, Tag, Loader2, Check, Heart, Share2, Package, Settings } from "lucide-react";
 import Link from "next/link";
@@ -223,7 +223,7 @@ function OrderHistorySection({ telegramId }: { telegramId?: number }) {
   >([]);
   const [loading, setLoading] = useState(true);
 
-  useState(() => {
+  useEffect(() => {
     if (!telegramId) { setLoading(false); return; }
     const initData =
       typeof window !== "undefined" && window.Telegram?.WebApp?.initData
@@ -238,7 +238,7 @@ function OrderHistorySection({ telegramId }: { telegramId?: number }) {
       .then((d) => setOrders(d.orders || []))
       .catch(() => {})
       .finally(() => setLoading(false));
-  });
+  }, [telegramId]);
 
   if (loading) return null;
   if (orders.length === 0) return null;

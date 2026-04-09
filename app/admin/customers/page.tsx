@@ -31,7 +31,7 @@ export default function AdminCustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<number | null>(null);
 
   const initData =
     typeof window !== "undefined" && window.Telegram?.WebApp?.initData
@@ -113,10 +113,10 @@ export default function AdminCustomersPage() {
       ) : (
         <div className="space-y-2">
           {customers.map((c) => (
-            <div key={c._id} className="border border-border bg-card">
+            <div key={c.id} className="border border-border bg-card">
               <button
                 onClick={() =>
-                  setExpanded(expanded === c._id ? null : c._id)
+                  setExpanded(expanded === c.id ? null : c.id)
                 }
                 className="w-full p-4 text-left transition hover:bg-muted/50"
               >
@@ -153,7 +153,7 @@ export default function AdminCustomersPage() {
                 </div>
               </button>
 
-              {expanded === c._id && (
+              {expanded === c.id && (
                 <div className="border-t border-border px-4 py-3 text-sm">
                   <div className="space-y-1">
                     <div className="flex justify-between">
