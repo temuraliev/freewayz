@@ -343,11 +343,11 @@ export function ProductPageClient({ product, initialEditMode }: ProductPageClien
           />
         )}
 
-        {/* Delivery & returns info */}
+        {/* Delivery info */}
         <div className="mt-4 space-y-1.5 text-[11px] text-muted-foreground border-t border-border pt-4">
           <p>🚚 Доставка включена в стоимость</p>
-          <p>📦 Товар под заказ — срок доставки 10-20 дней</p>
-          <p>↩️ Обмен/возврат в течение 14 дней при сохранении товарного вида</p>
+          <p>📦 Товар под заказ — срок доставки 7-12 дней</p>
+          <p>🔄 Замена только при браке</p>
         </div>
       </motion.div>
 
