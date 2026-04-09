@@ -10,7 +10,6 @@ import { ImageCarousel, type CarouselMediaItem } from "@/components/products/ima
 import dynamic from "next/dynamic";
 import { SizeSelector } from "@/components/products/size-selector";
 import { ColorSelector } from "@/components/products/color-selector";
-import { SizeGuideButton } from "@/components/products/size-guide-modal";
 import { RelatedProducts } from "@/components/products/related-products";
 import { useCartStore, useWishlistStore, useAdminStore } from "@/lib/store";
 import { useHapticFeedback } from "@/components/providers/telegram-provider";
@@ -318,10 +317,6 @@ export function ProductPageClient({ product, initialEditMode }: ProductPageClien
         )}
 
         {/* Size */}
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Размер</span>
-          <SizeGuideButton />
-        </div>
         <SizeSelector
           sizes={product.sizes}
           selectedSize={selectedSize}
