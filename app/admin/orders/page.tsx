@@ -2,8 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
+
+function getInitData(): string {
+  if (typeof window === "undefined") return "";
+  return window.Telegram?.WebApp?.initData ?? "";
+}
 
 interface Order {
   id: number;
@@ -138,13 +143,31 @@ export default function AdminOrdersPage() {
             >
               <div className="flex items-center justify-between">
                 <span className="font-mono font-medium">#{o.orderId}</span>
-                <span
-                  className={`rounded px-2 py-0.5 text-xs font-medium ${
-                    STATUS_COLORS[o.status] || "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {o.status}
-                </span>
+                <div className="flex items-center gap-2">
+                  {o.status === "new" && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        fetch(`/api/admin/orders/${o.id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ initData: getInitData(), status: "ordered" }),
+                        }).then(() => mutate(key));
+                      }}
+                      className="bg-green-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-green-700"
+                    >
+                      Подтвердить
+                    </button>
+                  )}
+                  <span
+                    className={`rounded px-2 py-0.5 text-xs font-medium ${
+                      STATUS_COLORS[o.status] || "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {o.status}
+                  </span>
+                </div>
               </div>
               <div className="mt-1 flex items-center justify-between text-sm text-muted-foreground">
                 <span>

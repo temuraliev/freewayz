@@ -51,6 +51,12 @@ export default function AdminLayout({
             <Link href="/admin/orders" className="text-muted-foreground hover:text-foreground">
               Заказы
             </Link>
+            <Link href="/admin/customers" className="text-muted-foreground hover:text-foreground">
+              Клиенты
+            </Link>
+            <Link href="/admin/promo" className="text-muted-foreground hover:text-foreground">
+              Промо
+            </Link>
             <Link href="/admin/suppliers" className="text-muted-foreground hover:text-foreground">
               Поставщики
             </Link>

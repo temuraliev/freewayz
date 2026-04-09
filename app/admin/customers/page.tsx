@@ -2,16 +2,18 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { AdminNotesEditor } from "./admin-notes-editor";
 
 interface Customer {
-  _id: string;
+  id: number;
+  _id?: string;
   telegramId: string;
   username?: string;
   firstName?: string;
   lastName?: string;
   phone?: string;
   address?: string;
-  adminNotes?: string;
+  adminNotes?: string | null;
   totalSpent: number;
   status: string;
   cashbackBalance: number;
@@ -184,11 +186,13 @@ export default function AdminCustomersPage() {
                         </span>
                       </div>
                     )}
-                    {c.adminNotes && (
-                      <div className="mt-2 rounded bg-muted/50 p-2 text-xs">
-                        {c.adminNotes}
-                      </div>
-                    )}
+                    {/* Admin notes — inline edit */}
+                    <div className="mt-2">
+                      <AdminNotesEditor
+                        customerId={c.id}
+                        initialNotes={c.adminNotes ?? ""}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
