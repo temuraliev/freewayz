@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Optional Sentry — only captures if SENTRY_DSN is configured
-async function captureException(error: unknown, context: Record<string, unknown>) {
-  if (!process.env.SENTRY_DSN) return;
-  try {
-    const Sentry = await import("@sentry/nextjs");
-    Sentry.captureException(error, { extra: context });
-  } catch {
-    // Sentry not installed — silently ignore
-  }
+// Log errors for observability. Sentry integration can be added here
+// once @sentry/nextjs supports Next.js 16.
+function captureException(error: unknown, context: Record<string, unknown>) {
+  // In production, errors are already logged to console.error below.
+  // This function is a hook point for future error tracking services.
+  void error;
+  void context;
 }
 
 // Next.js 16: route handler context.params is a Promise<...>
