@@ -147,18 +147,39 @@ export async function PATCH(
       }
     }
 
+    // Notify customer when status actually changes
     const telegramId = prev.user?.telegramId ?? null;
-    if (telegramId) {
+    const newStatus = parsed.data.status;
+    const statusChanged = newStatus && newStatus !== prev.status;
+
+    if (telegramId && statusChanged) {
       const orderId = prev.orderId;
-      if (parsed.data.status === "shipped") {
-        const trackInfo = parsed.data.trackNumber
-          ? `\nТрек: ${parsed.data.trackNumber}${parsed.data.trackUrl ? `\n${parsed.data.trackUrl}` : ""}`
-          : "";
-        await notifyCustomer(telegramId, `Ваш заказ #${orderId} отправлен!${trackInfo}`);
-      } else if (parsed.data.status === "delivered") {
-        await notifyCustomer(telegramId, `Ваш заказ #${orderId} доставлен! Спасибо за покупку!`);
-      } else if (parsed.data.status === "cancelled") {
-        await notifyCustomer(telegramId, `Заказ #${orderId} отменён. Свяжитесь с нами, если есть вопросы.`);
+      let message: string | null = null;
+
+      switch (newStatus) {
+        case "paid":
+          message = `💳 Оплата заказа #${orderId} получена! Готовим к отправке.`;
+          break;
+        case "ordered":
+          message = `📦 Заказ #${orderId} подтверждён и передан в работу. Скоро будет отправлен.`;
+          break;
+        case "shipped": {
+          const trackInfo = parsed.data.trackNumber
+            ? `\n\nТрек-номер: ${parsed.data.trackNumber}${parsed.data.trackUrl ? `\n${parsed.data.trackUrl}` : ""}`
+            : "";
+          message = `🚚 Заказ #${orderId} отправлен!${trackInfo}`;
+          break;
+        }
+        case "delivered":
+          message = `✅ Заказ #${orderId} доставлен! Спасибо за покупку 🙌`;
+          break;
+        case "cancelled":
+          message = `❌ Заказ #${orderId} отменён. Если есть вопросы — напиши нам.`;
+          break;
+      }
+
+      if (message) {
+        await notifyCustomer(telegramId, message);
       }
     }
 

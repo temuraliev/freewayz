@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { track } from "@/lib/analytics";
 import { ArrowLeft, ShoppingBag, Check, Share2, Pencil, Heart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -51,6 +52,38 @@ export function ProductPageClient({ product, initialEditMode }: ProductPageClien
   const { isInWishlist, toggleItem } = useWishlistStore();
   const isLiked = isInWishlist(product._id);
   const haptic = useHapticFeedback();
+  const brandSlugForView =
+    typeof product.brand === "string" ? undefined : product.brand?.slug?.current;
+  const styleSlugForView =
+    typeof product.style === "string" ? undefined : product.style?.slug?.current;
+
+  // Log product view (server) + analytics event (client)
+  useEffect(() => {
+    const initData =
+      typeof window !== "undefined" && window.Telegram?.WebApp?.initData
+        ? window.Telegram.WebApp.initData
+        : "";
+
+    track("view_product", {
+      productId: product._id,
+      productTitle: product.title,
+      brand: typeof product.brand === "string" ? product.brand : product.brand?.title,
+      price: product.price,
+    });
+
+    if (initData) {
+      fetch("/api/products/view", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          initData,
+          productId: product._id,
+          brandSlug: brandSlugForView,
+          styleSlug: styleSlugForView,
+        }),
+      }).catch(() => {});
+    }
+  }, [product._id, product.title, product.price, product.brand, brandSlugForView, styleSlugForView]);
 
   const handleShare = async () => {
     const slug = product.slug.current;

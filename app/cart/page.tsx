@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { CartItem } from "@/components/cart/cart-item";
 import { CartSummary } from "@/components/cart/cart-summary";
+import { RecentlyViewed } from "@/components/products/recently-viewed";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/lib/store";
 import { ru, itemsCount } from "@/lib/i18n/ru";
@@ -194,6 +195,9 @@ export default function CartPage() {
           </div>
         )}
       </div>
+
+      {/* Recently viewed — engagement boost */}
+      {items.length > 0 && <RecentlyViewed />}
 
       {/* Cart Summary (Sticky at bottom) */}
       <CartSummary />

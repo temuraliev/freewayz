@@ -49,12 +49,31 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
       select: {
         id: true,
         onboardingDone: true,
+        // Legacy fields — kept as fallback during migration
         preferredBrandIds: true,
         preferredStyleIds: true,
+        // New normalized model
+        userPreferences: {
+          select: { preferenceType: true, externalId: true },
+        },
       },
     });
 
     if (userDoc) {
+      // Prefer normalized table; fall back to legacy fields if empty
+      const normalizedBrandIds = userDoc.userPreferences
+        .filter((p) => p.preferenceType === "brand")
+        .map((p) => p.externalId);
+      const normalizedStyleIds = userDoc.userPreferences
+        .filter((p) => p.preferenceType === "style")
+        .map((p) => p.externalId);
+      const effectiveBrandIds = normalizedBrandIds.length > 0
+        ? normalizedBrandIds
+        : (userDoc.preferredBrandIds ?? []);
+      const effectiveStyleIds = normalizedStyleIds.length > 0
+        ? normalizedStyleIds
+        : (userDoc.preferredStyleIds ?? []);
+
       const orders = await prisma.order.findMany({
         where: { userId: userDoc.id, status: { not: "cancelled" } },
         select: { items: true },
@@ -68,6 +87,20 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
           if (item.productId) purchasedIds.add(item.productId);
           if (item.brand) purchasedBrandSlugs.add(item.brand.toLowerCase());
         }
+      }
+
+      // Tier 0.5: extract brands from recent product views — boosts new users
+      const recentViews = await prisma.productView.findMany({
+        where: { userId: userDoc.id },
+        orderBy: { viewedAt: "desc" },
+        take: 50,
+        select: { productId: true, brandSlug: true },
+      });
+      const viewedBrandSlugs = new Set<string>();
+      const viewedProductIds = new Set<string>();
+      for (const v of recentViews) {
+        if (v.brandSlug) viewedBrandSlugs.add(v.brandSlug.toLowerCase());
+        viewedProductIds.add(v.productId);
       }
 
       // Tier 1: user has orders — recommend from same brands
@@ -84,12 +117,40 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         );
       }
 
-      // Tier 2: has preferences but not enough order-based results
+      // Tier 1.5: not enough orders → fall back to recently viewed brands
+      if (products.length < LIMIT && viewedBrandSlugs.size > 0) {
+        if (products.length === 0) tier = 1;
+        const existingIds = new Set(products.map((p) => p._id));
+        const remaining = LIMIT - products.length;
+        const excludeIds = Array.from(
+          new Set([
+            ...Array.from(purchasedIds),
+            ...Array.from(viewedProductIds),
+            ...Array.from(existingIds),
+          ])
+        );
+
+        const viewed = await sanity.fetch<SanityProduct[]>(
+          groq`*[_type == "product" && !(_id in $excludeIds) && brand->slug.current in $brands]
+            | order(_createdAt desc) [0...$remaining] ${PRODUCT_PROJECTION}`,
+          {
+            excludeIds,
+            brands: Array.from(viewedBrandSlugs),
+            remaining,
+          }
+        );
+
+        products = [...products, ...viewed.filter((p) => !existingIds.has(p._id))].slice(
+          0,
+          LIMIT
+        );
+      }
+
+      // Tier 2: has preferences but not enough results
       if (
         products.length < LIMIT &&
         userDoc.onboardingDone &&
-        ((userDoc.preferredBrandIds?.length || 0) > 0 ||
-          (userDoc.preferredStyleIds?.length || 0) > 0)
+        (effectiveBrandIds.length > 0 || effectiveStyleIds.length > 0)
       ) {
         tier = products.length === 0 ? 2 : tier;
         const existingIds = new Set(products.map((p) => p._id));
@@ -101,8 +162,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
           )] | order(_createdAt desc) [0...$remaining] ${PRODUCT_PROJECTION}`,
           {
             excludeIds: Array.from(new Set([...Array.from(purchasedIds), ...Array.from(existingIds)])),
-            brandIds: userDoc.preferredBrandIds,
-            styleIds: userDoc.preferredStyleIds,
+            brandIds: effectiveBrandIds,
+            styleIds: effectiveStyleIds,
             remaining,
           }
         );

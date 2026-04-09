@@ -4,6 +4,7 @@ import "./globals.css";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { Toaster } from "@/components/ui/toaster";
 import { TelegramProvider } from "@/components/providers/telegram-provider";
+import { AnalyticsProvider } from "@/components/providers/analytics-provider";
 import { AdminProvider } from "@/components/admin/admin-provider";
 import { QuickViewModal } from "@/components/products/quick-view-modal";
 import YandexMetrica from "@/components/providers/yandex-metrica";
@@ -61,6 +62,7 @@ export default function RootLayout({
       >
         <TelegramProvider>
           <YandexMetrica />
+          <AnalyticsProvider />
           <AdminProvider>
             <main className="min-h-screen pb-20 relative z-10">
               {children}

@@ -1,9 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    // Vercel Image Optimization is returning 402 (quota/plan). Disable Next.js
-    // optimization so images load directly from their source (e.g. Sanity CDN).
-    unoptimized: true,
+    // Toggle via env: set DISABLE_IMAGE_OPT=1 if you hit Vercel image quota.
+    // When enabled, Next.js Image generates AVIF/WebP variants per device size.
+    unoptimized: process.env.DISABLE_IMAGE_OPT === '1',
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [360, 640, 750, 828, 1080, 1200],
+    imageSizes: [80, 160, 256, 384],
+    minimumCacheTTL: 60 * 60 * 24 * 7, // 1 week
     remotePatterns: [
       {
         protocol: 'https',

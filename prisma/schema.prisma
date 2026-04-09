@@ -67,6 +67,8 @@ model User {
   promoUsages           PromoUsage[]
   cartItemsRel          CartItem[]
   userPreferences       UserPreference[]
+  productViews          ProductView[]
+  wishlistItems         WishlistItem[]
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
 
@@ -109,6 +111,34 @@ model UserPreference {
   createdAt      DateTime       @default(now())
 
   @@unique([userId, preferenceType, externalId])
+  @@index([userId])
+}
+
+model ProductView {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String   // Sanity product _id
+  brandSlug String?
+  styleSlug String?
+  viewedAt  DateTime @default(now())
+
+  @@index([userId, viewedAt])
+  @@index([productId])
+}
+
+model WishlistItem {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId  String   // Sanity product _id
+  title      String?
+  brand      String?
+  price      Float?
+  imageUrl   String?
+  addedAt    DateTime @default(now())
+
+  @@unique([userId, productId])
   @@index([userId])
 }
 

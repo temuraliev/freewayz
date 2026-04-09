@@ -40,6 +40,8 @@
     "groq": "^5.7.0",
     "lucide-react": "^0.563.0",
     "next": "16.1.6",
+    "posthog-js": "^1.200.0",
+    "posthog-node": "^4.2.0",
     "recharts": "^2.15.0",
     "next-sanity": "^11.6.12",
     "prisma": "^6.19.2",

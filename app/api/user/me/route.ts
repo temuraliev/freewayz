@@ -26,7 +26,12 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
   const telegramId = String(user.id);
 
-  let userDoc = await prisma.user.findUnique({ where: { telegramId } });
+  let userDoc = await prisma.user.findUnique({
+    where: { telegramId },
+    include: {
+      userPreferences: { select: { preferenceType: true, externalId: true } },
+    },
+  });
 
   if (!userDoc) {
     userDoc = await prisma.user.create({
@@ -35,22 +40,36 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         firstName: user.first_name,
         username: user.username || null,
       },
+      include: {
+        userPreferences: { select: { preferenceType: true, externalId: true } },
+      },
     });
   }
 
+  // Use normalized prefs if present, fall back to legacy fields
+  const normalizedBrandIds = userDoc.userPreferences
+    .filter((p) => p.preferenceType === "brand")
+    .map((p) => p.externalId);
+  const normalizedStyleIds = userDoc.userPreferences
+    .filter((p) => p.preferenceType === "style")
+    .map((p) => p.externalId);
+
+  const brandIds = normalizedBrandIds.length > 0 ? normalizedBrandIds : (userDoc.preferredBrandIds ?? []);
+  const styleIds = normalizedStyleIds.length > 0 ? normalizedStyleIds : (userDoc.preferredStyleIds ?? []);
+
   // Resolve preferred brands/styles from Sanity (parallel)
   const [preferredBrands, preferredStyles] = await Promise.all([
-    userDoc.preferredBrandIds?.length
+    brandIds.length
       ? sanity
           .fetch<Ref[]>(`*[_type == "brand" && _id in $ids] { _id, title, slug }`, {
-            ids: userDoc.preferredBrandIds,
+            ids: brandIds,
           })
           .catch(() => [] as Ref[])
       : Promise.resolve([] as Ref[]),
-    userDoc.preferredStyleIds?.length
+    styleIds.length
       ? sanity
           .fetch<Ref[]>(`*[_type == "style" && _id in $ids] { _id, title, slug }`, {
-            ids: userDoc.preferredStyleIds,
+            ids: styleIds,
           })
           .catch(() => [] as Ref[])
       : Promise.resolve([] as Ref[]),

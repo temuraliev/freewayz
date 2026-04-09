@@ -90,6 +90,7 @@ export const ru = {
   // Toast / generic
   loading: "Загрузка...",
   allProductsLoaded: "Все товары загружены",
+  recentlyViewed: "Недавно смотрели",
   priceRange: "Цена",
   found: "Найдено",
   share: "Поделиться",

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useUserStore, useCartStore } from "@/lib/store";
+import { useUserStore, useCartStore, useWishlistStore } from "@/lib/store";
 import { TelegramUser } from "@/lib/types";
 
 interface TelegramContextType {
@@ -174,6 +174,7 @@ export function TelegramProvider({ children }: TelegramProviderProps) {
   const fetchedRef = useRef(false);
   const telegramUser = useUserStore((s) => s.telegramUser);
   const setUser = useUserStore((s) => s.setUser);
+  const syncWishlistFromServer = useWishlistStore((s) => s.syncFromServer);
 
   useEffect(() => {
     if (!telegramUser?.id || fetchedRef.current) return;
@@ -189,7 +190,10 @@ export function TelegramProvider({ children }: TelegramProviderProps) {
       .then((res) => res.json())
       .then((doc) => { if (doc && !doc.error) setUser(doc); })
       .catch((err) => console.error("Failed to fetch user:", err));
-  }, [telegramUser, setUser]);
+
+    // Hydrate wishlist from server (cross-device sync)
+    syncWishlistFromServer().catch(() => {});
+  }, [telegramUser, setUser, syncWishlistFromServer]);
 
   // Sync Cart with Backend
   const cartItems = useCartStore((s) => s.items);
