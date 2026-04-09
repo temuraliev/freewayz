@@ -11,10 +11,10 @@ async function captureException(error: unknown, context: Record<string, unknown>
   }
 }
 
-type RouteHandler = (
-  req: NextRequest,
-  ctx?: { params: Record<string, string> }
-) => Promise<NextResponse>;
+// Next.js 16: route handler context.params is a Promise<...>
+// Use a permissive type so individual handlers can narrow params via generics.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RouteHandler = (req: NextRequest, ctx: any) => Promise<NextResponse>;
 
 interface ErrorResponse {
   error: string;
