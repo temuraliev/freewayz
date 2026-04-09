@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Crown, Star, Flame, Gift, TrendingUp, Tag, Loader2, Check, Heart, Share2 } from "lucide-react";
+import { ArrowLeft, Crown, Star, Flame, Gift, TrendingUp, Tag, Loader2, Check, Heart, Share2, Package, Settings } from "lucide-react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 
 import { useUserStore, useWishlistStore } from "@/lib/store";
@@ -182,6 +183,9 @@ export default function ProfilePage() {
           </motion.div>
         </div>
 
+        {/* Order History */}
+        <OrderHistorySection telegramId={telegramUser?.id} />
+
         {/* Promo Code Section */}
         <PromoSection user={user} setUser={setUser} />
 
@@ -190,8 +194,95 @@ export default function ProfilePage() {
 
         {/* Wishlist Section */}
         <WishlistSection />
+
+        {/* Settings */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Link
+            href="/onboarding"
+            className="flex items-center gap-3 rounded-2xl border border-white/10 bg-card p-4 transition hover:bg-muted/50"
+          >
+            <Settings className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">Изменить предпочтения</p>
+              <p className="text-[11px] text-muted-foreground">Выбрать любимые бренды и стили</p>
+            </div>
+          </Link>
+        </motion.div>
       </main>
     </div>
+  );
+}
+
+function OrderHistorySection({ telegramId }: { telegramId?: number }) {
+  const [orders, setOrders] = useState<
+    { orderId: string; status: string; total: number; createdAt: string; trackUrl?: string }[]
+  >([]);
+  const [loading, setLoading] = useState(true);
+
+  useState(() => {
+    if (!telegramId) { setLoading(false); return; }
+    const initData =
+      typeof window !== "undefined" && window.Telegram?.WebApp?.initData
+        ? window.Telegram.WebApp.initData
+        : "";
+    if (!initData) { setLoading(false); return; }
+
+    fetch("/api/orders/history", {
+      headers: { "X-Telegram-Init-Data": initData },
+    })
+      .then((r) => (r.ok ? r.json() : { orders: [] }))
+      .then((d) => setOrders(d.orders || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  });
+
+  if (loading) return null;
+  if (orders.length === 0) return null;
+
+  const STATUS_LABELS: Record<string, string> = {
+    new: "Новый", paid: "Оплачен", ordered: "Заказан",
+    shipped: "В пути", delivered: "Доставлен", cancelled: "Отменён",
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.15 }}
+      className="rounded-2xl border border-white/10 bg-card p-6"
+    >
+      <h3 className="mb-3 flex items-center gap-2 font-headline text-sm uppercase tracking-wider text-muted-foreground">
+        <Package className="h-4 w-4" />
+        Мои заказы ({orders.length})
+      </h3>
+      <div className="space-y-2">
+        {orders.slice(0, 5).map((o) => (
+          <div key={o.orderId} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0">
+            <div>
+              <span className="font-mono text-sm font-medium">#{o.orderId}</span>
+              <span className="ml-2 text-xs text-muted-foreground">
+                {new Date(o.createdAt).toLocaleDateString("ru-RU")}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-sm">{o.total.toLocaleString()} UZS</span>
+              <span className="rounded px-1.5 py-0.5 text-[10px] bg-secondary text-muted-foreground">
+                {STATUS_LABELS[o.status] || o.status}
+              </span>
+            </div>
+          </div>
+        ))}
+        {orders.length > 5 && (
+          <p className="text-xs text-muted-foreground text-center pt-1">
+            и ещё {orders.length - 5} заказов
+          </p>
+        )}
+      </div>
+    </motion.div>
   );
 }
 

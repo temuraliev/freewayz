@@ -89,6 +89,11 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
 
           {/* Info */}
           <div className="card-info">
+            {brandName && (
+              <p className="truncate text-[9px] font-bold uppercase tracking-widest text-muted-foreground/70">
+                {brandName}
+              </p>
+            )}
             <h3 className="truncate text-[13px] font-semibold leading-tight text-foreground">
               {product.title}
             </h3>

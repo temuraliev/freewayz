@@ -167,30 +167,39 @@ export function ColorSelector({
             : isLightColor(hex);
 
           return (
-            <motion.button
-              key={color}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => onSelect(color)}
-              className={cn(
-                "relative h-10 w-10 rounded-full border-2 transition-all overflow-hidden",
-                isSelected
-                  ? "border-primary ring-2 ring-primary ring-offset-2 ring-offset-background"
-                  : "border-border hover:border-muted-foreground"
-              )}
-              style={{
-                background: dual ? dualGradient(color) : hex,
-              }}
-              title={color}
-            >
-              {isSelected && (
-                <Check
-                  className={cn(
-                    "absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2",
-                    light ? "text-black" : "text-white"
-                  )}
-                />
-              )}
-            </motion.button>
+            <div key={color} className="flex flex-col items-center gap-1">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => onSelect(color)}
+                className={cn(
+                  "relative h-10 w-10 rounded-full border-2 transition-all overflow-hidden",
+                  isSelected
+                    ? "border-primary ring-2 ring-primary ring-offset-2 ring-offset-background"
+                    : "border-border hover:border-muted-foreground"
+                )}
+                style={{
+                  background: dual ? dualGradient(color) : hex,
+                }}
+                title={color}
+              >
+                {isSelected && (
+                  <Check
+                    className={cn(
+                      "absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2",
+                      light ? "text-black" : "text-white"
+                    )}
+                  />
+                )}
+              </motion.button>
+              <span
+                className={cn(
+                  "text-[9px] leading-tight text-center max-w-[48px] truncate",
+                  isSelected ? "text-foreground font-medium" : "text-muted-foreground/70"
+                )}
+              >
+                {color}
+              </span>
+            </div>
           );
         })}
       </div>
