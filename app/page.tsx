@@ -26,19 +26,9 @@ export default async function HomePage() {
     initialFreshArrivals = initialFreshArrivals || [];
   } catch (error) {
     console.error("Sanity fetch error:", error);
-    if (process.env.NODE_ENV !== "production") {
-      // Dev fallback: show mock data so you can work without a live Sanity connection
-      // Dynamically imported so it never lands in the production bundle
-      const { MOCK_PRODUCTS } = await import("@/lib/mock-data");
-      initialHotDrops = MOCK_PRODUCTS.filter((p) => p.isHotDrop && !p.isOnSale);
-      initialSaleProducts = MOCK_PRODUCTS.filter((p) => p.isOnSale);
-      initialFreshArrivals = MOCK_PRODUCTS;
-    } else {
-      // In production, return empty arrays — the client will show a loading/empty state.
-      initialHotDrops = [];
-      initialSaleProducts = [];
-      initialFreshArrivals = [];
-    }
+    initialHotDrops = [];
+    initialSaleProducts = [];
+    initialFreshArrivals = [];
   }
 
   return (

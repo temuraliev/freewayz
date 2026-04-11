@@ -4,7 +4,6 @@ import { productBySlugQuery } from "@/lib/sanity/queries";
 import { Product } from "@/lib/types";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import { MOCK_PRODUCT } from "@/lib/mock-data";
 
 /** Ensures product has safe shape for client (no null refs in arrays, slug always object). */
 function normalizeProduct(p: Product): Product {
@@ -77,11 +76,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   }
 
   if (!product) {
-    if (MOCK_PRODUCT.slug.current === slug) {
-      product = MOCK_PRODUCT;
-    } else {
-      return notFound();
-    }
+    return notFound();
   }
 
   const safeProduct = normalizeProduct(product);
