@@ -39,7 +39,7 @@ app.get("/", async (c) => {
   let products: SanityProduct[] = [];
 
   if (complementarySubtypes.size > 0) {
-    products = await sanityClient.fetch<SanityProduct[]>(
+    products = await sanityClient().fetch<SanityProduct[]>(
       groq`*[_type == "product" && !(_id in $exclude) && lower(subtype) in $subtypes]
         | order(brand->slug.current in $brands desc, _createdAt desc)
         [0...$limit] ${PROJECTION}`,
@@ -50,7 +50,7 @@ app.get("/", async (c) => {
   if (products.length < TARGET && brands.length > 0) {
     const existingIds = [...exclude, ...products.map((p) => p._id)];
     const remaining = TARGET - products.length;
-    const fallback = await sanityClient.fetch<SanityProduct[]>(
+    const fallback = await sanityClient().fetch<SanityProduct[]>(
       groq`*[_type == "product" && !(_id in $exclude)
         && brand->slug.current in $brands
         && !(lower(subtype) in $cartSubtypes)

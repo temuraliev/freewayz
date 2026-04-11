@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { prisma } from "../lib/db.js";
-import { sanityClient as sanityReadClient } from "../lib/sanity.js";
 import { getSanityClient } from "../lib/sanity.js";
 
 const app = new Hono();

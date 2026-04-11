@@ -37,10 +37,10 @@ app.get("/me", async (c) => {
   interface Ref { _id: string; title: string; slug: { current: string } }
   const [preferredBrands, preferredStyles] = await Promise.all([
     brandIds.length
-      ? sanityClient.fetch<Ref[]>(`*[_type == "brand" && _id in $ids] { _id, title, slug }`, { ids: brandIds }).catch(() => [] as Ref[])
+      ? sanityClient().fetch<Ref[]>(`*[_type == "brand" && _id in $ids] { _id, title, slug }`, { ids: brandIds }).catch(() => [] as Ref[])
       : Promise.resolve([] as Ref[]),
     styleIds.length
-      ? sanityClient.fetch<Ref[]>(`*[_type == "style" && _id in $ids] { _id, title, slug }`, { ids: styleIds }).catch(() => [] as Ref[])
+      ? sanityClient().fetch<Ref[]>(`*[_type == "style" && _id in $ids] { _id, title, slug }`, { ids: styleIds }).catch(() => [] as Ref[])
       : Promise.resolve([] as Ref[]),
   ]);
 
@@ -221,7 +221,7 @@ app.get("/recently-viewed", async (c) => {
   const ids = views.map((v) => v.productId).slice(0, 12);
   if (ids.length === 0) return c.json({ products: [] });
 
-  const products = await sanityClient.fetch(
+  const products = await sanityClient().fetch(
     groq`*[_type == "product" && _id in $ids] ${RECENTLY_VIEWED_PROJECTION}`,
     { ids }
   );

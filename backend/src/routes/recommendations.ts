@@ -65,7 +65,7 @@ app.get("/", async (c) => {
       // Tier 1: orders-based
       if (purchasedIds.size > 0) {
         tier = 1;
-        products = await sanityClient.fetch<SanityProduct[]>(
+        products = await sanityClient().fetch<SanityProduct[]>(
           groq`*[_type == "product" && !(_id in $excludeIds) && brand->slug.current in $brands] | order(_createdAt desc) [0...$limit] ${PRODUCT_PROJECTION}`,
           { excludeIds: Array.from(purchasedIds), brands: Array.from(purchasedBrandSlugs), limit: LIMIT }
         );
@@ -76,7 +76,7 @@ app.get("/", async (c) => {
         if (products.length === 0) tier = 1;
         const existingIds = new Set(products.map((p) => p._id));
         const excludeIds = Array.from(new Set([...Array.from(purchasedIds), ...Array.from(viewedProductIds), ...Array.from(existingIds)]));
-        const viewed = await sanityClient.fetch<SanityProduct[]>(
+        const viewed = await sanityClient().fetch<SanityProduct[]>(
           groq`*[_type == "product" && !(_id in $excludeIds) && brand->slug.current in $brands] | order(_createdAt desc) [0...$remaining] ${PRODUCT_PROJECTION}`,
           { excludeIds, brands: Array.from(viewedBrandSlugs), remaining: LIMIT - products.length }
         );
@@ -87,7 +87,7 @@ app.get("/", async (c) => {
       if (products.length < LIMIT && userDoc.onboardingDone && (effectiveBrandIds.length > 0 || effectiveStyleIds.length > 0)) {
         tier = products.length === 0 ? 2 : tier;
         const existingIds = new Set(products.map((p) => p._id));
-        const prefProducts = await sanityClient.fetch<SanityProduct[]>(
+        const prefProducts = await sanityClient().fetch<SanityProduct[]>(
           groq`*[_type == "product" && !(_id in $excludeIds) && (brand._ref in $brandIds || style._ref in $styleIds)] | order(_createdAt desc) [0...$remaining] ${PRODUCT_PROJECTION}`,
           { excludeIds: Array.from(new Set([...Array.from(purchasedIds), ...Array.from(existingIds)])), brandIds: effectiveBrandIds, styleIds: effectiveStyleIds, remaining: LIMIT - products.length }
         );
@@ -101,9 +101,9 @@ app.get("/", async (c) => {
     tier = products.length === 0 ? 3 : tier;
     const existingIds = products.map((p) => p._id);
     const [hot, fresh, sale] = await Promise.all([
-      sanityClient.fetch<SanityProduct[]>(groq`*[_type == "product" && isHotDrop == true && !(_id in $ex)] | order(_createdAt desc) [0...7] ${PRODUCT_PROJECTION}`, { ex: existingIds }),
-      sanityClient.fetch<SanityProduct[]>(groq`*[_type == "product" && isNewArrival == true && !(_id in $ex)] | order(_createdAt desc) [0...7] ${PRODUCT_PROJECTION}`, { ex: existingIds }),
-      sanityClient.fetch<SanityProduct[]>(groq`*[_type == "product" && isOnSale == true && !(_id in $ex)] | order(_createdAt desc) [0...6] ${PRODUCT_PROJECTION}`, { ex: existingIds }),
+      sanityClient().fetch<SanityProduct[]>(groq`*[_type == "product" && isHotDrop == true && !(_id in $ex)] | order(_createdAt desc) [0...7] ${PRODUCT_PROJECTION}`, { ex: existingIds }),
+      sanityClient().fetch<SanityProduct[]>(groq`*[_type == "product" && isNewArrival == true && !(_id in $ex)] | order(_createdAt desc) [0...7] ${PRODUCT_PROJECTION}`, { ex: existingIds }),
+      sanityClient().fetch<SanityProduct[]>(groq`*[_type == "product" && isOnSale == true && !(_id in $ex)] | order(_createdAt desc) [0...6] ${PRODUCT_PROJECTION}`, { ex: existingIds }),
     ]);
 
     const seen = new Set(existingIds);

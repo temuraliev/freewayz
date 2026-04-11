@@ -31,7 +31,7 @@ app.post("/", async (c) => {
 
   try {
     const productTitles = items.map((item) => item.title);
-    const products = await sanityClient.fetch(
+    const products = await sanityClient().fetch(
       `*[_type == "product" && title in $titles]{ title, price }`,
       { titles: productTitles }
     );
