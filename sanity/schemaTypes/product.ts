@@ -143,6 +143,13 @@ export const productType = defineType({
       initialValue: false,
     }),
     defineField({
+      name: 'isEssential',
+      title: 'Essential / Аксессуар',
+      type: 'boolean',
+      description: 'Показывать при оформлении заказа (вешалки, коробки, роллеры и т.д.)',
+      initialValue: false,
+    }),
+    defineField({
       name: 'internalNotes',
       title: 'Internal Notes (только для менеджера)',
       type: 'text',

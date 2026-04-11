@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { CartItem } from "@/components/cart/cart-item";
 import { CartSummary } from "@/components/cart/cart-summary";
+import { EssentialsUpsell } from "@/components/cart/essentials-upsell";
 import { RecentlyViewed } from "@/components/products/recently-viewed";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/lib/store";
@@ -195,6 +196,9 @@ export default function CartPage() {
           </div>
         )}
       </div>
+
+      {/* Essentials upsell (hangers, boxes, rollers) */}
+      {items.length > 0 && <EssentialsUpsell />}
 
       {/* Recently viewed — engagement boost */}
       {items.length > 0 && <RecentlyViewed />}
