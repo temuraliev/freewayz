@@ -172,6 +172,19 @@ export const relatedProductsQuery = groq`
   }
 `;
 
+// Essentials — shown at checkout (hangers, boxes, rollers, etc.)
+export const essentialsQuery = groq`
+  *[_type == "product" && isEssential == true] | order(_createdAt desc) [0...10] {
+    _id,
+    title,
+    slug,
+    price,
+    "images": images[0...1].asset->url,
+    "brand": brand->{ _id, title, slug },
+    subtype
+  }
+`;
+
 // Categories queries (with subtypes for filter drawer)
 export const categoriesQuery = groq`
   *[_type == "category"] | order(title asc) {
