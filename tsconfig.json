@@ -23,10 +23,21 @@
     ],
     "paths": {
       "@/*": [
-        "./*"
+        "./src/*"
+      ],
+      "@frontend/*": [
+        "./src/frontend/*"
+      ],
+      "@backend/*": [
+        "./src/backend/*"
+      ],
+      "@shared/*": [
+        "./src/shared/*"
       ]
     },
-    "target": "ES2017"
+    "target": "ES2017",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true
   },
   "include": [
     "next-env.d.ts",

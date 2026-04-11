@@ -1,0 +1,62 @@
+import { create } from "zustand";
+import { FilterState } from "@shared/types";
+
+interface FilterStoreState extends FilterState {
+  searchQuery: string;
+  minPrice: number | null;
+  maxPrice: number | null;
+  setSearchQuery: (q: string) => void;
+  clearSearch: () => void;
+  setSaleOnly: (saleOnly: boolean) => void;
+  setStyle: (style: string | null) => void;
+  setBrand: (brand: string | null) => void;
+  setCategory: (category: string | null) => void;
+  setSubtype: (subtype: string | null) => void;
+  setPriceRange: (min: number | null, max: number | null) => void;
+  clearFilters: () => void;
+  hasActiveFilters: () => boolean;
+}
+
+export const useFilterStore = create<FilterStoreState>()((set, get) => ({
+  style: null,
+  brand: null,
+  category: null,
+  subtype: null,
+  saleOnly: false,
+  searchQuery: "",
+  minPrice: null,
+  maxPrice: null,
+
+  setSearchQuery: (searchQuery) => set({ searchQuery: searchQuery.trim() }),
+  clearSearch: () => set({ searchQuery: "" }),
+  setSaleOnly: (saleOnly) => set({ saleOnly }),
+  setStyle: (style) => set({ style }),
+  setBrand: (brand) => set({ brand }),
+  setCategory: (category) => set({ category, subtype: null }),
+  setSubtype: (subtype) => set({ subtype }),
+  setPriceRange: (minPrice, maxPrice) => set({ minPrice, maxPrice }),
+
+  clearFilters: () =>
+    set({
+      style: null,
+      brand: null,
+      category: null,
+      subtype: null,
+      saleOnly: false,
+      minPrice: null,
+      maxPrice: null,
+    }),
+
+  hasActiveFilters: () => {
+    const state = get();
+    return (
+      state.style !== null ||
+      state.brand !== null ||
+      state.category !== null ||
+      state.subtype !== null ||
+      state.saleOnly === true ||
+      state.minPrice !== null ||
+      state.maxPrice !== null
+    );
+  },
+}));

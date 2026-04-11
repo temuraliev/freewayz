@@ -1,0 +1,77 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Product } from "@shared/types";
+import { ProductCard } from "@frontend/components/products/product-card";
+import { SectionHeader } from "@frontend/components/products/section-header";
+import { ru } from "@shared/i18n/ru";
+
+interface RelatedProductsProps {
+  currentProductId: string;
+  brandId?: string;
+  styleId?: string;
+  categoryId?: string;
+}
+
+export function RelatedProducts({ currentProductId, brandId, styleId, categoryId }: RelatedProductsProps) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchRelated() {
+      if (!brandId && !styleId && !categoryId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const params = new URLSearchParams();
+        params.set("excludeId", currentProductId);
+        if (brandId) params.set("brandId", brandId);
+        if (styleId) params.set("styleId", styleId);
+        if (categoryId) params.set("categoryId", categoryId);
+        const res = await fetch(`/api/products/related?${params.toString()}`);
+        const data = await res.json();
+        
+        setProducts(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Failed to fetch related products:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchRelated();
+  }, [currentProductId, brandId, styleId, categoryId]);
+
+  if (loading) {
+    return (
+      <div className="mt-8 pt-8 border-t border-border">
+        <div className="px-4 mb-4">
+          <div className="h-4 w-32 bg-secondary/50 animate-pulse rounded" />
+        </div>
+        <div className="flex gap-3 overflow-x-auto px-4 pb-4 scrollbar-hide">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="aspect-[3/4] w-[140px] flex-shrink-0 animate-pulse bg-secondary/50 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (products.length === 0) return null;
+
+  return (
+    <div className="mt-4 pt-10 border-t border-border">
+      <SectionHeader eyebrow="ALSO LIKE" title={ru.youMightAlsoLike || "Похожие товары"} />
+      
+      <div className="flex gap-3 overflow-x-auto px-4 pb-4 pt-2 scrollbar-hide snap-x">
+        {products.map((product, i) => (
+          <div key={product._id} className="w-[160px] flex-shrink-0 snap-start">
+            <ProductCard product={product} index={i} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
