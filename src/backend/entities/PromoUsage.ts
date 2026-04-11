@@ -16,17 +16,17 @@ export class PromoUsage {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column()
+  @Column({ type: "int" })
   promoCodeId!: number;
 
-  @ManyToOne("PromoCode", "usedBy")
+  @ManyToOne("promo_codes", "usedBy")
   @JoinColumn({ name: "promoCodeId" })
   promoCode!: PromoCode;
 
-  @Column()
+  @Column({ type: "int" })
   userId!: number;
 
-  @ManyToOne("User", "promoUsages")
+  @ManyToOne("users", "promoUsages")
   @JoinColumn({ name: "userId" })
   user!: User;
 

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint --dir .",
-    "db:migrate": "npx tsx backend/run-migrations.ts",
+    "db:migrate": "npx tsx --env-file=.env.local src/backend/run-migrations.ts",
     "bot": "node scripts/admin-bot/index.mjs",
     "test": "vitest run",
     "test:watch": "vitest"

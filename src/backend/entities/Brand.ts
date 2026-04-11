@@ -28,7 +28,7 @@ export class Brand {
   @Column({ type: "boolean", default: false })
   isFeatured!: boolean;
 
-  @OneToMany("Product", "brand")
+  @OneToMany("products", "brand")
   products!: Product[];
 
   @CreateDateColumn()

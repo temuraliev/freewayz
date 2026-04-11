@@ -22,10 +22,10 @@ export class UserPreference {
   id!: number;
 
   @Index()
-  @Column()
+  @Column({ type: "int" })
   userId!: number;
 
-  @ManyToOne("User", "userPreferences", { onDelete: "CASCADE" })
+  @ManyToOne("users", "userPreferences", { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user!: User;
 

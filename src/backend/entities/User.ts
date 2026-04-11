@@ -87,25 +87,25 @@ export class User {
   @Column({ type: "boolean", default: false })
   abandonedCartNotified!: boolean;
 
-  @OneToMany("OrderEntity", "user")
+  @OneToMany("orders", "user")
   orders!: OrderEntity[];
 
-  @OneToMany("PromoUsage", "user")
+  @OneToMany("promo_usages", "user")
   promoUsages!: PromoUsage[];
 
-  @OneToMany("CartItemEntity", "user")
+  @OneToMany("cart_items", "user")
   cartItemsRel!: CartItemEntity[];
 
-  @OneToMany("UserPreference", "user")
+  @OneToMany("user_preferences", "user")
   userPreferences!: UserPreference[];
 
-  @OneToMany("ProductViewEntity", "user")
+  @OneToMany("product_views", "user")
   productViews!: ProductViewEntity[];
 
-  @OneToMany("WishlistItemEntity", "user")
+  @OneToMany("wishlist_items", "user")
   wishlistItems!: WishlistItemEntity[];
 
-  @OneToMany("UserRole", "user")
+  @OneToMany("user_roles", "user")
   roles!: UserRole[];
 
   @CreateDateColumn()

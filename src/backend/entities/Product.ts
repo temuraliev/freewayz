@@ -80,33 +80,33 @@ export class Product {
   // ── Relations ──
 
   @Index()
-  @Column({ nullable: true })
+  @Column({ type: "int", nullable: true })
   brandId!: number | null;
 
-  @ManyToOne("Brand", "products", { nullable: true })
+  @ManyToOne("brands", "products", { nullable: true })
   @JoinColumn({ name: "brandId" })
   brand!: Brand | null;
 
   @Index()
-  @Column({ nullable: true })
+  @Column({ type: "int", nullable: true })
   categoryId!: number | null;
 
-  @ManyToOne("Category", "products", { nullable: true })
+  @ManyToOne("categories", "products", { nullable: true })
   @JoinColumn({ name: "categoryId" })
   category!: Category | null;
 
   @Index()
-  @Column()
+  @Column({ type: "int" })
   styleId!: number;
 
-  @ManyToOne("Style", "products")
+  @ManyToOne("styles", "products")
   @JoinColumn({ name: "styleId" })
   style!: Style;
 
-  @OneToMany("ProductImage", "product", { cascade: true })
+  @OneToMany("product_images", "product", { cascade: true })
   images!: ProductImage[];
 
-  @OneToMany("ProductVideo", "product", { cascade: true })
+  @OneToMany("product_videos", "product", { cascade: true })
   videos!: ProductVideo[];
 
   @CreateDateColumn()

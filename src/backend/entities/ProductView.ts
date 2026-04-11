@@ -15,10 +15,10 @@ export class ProductViewEntity {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column()
+  @Column({ type: "int" })
   userId!: number;
 
-  @ManyToOne("User", "productViews", { onDelete: "CASCADE" })
+  @ManyToOne("users", "productViews", { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user!: User;
 

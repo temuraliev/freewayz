@@ -18,10 +18,10 @@ export class CartItemEntity {
   id!: number;
 
   @Index()
-  @Column()
+  @Column({ type: "int" })
   userId!: number;
 
-  @ManyToOne("User", "cartItemsRel", { onDelete: "CASCADE" })
+  @ManyToOne("users", "cartItemsRel", { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user!: User;
 

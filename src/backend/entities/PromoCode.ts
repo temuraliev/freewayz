@@ -46,7 +46,7 @@ export class PromoCode {
   @Column({ type: "datetime", nullable: true })
   expiresAt!: Date | null;
 
-  @OneToMany("PromoUsage", "promoCode")
+  @OneToMany("promo_usages", "promoCode")
   usedBy!: PromoUsage[];
 
   @CreateDateColumn()

@@ -30,10 +30,10 @@ export class OrderEntity {
   orderId!: string;
 
   @Index()
-  @Column()
+  @Column({ type: "int" })
   userId!: number;
 
-  @ManyToOne("User", "orders")
+  @ManyToOne("users", "orders")
   @JoinColumn({ name: "userId" })
   user!: User;
 
@@ -84,7 +84,7 @@ export class OrderEntity {
   @Column({ type: "varchar", length: 200, nullable: true, unique: true })
   idempotencyKey!: string | null;
 
-  @OneToMany("Expense", "order")
+  @OneToMany("expenses", "order")
   expenses!: Expense[];
 
   @Index()

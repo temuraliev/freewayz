@@ -15,10 +15,10 @@ export class ProductImage {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column()
+  @Column({ type: "int" })
   productId!: number;
 
-  @ManyToOne("Product", "images", { onDelete: "CASCADE" })
+  @ManyToOne("products", "images", { onDelete: "CASCADE" })
   @JoinColumn({ name: "productId" })
   product!: Product;
 

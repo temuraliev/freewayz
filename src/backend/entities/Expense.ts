@@ -44,10 +44,10 @@ export class Expense {
   description!: string | null;
 
   @Index()
-  @Column({ nullable: true })
+  @Column({ type: "int", nullable: true })
   orderId!: number | null;
 
-  @ManyToOne("OrderEntity", "expenses", { nullable: true })
+  @ManyToOne("orders", "expenses", { nullable: true })
   @JoinColumn({ name: "orderId" })
   order!: OrderEntity | null;
 

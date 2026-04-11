@@ -17,10 +17,10 @@ export class WishlistItemEntity {
   id!: number;
 
   @Index()
-  @Column()
+  @Column({ type: "int" })
   userId!: number;
 
-  @ManyToOne("User", "wishlistItems", { onDelete: "CASCADE" })
+  @ManyToOne("users", "wishlistItems", { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user!: User;
 

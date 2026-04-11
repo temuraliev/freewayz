@@ -17,10 +17,10 @@ export class UserRole {
   id!: number;
 
   @Index()
-  @Column()
+  @Column({ type: "int" })
   userId!: number;
 
-  @ManyToOne("User", "roles", { onDelete: "CASCADE" })
+  @ManyToOne("users", "roles", { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user!: User;
 

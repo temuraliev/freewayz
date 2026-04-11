@@ -15,10 +15,10 @@ export class ProductVideo {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column()
+  @Column({ type: "int" })
   productId!: number;
 
-  @ManyToOne("Product", "videos", { onDelete: "CASCADE" })
+  @ManyToOne("products", "videos", { onDelete: "CASCADE" })
   @JoinColumn({ name: "productId" })
   product!: Product;
 

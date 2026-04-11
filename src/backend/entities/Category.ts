@@ -27,7 +27,7 @@ export class Category {
   @Column({ type: "simple-json", nullable: true })
   subtypes!: string[] | null;
 
-  @OneToMany("Product", "category")
+  @OneToMany("products", "category")
   products!: Product[];
 
   @CreateDateColumn()
