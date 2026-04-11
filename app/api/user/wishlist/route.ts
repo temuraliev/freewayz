@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/db";
-import { validateUserInitData } from "@/lib/validate-user";
+import { prisma } from "@backend/db";
+import { validateUserInitData } from "@backend/auth/validate-user";
 import {
   withErrorHandler,
   UnauthorizedError,
   ValidationError,
-} from "@/lib/api/with-error-handler";
+} from "@backend/middleware/with-error-handler";
 
 /**
  * GET /api/user/wishlist — list items

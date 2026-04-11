@@ -6,13 +6,13 @@ import { ArrowLeft, Crown, Star, Flame, Gift, TrendingUp, Tag, Loader2, Check, H
 import Link from "next/link";
 import { motion } from "framer-motion";
 
-import { useUserStore, useWishlistStore } from "@/lib/store";
-import type { User } from "@/lib/types";
-import { formatPrice, getStatusProgress, getUserStatusEmoji } from "@/lib/utils";
-import { ymTrack } from "@/components/providers/yandex-metrica";
-import { ru } from "@/lib/i18n/ru";
-import { Button } from "@/components/ui/button";
-import { ProductCard } from "@/components/products/product-card";
+import { useUserStore, useWishlistStore } from "@frontend/stores";
+import type { User } from "@shared/types";
+import { formatPrice, getStatusProgress, getUserStatusEmoji } from "@shared/utils";
+import { ymTrack } from "@frontend/components/providers/yandex-metrica";
+import { ru } from "@shared/i18n/ru";
+import { Button } from "@frontend/components/ui/button";
+import { ProductCard } from "@frontend/components/products/product-card";
 
 export default function ProfilePage() {
   const router = useRouter();

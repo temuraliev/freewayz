@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { validateAdminInitData } from "@/lib/admin-auth";
-import { withErrorHandler, UnauthorizedError } from "@/lib/api/with-error-handler";
+import { prisma } from "@backend/db";
+import { validateAdminInitData } from "@backend/auth/admin-auth";
+import { withErrorHandler, UnauthorizedError } from "@backend/middleware/with-error-handler";
 
 type OrderStatus = "new" | "paid" | "ordered" | "shipped" | "delivered" | "cancelled";
 

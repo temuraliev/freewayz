@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import useSWR from "swr";
-import { fetcher } from "@/lib/swr-fetcher";
+import { fetcher } from "@frontend/lib/swr-fetcher";
 import { AlertTriangle, Info } from "lucide-react";
 
 interface Alert {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAdminStore } from "@/lib/store";
+import { useAdminStore } from "@frontend/stores";
 
 export default function AdminLoginPage() {
   const router = useRouter();

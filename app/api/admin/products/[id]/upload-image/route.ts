@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@sanity/client";
 import imageUrlBuilder from "@sanity/image-url";
-import { isAdminRequest } from "@/lib/admin-gate";
-import { compressImageToMaxBytes } from "@/lib/compress-image";
+import { isAdminRequest } from "@backend/auth/admin-gate";
+import { compressImageToMaxBytes } from "@backend/integrations/compress-image";
 
 export async function POST(
   request: NextRequest,

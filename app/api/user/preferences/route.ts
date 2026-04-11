@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/db";
-import { validateUserInitData } from "@/lib/validate-user";
-import { setPreferences } from "@/lib/preferences-service";
+import { prisma } from "@backend/db";
+import { validateUserInitData } from "@backend/auth/validate-user";
+import { setPreferences } from "@backend/services/preferences-service";
 import {
   withErrorHandler,
   UnauthorizedError,
   NotFoundError,
   ValidationError,
-} from "@/lib/api/with-error-handler";
+} from "@backend/middleware/with-error-handler";
 
 const bodySchema = z.object({
   initData: z.string().min(1),

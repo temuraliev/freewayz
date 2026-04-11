@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { validateTelegramInitData } from "@/lib/telegram-auth";
+import { prisma } from "@backend/db";
+import { validateTelegramInitData } from "@backend/auth/telegram-auth";
 import { z } from "zod";
 
 const itemSchema = z.object({

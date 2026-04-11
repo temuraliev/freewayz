@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkoutSchema } from "@/lib/validations";
-import { checkCsrf } from "@/lib/csrf";
-import { rateLimit } from "@/lib/rate-limit";
-import { logSecurityEvent } from "@/lib/security-logger";
-import { client } from "@/lib/sanity/client";
-import { sanitizeInput } from "@/lib/sanitize";
-import { generateCheckoutMessage, getTelegramCheckoutUrl } from "@/lib/utils";
+import { checkoutSchema } from "@backend/validations";
+import { checkCsrf } from "@backend/security/csrf";
+import { rateLimit } from "@backend/security/rate-limit";
+import { logSecurityEvent } from "@backend/security/security-logger";
+import { client } from "@shared/sanity/client";
+import { sanitizeInput } from "@backend/security/sanitize";
+import { generateCheckoutMessage, getTelegramCheckoutUrl } from "@shared/utils";
 
 // Rate limiter: 5 checkout attempts per 60 seconds per IP
 const limiter = rateLimit({

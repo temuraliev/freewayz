@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAdminStore } from "@/lib/store";
+import { useAdminStore } from "@frontend/stores";
 
 export default function AdminLayout({
   children,

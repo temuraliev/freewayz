@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { validateUserInitData } from "@/lib/validate-user";
-import { withErrorHandler } from "@/lib/api/with-error-handler";
+import { prisma } from "@backend/db";
+import { validateUserInitData } from "@backend/auth/validate-user";
+import { withErrorHandler } from "@backend/middleware/with-error-handler";
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";

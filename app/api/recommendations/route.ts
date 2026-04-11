@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@sanity/client";
 import groq from "groq";
-import { validateUserInitData } from "@/lib/validate-user";
-import { prisma } from "@/lib/db";
-import { withErrorHandler } from "@/lib/api/with-error-handler";
+import { validateUserInitData } from "@backend/auth/validate-user";
+import { prisma } from "@backend/db";
+import { withErrorHandler } from "@backend/middleware/with-error-handler";
 
 const sanity = createClient({
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,

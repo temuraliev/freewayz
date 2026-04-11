@@ -2,25 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { track } from "@/lib/analytics";
+import { track } from "@frontend/lib/analytics";
 import { ArrowLeft, ShoppingBag, Check, Share2, Pencil, Heart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { ImageCarousel, type CarouselMediaItem } from "@/components/products/image-carousel";
+import { ImageCarousel, type CarouselMediaItem } from "@frontend/components/products/image-carousel";
 import dynamic from "next/dynamic";
-import { SizeSelector } from "@/components/products/size-selector";
-import { ColorSelector } from "@/components/products/color-selector";
-import { RelatedProducts } from "@/components/products/related-products";
-import { useCartStore, useWishlistStore, useAdminStore } from "@/lib/store";
-import { useHapticFeedback } from "@/components/providers/telegram-provider";
-import { toast } from "@/components/ui/use-toast";
-import { ProductEditOverlay } from "@/components/admin/product-edit-overlay";
-import { Product, Size, Color } from "@/lib/types";
-import { formatPrice } from "@/lib/utils";
-import { ru } from "@/lib/i18n/ru";
+import { SizeSelector } from "@frontend/components/products/size-selector";
+import { ColorSelector } from "@frontend/components/products/color-selector";
+import { RelatedProducts } from "@frontend/components/products/related-products";
+import { useCartStore, useWishlistStore, useAdminStore } from "@frontend/stores";
+import { useHapticFeedback } from "@frontend/components/providers/telegram-provider";
+import { toast } from "@frontend/components/ui/use-toast";
+import { ProductEditOverlay } from "@frontend/components/admin/product-edit-overlay";
+import { Product, Size, Color } from "@shared/types";
+import { formatPrice } from "@shared/utils";
+import { ru } from "@shared/i18n/ru";
 
 const ModelViewer3d = dynamic(
-  () => import("@/components/products/model-viewer-3d").then((mod) => mod.ModelViewer3d),
+  () => import("@frontend/components/products/model-viewer-3d").then((mod) => mod.ModelViewer3d),
   {
     ssr: false,
     loading: () => (

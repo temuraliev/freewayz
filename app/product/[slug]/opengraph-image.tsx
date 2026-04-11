@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
-import { client } from "@/lib/sanity/client";
-import { productBySlugQuery } from "@/lib/sanity/queries";
-import { Product } from "@/lib/types";
+import { client } from "@shared/sanity/client";
+import { productBySlugQuery } from "@shared/sanity/queries";
+import { Product } from "@shared/types";
 
 export const runtime = "edge";
 export const alt = "FreeWayz";

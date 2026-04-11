@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@sanity/client";
 import groq from "groq";
-import { withErrorHandler } from "@/lib/api/with-error-handler";
+import { withErrorHandler } from "@backend/middleware/with-error-handler";
 
 const sanity = createClient({
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,

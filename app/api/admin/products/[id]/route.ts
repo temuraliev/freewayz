@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@sanity/client";
 import imageUrlBuilder from "@sanity/image-url";
-import { isAdminRequest } from "@/lib/admin-gate";
-import { normalizeSubtype } from "@/lib/sanity/normalize-subtype";
+import { isAdminRequest } from "@backend/auth/admin-gate";
+import { normalizeSubtype } from "@backend/sanity/normalize-subtype";
 import { z } from "zod";
 
 function getSanityClient() {

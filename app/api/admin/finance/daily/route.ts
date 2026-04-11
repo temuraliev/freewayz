@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma } from "@backend/db";
 import { Prisma } from "@prisma/client";
-import { validateAdminInitData } from "@/lib/admin-auth";
-import { withErrorHandler, UnauthorizedError } from "@/lib/api/with-error-handler";
+import { validateAdminInitData } from "@backend/auth/admin-auth";
+import { withErrorHandler, UnauthorizedError } from "@backend/middleware/with-error-handler";
 
 /**
  * GET /api/admin/finance/daily?days=30

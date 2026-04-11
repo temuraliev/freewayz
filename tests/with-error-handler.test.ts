@@ -6,7 +6,7 @@ import {
   NotFoundError,
   ValidationError,
   UnauthorizedError,
-} from "@/lib/api/with-error-handler";
+} from "@backend/middleware/with-error-handler";
 
 function makeRequest(): NextRequest {
   return {

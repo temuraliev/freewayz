@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma } from "@backend/db";
 import {
   withErrorHandler,
   UnauthorizedError,
   ApiError,
-} from "@/lib/api/with-error-handler";
+} from "@backend/middleware/with-error-handler";
 
 /**
  * Cron endpoint — sends Telegram reminders to users who abandoned carts.

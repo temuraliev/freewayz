@@ -1,5 +1,5 @@
 import { MetadataRoute } from "next";
-import { client } from "@/lib/sanity/client";
+import { client } from "@shared/sanity/client";
 
 /**
  * Dynamic sitemap for all product pages + static pages.

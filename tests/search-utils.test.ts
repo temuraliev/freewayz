@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildSearchTerms } from "@/lib/search-utils";
+import { buildSearchTerms } from "@frontend/lib/search-utils";
 
 describe("buildSearchTerms", () => {
   it("returns patterns for a simple Russian word", () => {

@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { fetcher } from "@/lib/swr-fetcher";
+import { fetcher } from "@frontend/lib/swr-fetcher";
 
 interface DailyPoint {
   date: string;

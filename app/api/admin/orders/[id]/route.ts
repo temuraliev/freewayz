@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { validateAdminInitData } from "@/lib/admin-auth";
+import { prisma } from "@backend/db";
+import { validateAdminInitData } from "@backend/auth/admin-auth";
 import { z } from "zod";
 
 const bodySchema = z.object({

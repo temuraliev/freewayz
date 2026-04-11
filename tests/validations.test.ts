@@ -3,7 +3,7 @@ import {
   checkoutSchema,
   searchQuerySchema,
   telegramInitDataSchema,
-} from "@/lib/validations";
+} from "@backend/validations";
 
 describe("checkoutSchema", () => {
   const validCheckout = {

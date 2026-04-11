@@ -1,10 +1,10 @@
 import { ProductPageClient } from "./product-page-client";
-import { client } from "@/lib/sanity/client";
-import { productBySlugQuery } from "@/lib/sanity/queries";
-import { Product } from "@/lib/types";
+import { client } from "@shared/sanity/client";
+import { productBySlugQuery } from "@shared/sanity/queries";
+import { Product } from "@shared/types";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import { MOCK_PRODUCT } from "@/lib/mock-data";
+import { MOCK_PRODUCT } from "@frontend/lib/mock-data";
 
 /** Ensures product has safe shape for client (no null refs in arrays, slug always object). */
 function normalizeProduct(p: Product): Product {

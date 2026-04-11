@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
-import { prisma } from "@/lib/db";
-import { withErrorHandler, UnauthorizedError } from "@/lib/api/with-error-handler";
+import { prisma } from "@backend/db";
+import { withErrorHandler, UnauthorizedError } from "@backend/middleware/with-error-handler";
 
 /**
  * Sanity webhook receiver — cleans up orphaned references in PostgreSQL

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/db";
-import { validateUserInitData } from "@/lib/validate-user";
-import { syncCart } from "@/lib/cart-service";
+import { prisma } from "@backend/db";
+import { validateUserInitData } from "@backend/auth/validate-user";
+import { syncCart } from "@backend/services/cart-service";
 import {
   withErrorHandler,
   UnauthorizedError,
   ValidationError,
-} from "@/lib/api/with-error-handler";
+} from "@backend/middleware/with-error-handler";
 
 const cartItemSchema = z.object({
   productId: z.string().min(1),

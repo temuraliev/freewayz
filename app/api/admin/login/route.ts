@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   createAdminSessionToken,
   getAdminSessionCookieName,
-} from "@/lib/admin-session";
+} from "@backend/auth/admin-session";
 
 const bodySchema = z.object({ password: z.string() });
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminSessionCookieName } from "@/lib/admin-session";
+import { getAdminSessionCookieName } from "@backend/auth/admin-session";
 
 export async function POST() {
   const res = NextResponse.json({ ok: true });

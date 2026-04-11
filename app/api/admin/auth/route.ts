@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateAdminInitData } from "@/lib/admin-auth";
-import { getAdminSessionCookieName, verifyAdminSessionToken } from "@/lib/admin-session";
+import { validateAdminInitData } from "@backend/auth/admin-auth";
+import { getAdminSessionCookieName, verifyAdminSessionToken } from "@backend/auth/admin-session";
 import { z } from "zod";
 
 const bodySchema = z.object({ initData: z.string() });

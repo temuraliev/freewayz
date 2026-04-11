@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 
-import { ProductGrid } from "@/components/products/product-grid";
-import { useUserStore } from "@/lib/store";
-import { Product } from "@/lib/types";
+import { ProductGrid } from "@frontend/components/products/product-grid";
+import { useUserStore } from "@frontend/stores";
+import { Product } from "@shared/types";
 
 export default function RecommendationsPage() {
   const router = useRouter();

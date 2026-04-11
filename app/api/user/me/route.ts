@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma } from "@backend/db";
 import { createClient } from "@sanity/client";
-import { validateUserInitData } from "@/lib/validate-user";
-import { withErrorHandler, UnauthorizedError } from "@/lib/api/with-error-handler";
+import { validateUserInitData } from "@backend/auth/validate-user";
+import { withErrorHandler, UnauthorizedError } from "@backend/middleware/with-error-handler";
 
 const sanity = createClient({
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,

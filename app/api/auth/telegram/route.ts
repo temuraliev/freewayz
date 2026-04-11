@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateTelegramInitData } from "@/lib/telegram-auth";
-import { telegramInitDataSchema } from "@/lib/validations";
-import { rateLimit } from "@/lib/rate-limit";
-import { checkCsrf } from "@/lib/csrf";
-import { logSecurityEvent } from "@/lib/security-logger";
+import { validateTelegramInitData } from "@backend/auth/telegram-auth";
+import { telegramInitDataSchema } from "@backend/validations";
+import { rateLimit } from "@backend/security/rate-limit";
+import { checkCsrf } from "@backend/security/csrf";
+import { logSecurityEvent } from "@backend/security/security-logger";
 
 // Rate limiter: 10 requests per 60 seconds per IP
 const limiter = rateLimit({

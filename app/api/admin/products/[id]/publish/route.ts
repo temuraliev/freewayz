@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@sanity/client";
-import { isAdminRequest } from "@/lib/admin-gate";
+import { isAdminRequest } from "@backend/auth/admin-gate";
 import { z } from "zod";
 
 const bodySchema = z.object({ initData: z.string().optional().default("") });

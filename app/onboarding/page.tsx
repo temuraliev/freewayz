@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Check } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { useUserStore } from "@/lib/store";
-import { client } from "@/lib/sanity/client";
-import { brandsQuery, stylesQuery } from "@/lib/sanity/queries";
+import { Button } from "@frontend/components/ui/button";
+import { useUserStore } from "@frontend/stores";
+import { client } from "@shared/sanity/client";
+import { brandsQuery, stylesQuery } from "@shared/sanity/queries";
 
 interface Item {
   _id: string;

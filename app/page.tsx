@@ -1,10 +1,10 @@
-import { client } from "@/lib/sanity/client";
+import { client } from "@shared/sanity/client";
 import {
   hotDropsQuery,
   saleProductsQuery,
   freshArrivalsQuery,
-} from "@/lib/sanity/queries";
-import { HomeClient } from "@/components/home/home-client";
+} from "@shared/sanity/queries";
+import { HomeClient } from "@frontend/components/home/home-client";
 
 // Enable caching (ISR) - revalidate every 60 seconds
 export const revalidate = 60;
@@ -29,7 +29,7 @@ export default async function HomePage() {
     if (process.env.NODE_ENV !== "production") {
       // Dev fallback: show mock data so you can work without a live Sanity connection
       // Dynamically imported so it never lands in the production bundle
-      const { MOCK_PRODUCTS } = await import("@/lib/mock-data");
+      const { MOCK_PRODUCTS } = await import("@frontend/lib/mock-data");
       initialHotDrops = MOCK_PRODUCTS.filter((p) => p.isHotDrop && !p.isOnSale);
       initialSaleProducts = MOCK_PRODUCTS.filter((p) => p.isOnSale);
       initialFreshArrivals = MOCK_PRODUCTS;

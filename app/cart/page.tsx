@@ -7,15 +7,15 @@ import Link from "next/link";
 import { ArrowLeft, ShoppingBag, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { CartItem } from "@/components/cart/cart-item";
-import { CartSummary } from "@/components/cart/cart-summary";
-import { EssentialsUpsell } from "@/components/cart/essentials-upsell";
-import { RecentlyViewed } from "@/components/products/recently-viewed";
-import { Button } from "@/components/ui/button";
-import { useCartStore } from "@/lib/store";
-import { ru, itemsCount } from "@/lib/i18n/ru";
-import { Product } from "@/lib/types";
-import { formatPrice } from "@/lib/utils";
+import { CartItem } from "@frontend/components/cart/cart-item";
+import { CartSummary } from "@frontend/components/cart/cart-summary";
+import { EssentialsUpsell } from "@frontend/components/cart/essentials-upsell";
+import { RecentlyViewed } from "@frontend/components/products/recently-viewed";
+import { Button } from "@frontend/components/ui/button";
+import { useCartStore } from "@frontend/stores";
+import { ru, itemsCount } from "@shared/i18n/ru";
+import { Product } from "@shared/types";
+import { formatPrice } from "@shared/utils";
 
 interface CrossSellProduct {
   _id: string;

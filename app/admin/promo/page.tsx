@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import useSWR, { mutate } from "swr";
-import { fetcher } from "@/lib/swr-fetcher";
+import { fetcher } from "@frontend/lib/swr-fetcher";
 
 interface PromoCode {
   id: number;

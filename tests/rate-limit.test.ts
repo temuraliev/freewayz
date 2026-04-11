@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit } from "@backend/security/rate-limit";
 
 // Ensure we use the in-memory branch (not Upstash)
 beforeEach(() => {

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@sanity/client";
-import { isAdminRequest } from "@/lib/admin-gate";
+import { isAdminRequest } from "@backend/auth/admin-gate";
 import {
   withErrorHandler,
   UnauthorizedError,
   ValidationError,
   ApiError,
-} from "@/lib/api/with-error-handler";
+} from "@backend/middleware/with-error-handler";
 
 function getSanityClient() {
   const token = process.env.SANITY_API_TOKEN;

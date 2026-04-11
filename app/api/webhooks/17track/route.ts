@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma } from "@backend/db";
 import {
   parseTrackStatus,
   parseTrackEvents,
   mapTrackStatusToOrderStatus,
   type TrackingEvent,
-} from "@/lib/tracking/track17";
+} from "@backend/integrations/track17";
 
 async function notifyAdminBot(text: string) {
   const botToken = (

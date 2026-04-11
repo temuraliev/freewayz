@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/db";
-import { validateAdminInitData } from "@/lib/admin-auth";
+import { prisma } from "@backend/db";
+import { validateAdminInitData } from "@backend/auth/admin-auth";
 import {
   withErrorHandler,
   UnauthorizedError,
   ValidationError,
-} from "@/lib/api/with-error-handler";
+} from "@backend/middleware/with-error-handler";
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
