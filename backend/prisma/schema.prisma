@@ -1,0 +1,227 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ROOKIE
+  PRO
+  LEGEND
+}
+
+enum OrderStatus {
+  new
+  paid
+  ordered
+  shipped
+  delivered
+  cancelled
+}
+
+enum ExpenseCurrency {
+  UZS
+  CNY
+  USD
+}
+
+enum ExpenseCategory {
+  shipping
+  purchase
+  packaging
+  other
+}
+
+enum PromoType {
+  discount_percent
+  discount_fixed
+  balance_topup
+}
+
+model User {
+  id                    Int              @id @default(autoincrement())
+  telegramId            String           @unique
+  username              String?
+  firstName             String?
+  lastName              String?
+  photoUrl              String?
+  phone                 String?
+  address               String?
+  adminNotes            String?
+  totalSpent            Float            @default(0)
+  status                UserStatus       @default(ROOKIE)
+  cashbackBalance       Float            @default(0)
+  onboardingDone        Boolean          @default(false)
+  referredBy            String?          // telegramId of referrer
+  // DEPRECATED: use userPreferences relation instead
+  preferredBrandIds     String[]
+  preferredStyleIds     String[]
+  // DEPRECATED: use cartItemsRel relation instead
+  cartItems             String?
+  cartUpdatedAt         DateTime?
+  abandonedCartNotified Boolean          @default(false)
+  orders                Order[]
+  promoUsages           PromoUsage[]
+  cartItemsRel          CartItem[]
+  userPreferences       UserPreference[]
+  productViews          ProductView[]
+  wishlistItems         WishlistItem[]
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  @@index([username])
+  @@index([status])
+  @@index([referredBy])
+  @@index([abandonedCartNotified, cartUpdatedAt])
+}
+
+model CartItem {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId  String   // Sanity product _id
+  title      String?
+  brand      String?
+  size       String
+  color      String?
+  price      Float
+  quantity   Int      @default(1)
+  imageUrl   String?
+  addedAt    DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, productId, size, color])
+  @@index([userId])
+}
+
+enum PreferenceType {
+  brand
+  style
+}
+
+model UserPreference {
+  id             Int            @id @default(autoincrement())
+  userId         Int
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  preferenceType PreferenceType
+  externalId     String         // Sanity _id of brand or style
+  createdAt      DateTime       @default(now())
+
+  @@unique([userId, preferenceType, externalId])
+  @@index([userId])
+}
+
+model ProductView {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String   // Sanity product _id
+  brandSlug String?
+  styleSlug String?
+  viewedAt  DateTime @default(now())
+
+  @@index([userId, viewedAt])
+  @@index([productId])
+}
+
+model WishlistItem {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId  String   // Sanity product _id
+  title      String?
+  brand      String?
+  price      Float?
+  imageUrl   String?
+  addedAt    DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId])
+}
+
+model Order {
+  id                Int         @id @default(autoincrement())
+  orderId           String      @unique
+  userId            Int
+  user              User        @relation(fields: [userId], references: [id])
+  items             Json        // OrderItem[]
+  total             Float
+  cost              Float?
+  status            OrderStatus @default(new)
+  trackNumber       String?
+  trackUrl          String?
+  carrier           String?
+  track17Registered Boolean     @default(false)
+  trackingStatus    String?
+  trackingEvents    Json?       // TrackingEvent[]
+  shippingMethod    String?
+  promoCode         String?
+  discount          Float?
+  notes             String?
+  idempotencyKey    String?     @unique
+  expenses          Expense[]
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([status])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([trackNumber])
+}
+
+model Expense {
+  id          Int             @id @default(autoincrement())
+  date        DateTime
+  amount      Float
+  currency    ExpenseCurrency @default(UZS)
+  category    ExpenseCategory @default(other)
+  description String?
+  orderId     Int?
+  order       Order?          @relation(fields: [orderId], references: [id])
+  createdAt   DateTime        @default(now())
+
+  @@index([date])
+  @@index([orderId])
+}
+
+model PromoCode {
+  id             Int          @id @default(autoincrement())
+  code           String       @unique
+  type           PromoType
+  value          Float
+  minOrderTotal  Float?
+  maxUses        Int?
+  usedCount      Int          @default(0)
+  maxUsesPerUser Int          @default(1)
+  isActive       Boolean      @default(true)
+  expiresAt      DateTime?
+  usedBy         PromoUsage[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model PromoUsage {
+  id          Int       @id @default(autoincrement())
+  promoCodeId Int
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id])
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  usedAt      DateTime  @default(now())
+
+  @@unique([promoCodeId, userId])
+}
+
+model Supplier {
+  id             Int      @id @default(autoincrement())
+  name           String
+  url            String
+  lastCheckedAt  DateTime?
+  lastAlbumCount Int?
+  knownAlbumIds  String[]
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
