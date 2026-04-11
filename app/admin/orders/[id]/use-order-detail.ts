@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { admin as adminApi } from "@/lib/api-client";
 
 interface TrackingEvent {
   date?: string;
@@ -73,22 +74,20 @@ export function useOrderDetail(id: string | undefined) {
       return;
     }
     const initData = getInitData();
-    fetch(`/api/admin/orders/${encodeURIComponent(id)}`, {
-      headers: { "X-Telegram-Init-Data": initData },
-    })
-      .then((res) => (res.ok ? res.json() : null))
+    adminApi.getOrder(id)
       .then((data) => {
-        if (data && !data.error) {
-          setOrder(data);
+        if (data && !('error' in data)) {
+          setOrder(data as unknown as AdminOrder);
           setForm({
-            status: data.status ?? "new",
-            trackNumber: data.trackNumber ?? "",
-            trackUrl: data.trackUrl ?? "",
-            notes: data.notes ?? "",
+            status: (data.status as string) ?? "new",
+            trackNumber: (data.trackNumber as string) ?? "",
+            trackUrl: (data.trackUrl as string) ?? "",
+            notes: (data.notes as string) ?? "",
             cost: data.cost != null ? String(data.cost) : "",
           });
         }
       })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -102,32 +101,26 @@ export function useOrderDetail(id: string | undefined) {
     try {
       const costNum = form.cost.trim() === "" ? undefined : parseFloat(form.cost);
       const initData = getInitData();
-      const res = await fetch(`/api/admin/orders/${encodeURIComponent(id)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          initData,
-          status: form.status,
-          trackNumber: form.trackNumber.trim() || undefined,
-          trackUrl: form.trackUrl.trim() || undefined,
-          notes: form.notes.trim() || undefined,
-          cost: costNum != null && !Number.isNaN(costNum) ? costNum : undefined,
-        }),
+      await adminApi.patchOrder(id, {
+        initData,
+        status: form.status,
+        trackNumber: form.trackNumber.trim() || undefined,
+        trackUrl: form.trackUrl.trim() || undefined,
+        notes: form.notes.trim() || undefined,
+        cost: costNum != null && !Number.isNaN(costNum) ? costNum : undefined,
       });
-      if (res.ok) {
-        setOrder((prev) =>
-          prev
-            ? {
-                ...prev,
-                status: form.status,
-                trackNumber: form.trackNumber,
-                trackUrl: form.trackUrl,
-                notes: form.notes,
-                cost: costNum,
-              }
-            : null
-        );
-      }
+      setOrder((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: form.status,
+              trackNumber: form.trackNumber,
+              trackUrl: form.trackUrl,
+              notes: form.notes,
+              cost: costNum,
+            }
+          : null
+      );
     } finally {
       setSaving(false);
     }
@@ -139,11 +132,7 @@ export function useOrderDetail(id: string | undefined) {
       setSaving(true);
       try {
         const initData = getInitData();
-        await fetch(`/api/admin/orders/${encodeURIComponent(id)}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ initData, status: newStatus }),
-        });
+        await adminApi.patchOrder(id, { initData, status: newStatus });
         setForm((prev) => ({ ...prev, status: newStatus }));
         setOrder((prev) => (prev ? { ...prev, status: newStatus } : null));
       } finally {

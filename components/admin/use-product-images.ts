@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/components/ui/use-toast";
+import { admin as adminApi } from "@/lib/api-client";
 
 function getInitData(): string {
   if (typeof window === "undefined") return "";
@@ -17,13 +18,9 @@ export function useProductImages(productId: string, open: boolean, fallbackUrls:
   useEffect(() => {
     if (!open || !productId) return;
     setLoading(true);
-    const initData = getInitData();
-    fetch(`/api/admin/products/${encodeURIComponent(productId)}`, initData ? {
-      headers: { "X-Telegram-Init-Data": initData },
-    } : undefined)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Failed to load"))))
-      .then((data: { images?: { _ref: string; url: string }[] }) => {
-        const imgs = data.images ?? [];
+    adminApi.getProduct(productId)
+      .then((data) => {
+        const imgs = (data.images ?? []) as { _ref: string; url: string }[];
         setImageRefs(imgs.map((i) => i._ref).filter(Boolean));
         setImageUrls(imgs.map((i) => i.url));
       })
@@ -82,12 +79,7 @@ export function useProductImages(productId: string, open: boolean, fallbackUrls:
         const form = new FormData();
         form.append("initData", initData);
         form.append("image", file);
-        const res = await fetch(
-          `/api/admin/products/${encodeURIComponent(productId)}/upload-image`,
-          { method: "POST", body: form }
-        );
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || "Ошибка загрузки");
+        const data = await adminApi.uploadProductImage(productId, form);
         if (data.assetId && data.url) {
           setImageRefs((prev) => [...prev, data.assetId]);
           setImageUrls((prev) => [...prev, data.url]);

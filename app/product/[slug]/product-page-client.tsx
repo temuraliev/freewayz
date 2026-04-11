@@ -18,6 +18,7 @@ import { ProductEditOverlay } from "@/components/admin/product-edit-overlay";
 import { Product, Size, Color } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
 import { ru } from "@/lib/i18n/ru";
+import { trackProductView } from "@/lib/api-client";
 
 const ModelViewer3d = dynamic(
   () => import("@/components/products/model-viewer-3d").then((mod) => mod.ModelViewer3d),
@@ -72,15 +73,11 @@ export function ProductPageClient({ product, initialEditMode }: ProductPageClien
     });
 
     if (initData) {
-      fetch("/api/products/view", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          initData,
-          productId: product._id,
-          brandSlug: brandSlugForView,
-          styleSlug: styleSlugForView,
-        }),
+      trackProductView({
+        initData,
+        productId: product._id,
+        brandSlug: brandSlugForView,
+        styleSlug: styleSlugForView,
       }).catch(() => {});
     }
   }, [product._id, product.title, product.price, product.brand, brandSlugForView, styleSlugForView]);

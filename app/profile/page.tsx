@@ -13,6 +13,7 @@ import { ymTrack } from "@/components/providers/yandex-metrica";
 import { ru } from "@/lib/i18n/ru";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/products/product-card";
+import { getOrderHistory, applyPromo, ApiClientError } from "@/lib/api-client";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -231,11 +232,8 @@ function OrderHistorySection({ telegramId }: { telegramId?: number }) {
         : "";
     if (!initData) { setLoading(false); return; }
 
-    fetch("/api/orders/history", {
-      headers: { "X-Telegram-Init-Data": initData },
-    })
-      .then((r) => (r.ok ? r.json() : { orders: [] }))
-      .then((d) => setOrders(d.orders || []))
+    getOrderHistory()
+      .then((d) => setOrders((d.orders || []) as typeof orders))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [telegramId]);
@@ -385,23 +383,14 @@ function PromoSection({
         : "";
 
     try {
-      const res = await fetch("/api/promo/apply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ initData, code: codeVal, context: "profile" }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        setError(data.error || "Ошибка");
-        return;
-      }
+      const data = await applyPromo(initData, codeVal, "profile");
 
       if (data.type === "balance_topup") {
         setSuccessMsg(
-          `Баланс пополнен на ${formatPrice(data.value)}! Новый баланс: ${formatPrice(data.newBalance)}`
+          `Баланс пополнен на ${formatPrice(data.value)}! Новый баланс: ${formatPrice(data.newBalance ?? 0)}`
         );
         if (user) {
-          setUser({ ...user, cashbackBalance: data.newBalance });
+          setUser({ ...user, cashbackBalance: data.newBalance ?? user.cashbackBalance });
         }
         setCode("");
       } else {
@@ -410,8 +399,12 @@ function PromoSection({
         );
         setCode("");
       }
-    } catch {
-      setError("Ошибка сети");
+    } catch (e) {
+      if (e instanceof ApiClientError) {
+        setError(e.message || "Ошибка");
+      } else {
+        setError("Ошибка сети");
+      }
     } finally {
       setLoading(false);
     }

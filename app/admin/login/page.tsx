@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminStore } from "@/lib/store";
+import { admin as adminApi } from "@/lib/api-client";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -22,20 +23,12 @@ export default function AdminLoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      if (!res.ok) {
-        setAdmin(false);
-        setError("Неверный пароль");
-        return;
-      }
+      await adminApi.login(password);
       setAdmin(true);
       router.replace("/admin");
     } catch {
-      setError("Ошибка сети");
+      setAdmin(false);
+      setError("Неверный пароль");
     } finally {
       setLoading(false);
     }

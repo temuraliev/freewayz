@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Pencil, Check, X } from "lucide-react";
+import { admin as adminApi } from "@/lib/api-client";
 
 function getInitData(): string {
   if (typeof window === "undefined") return "";
@@ -23,18 +24,12 @@ export function AdminNotesEditor({
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/customers/${customerId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          initData: getInitData(),
-          adminNotes: notes.trim(),
-        }),
+      await adminApi.patchCustomer(customerId, {
+        initData: getInitData(),
+        adminNotes: notes.trim(),
       });
-      if (res.ok) {
-        setSavedNotes(notes.trim());
-        setEditing(false);
-      }
+      setSavedNotes(notes.trim());
+      setEditing(false);
     } finally {
       setSaving(false);
     }

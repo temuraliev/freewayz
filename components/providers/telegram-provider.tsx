@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, ReactNode, useRef } fro
 import { useRouter } from "next/navigation";
 import { useUserStore, useCartStore, useWishlistStore } from "@/lib/store";
 import { TelegramUser } from "@/lib/types";
+import { linkReferral, getMe, syncCart } from "@/lib/api-client";
 
 interface TelegramContextType {
   isReady: boolean;
@@ -133,14 +134,8 @@ export function TelegramProvider({ children }: TelegramProviderProps) {
           if (startParam.startsWith("ref_")) {
             const referrerId = startParam.replace("ref_", "");
             // Link referral in background
-            fetch("/api/user/link-referral", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                initData: tg.initData,
-                referrerId: referrerId,
-              }),
-            }).catch(err => console.error("Referral linking failed:", err));
+            linkReferral(tg.initData, referrerId)
+              .catch(err => console.error("Referral linking failed:", err));
           } else {
             // start_param is the product slug
             router.push(`/product/${startParam}`);
@@ -184,11 +179,8 @@ export function TelegramProvider({ children }: TelegramProviderProps) {
     const initData = tg?.initData || "";
     if (!initData) return;
 
-    fetch("/api/user/me", {
-      headers: { "X-Telegram-Init-Data": initData },
-    })
-      .then((res) => res.json())
-      .then((doc) => { if (doc && !doc.error) setUser(doc); })
+    getMe()
+      .then((doc) => { if (doc && !('error' in doc)) setUser(doc as unknown as import("@/lib/types").User); })
       .catch((err) => console.error("Failed to fetch user:", err));
 
     // Hydrate wishlist from server (cross-device sync)
@@ -205,14 +197,8 @@ export function TelegramProvider({ children }: TelegramProviderProps) {
     if (!tg?.initData) return;
 
     const timer = setTimeout(() => {
-      fetch("/api/user/sync-cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          initData: tg.initData,
-          cartItems,
-        }),
-      }).catch(err => console.error("Cart sync failed:", err));
+      syncCart(tg.initData, cartItems)
+        .catch(err => console.error("Cart sync failed:", err));
     }, 2000); // 2 second debounce
 
     return () => clearTimeout(timer);

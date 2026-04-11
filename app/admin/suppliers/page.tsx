@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import useSWR, { mutate } from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
+import { admin as adminApi } from "@/lib/api-client";
 
 interface Supplier {
   _id: string;
@@ -36,14 +37,10 @@ export default function AdminSuppliersPage() {
     setSaving(true);
     try {
       const name = formName.trim() || formUrl.replace(/^https?:\/\//, "").split("/")[0];
-      await fetch("/api/admin/suppliers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          initData: getInitData(),
-          name,
-          url: formUrl.trim(),
-        }),
+      await adminApi.createSupplier({
+        initData: getInitData(),
+        name,
+        url: formUrl.trim(),
       });
       setFormUrl("");
       setFormName("");

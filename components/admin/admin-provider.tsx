@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useAdminStore } from "@/lib/store";
 import { ProductEditOverlay } from "@/components/admin/product-edit-overlay";
+import { admin as adminApi } from "@/lib/api-client";
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
   const setAdmin = useAdminStore((s) => s.setAdmin);
@@ -15,24 +16,16 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       typeof window !== "undefined" && window.Telegram?.WebApp?.initData
         ? window.Telegram.WebApp.initData
         : "";
-    fetch("/api/admin/auth", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ initData }),
-    })
-      .then(async (res) => {
-        const data = await res.json().catch(() => ({}));
-        if (res.ok) {
-          setAdmin(true);
-        } else {
-          setAdmin(false);
-          // Debug: в консоли видно, почему не админ (только при открытии из Telegram)
-          if (data.reason) {
-            console.warn("[Admin] Auth failed:", data.reason);
-          }
-        }
+    adminApi.checkAuth(initData)
+      .then(() => {
+        setAdmin(true);
       })
-      .catch(() => setAdmin(false));
+      .catch((err) => {
+        setAdmin(false);
+        if (err?.body?.reason) {
+          console.warn("[Admin] Auth failed:", err.body.reason);
+        }
+      });
   }, [setAdmin]);
 
   const handleSaved = () => {

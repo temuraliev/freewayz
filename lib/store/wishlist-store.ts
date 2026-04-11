@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { Product } from "@/lib/types";
 import { telegramStorage } from "./telegram-storage";
+import { addToWishlist, removeFromWishlist, getWishlist } from "@/lib/api-client";
 
 function getInitData(): string {
   if (typeof window === "undefined") return "";
@@ -21,27 +22,20 @@ interface WishlistState {
 async function pushAdd(product: Product) {
   const initData = getInitData();
   if (!initData) return;
-  await fetch("/api/user/wishlist", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      initData,
-      productId: product._id,
-      title: product.title,
-      brand: typeof product.brand === "string" ? product.brand : product.brand?.title,
-      price: product.price,
-      imageUrl: product.images?.[0],
-    }),
+  await addToWishlist({
+    initData,
+    productId: product._id,
+    title: product.title,
+    brand: typeof product.brand === "string" ? product.brand : product.brand?.title,
+    price: product.price,
+    imageUrl: product.images?.[0],
   }).catch(() => {});
 }
 
 async function pushRemove(productId: string) {
   const initData = getInitData();
   if (!initData) return;
-  await fetch(`/api/user/wishlist?productId=${encodeURIComponent(productId)}`, {
-    method: "DELETE",
-    headers: { "X-Telegram-Init-Data": initData },
-  }).catch(() => {});
+  await removeFromWishlist(productId).catch(() => {});
 }
 
 export const useWishlistStore = create<WishlistState>()(
@@ -71,17 +65,13 @@ export const useWishlistStore = create<WishlistState>()(
         const initData = getInitData();
         if (!initData) return;
         try {
-          const res = await fetch("/api/user/wishlist", {
-            headers: { "X-Telegram-Init-Data": initData },
-          });
-          if (!res.ok) return;
-          const data = await res.json();
-          const serverItems = Array.isArray(data?.items) ? data.items : [];
+          const data = await getWishlist();
+          const serverItems = Array.isArray(data?.items) ? data.items as { productId: string; title?: string; brand?: string; price?: number; imageUrl?: string }[] : [];
           // Merge server items into local — server is source of truth for ids,
           // but we keep already-loaded full Product objects from local cache.
           const localById = new Map(get().items.map((p) => [p._id, p]));
           const merged: Product[] = serverItems
-            .map((row: { productId: string; title?: string; brand?: string; price?: number; imageUrl?: string }) => {
+            .map((row) => {
               const local = localById.get(row.productId);
               if (local) return local;
               // Reconstruct minimal Product shape

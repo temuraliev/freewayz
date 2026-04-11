@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import { ProductGrid } from "@/components/products/product-grid";
 import { useUserStore } from "@/lib/store";
 import { Product } from "@/lib/types";
+import { getRecommendations } from "@/lib/api-client";
 
 export default function RecommendationsPage() {
   const router = useRouter();
@@ -26,16 +27,9 @@ export default function RecommendationsPage() {
         : "";
 
     try {
-      const res = await fetch(`/api/recommendations`, {
-        headers: {
-          "X-Telegram-Init-Data": initData,
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setProducts(data.products || []);
-        setTier(data.tier ?? 3);
-      }
+      const data = await getRecommendations();
+      setProducts((data.products || []) as Product[]);
+      setTier(data.tier ?? 3);
     } catch (err) {
       console.error("Failed to fetch recommendations:", err);
     } finally {

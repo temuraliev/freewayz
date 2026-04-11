@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import useSWR, { mutate } from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
+import { admin as adminApi, ApiClientError } from "@/lib/api-client";
 
 interface PromoCode {
   id: number;
@@ -62,41 +63,28 @@ export default function AdminPromoPage() {
     setSaving(true);
     setError("");
     try {
-      const res = await fetch("/api/admin/promo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          initData: getInitData(),
-          code: formCode.trim(),
-          type: formType,
-          value,
-          maxUses: formMaxUses ? parseInt(formMaxUses, 10) : undefined,
-          maxUsesPerUser: parseInt(formMaxPerUser, 10) || 1,
-        }),
+      await adminApi.createPromoCode({
+        initData: getInitData(),
+        code: formCode.trim(),
+        type: formType,
+        value,
+        maxUses: formMaxUses ? parseInt(formMaxUses, 10) : undefined,
+        maxUsesPerUser: parseInt(formMaxPerUser, 10) || 1,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Ошибка создания");
-        return;
-      }
       setFormCode("");
       setFormValue("");
       setFormMaxUses("");
       setShowForm(false);
       mutate(KEY);
-    } catch {
-      setError("Сетевая ошибка");
+    } catch (e) {
+      setError(e instanceof ApiClientError ? (e.message || "Ошибка создания") : "Сетевая ошибка");
     } finally {
       setSaving(false);
     }
   };
 
   const toggleActive = async (id: number, isActive: boolean) => {
-    await fetch(`/api/admin/promo/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ initData: getInitData(), isActive }),
-    });
+    await adminApi.patchPromoCode(id, { initData: getInitData(), isActive });
     mutate(KEY);
   };
 

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { admin as adminApi } from "@/lib/api-client";
 const RevenueChart = dynamic(() => import("./revenue-chart").then((m) => m.RevenueChart), {
   ssr: false,
   loading: () => <div className="h-60 w-full animate-pulse rounded-lg bg-secondary/40" />,
@@ -55,21 +56,16 @@ export default function AdminFinancePage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (fromDate) params.set("from", fromDate);
-      if (toDate) params.set("to", toDate);
-      const res = await fetch(`/api/admin/finance?${params.toString()}`, {
-        headers: { "X-Telegram-Init-Data": initData },
-      });
-      if (res.ok) {
-        setData(await res.json());
-      }
+      const result = await adminApi.getFinance(
+        { from: fromDate || undefined, to: toDate || undefined }
+      );
+      setData(result as FinanceData);
     } catch {
       // ignore
     } finally {
       setLoading(false);
     }
-  }, [initData, fromDate, toDate]);
+  }, [fromDate, toDate]);
 
   useEffect(() => {
     fetchData();
@@ -81,24 +77,18 @@ export default function AdminFinancePage() {
 
     setFormSaving(true);
     try {
-      const res = await fetch("/api/admin/finance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          initData,
-          date: new Date().toISOString(),
-          amount,
-          currency: formCurrency,
-          category: formCategory,
-          description: formDesc.trim(),
-        }),
+      await adminApi.createExpense({
+        initData,
+        date: new Date().toISOString(),
+        amount,
+        currency: formCurrency,
+        category: formCategory,
+        description: formDesc.trim(),
       });
-      if (res.ok) {
-        setFormAmount("");
-        setFormDesc("");
-        setShowForm(false);
-        fetchData();
-      }
+      setFormAmount("");
+      setFormDesc("");
+      setShowForm(false);
+      fetchData();
     } finally {
       setFormSaving(false);
     }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import useSWR, { mutate } from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
+import { admin as adminApi } from "@/lib/api-client";
 
 function getInitData(): string {
   if (typeof window === "undefined") return "";
@@ -149,11 +150,8 @@ export default function AdminOrdersPage() {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        fetch(`/api/admin/orders/${o.id}`, {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ initData: getInitData(), status: "ordered" }),
-                        }).then(() => mutate(key));
+                        adminApi.patchOrder(String(o.id), { initData: getInitData(), status: "ordered" })
+                          .then(() => mutate(key));
                       }}
                       className="bg-green-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-green-700"
                     >

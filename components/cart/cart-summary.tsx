@@ -8,6 +8,7 @@ import { ymTrack } from "@/components/providers/yandex-metrica";
 import { motion } from "framer-motion";
 import { ShoppingBag, Check, Loader2, Tag, X, Crown } from "lucide-react";
 import { ru, itemsCount } from "@/lib/i18n/ru";
+import { applyPromo, createOrder, ApiClientError } from "@/lib/api-client";
 
 interface AppliedPromo {
   code: string;
@@ -57,16 +58,7 @@ export function CartSummary() {
         : "";
 
     try {
-      const res = await fetch("/api/promo/apply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ initData, code, context: "cart" }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        setPromoError(data.error || "Ошибка");
-        return;
-      }
+      const data = await applyPromo(initData, code, "cart");
       if (data.type === "balance_topup") {
         setPromoError("Этот промокод для пополнения баланса. Активируйте его в профиле.");
         return;
@@ -77,11 +69,15 @@ export function CartSummary() {
       }
       setAppliedPromo({
         code: data.code || code,
-        type: data.type,
+        type: data.type as "discount_percent" | "discount_fixed",
         value: data.value,
       });
-    } catch {
-      setPromoError("Ошибка сети");
+    } catch (e) {
+      if (e instanceof ApiClientError) {
+        setPromoError(e.message || "Ошибка");
+      } else {
+        setPromoError("Ошибка сети");
+      }
     } finally {
       setPromoLoading(false);
     }
@@ -120,23 +116,13 @@ export function CartSummary() {
         quantity: item.quantity,
       }));
 
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          initData,
-          items: cartItems,
-          total: finalTotal,
-          promoCode: appliedPromo?.code || undefined,
-          discount: discountAmount || undefined,
-        }),
+      const data = await createOrder({
+        initData,
+        items: cartItems,
+        total: finalTotal,
+        promoCode: appliedPromo?.code || undefined,
+        discount: discountAmount || undefined,
       });
-
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        setError(data.error || "Не удалось оформить заказ");
-        return;
-      }
 
       setSuccess(data.orderId);
       clearCart();

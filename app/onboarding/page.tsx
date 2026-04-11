@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useUserStore } from "@/lib/store";
 import { client } from "@/lib/sanity/client";
 import { brandsQuery, stylesQuery } from "@/lib/sanity/queries";
+import { savePreferences } from "@/lib/api-client";
 
 interface Item {
   _id: string;
@@ -66,16 +67,8 @@ export default function OnboardingPage() {
         : "";
 
     try {
-      const res = await fetch("/api/user/preferences", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          initData,
-          brandIds: Array.from(selectedBrands),
-          styleIds: Array.from(selectedStyles),
-        }),
-      });
-      if (res.ok && user) {
+      await savePreferences(initData, Array.from(selectedBrands), Array.from(selectedStyles));
+      if (user) {
         setUser({ ...user, onboardingDone: true });
       }
       router.replace("/recommendations");

@@ -16,6 +16,7 @@ import { useCartStore } from "@/lib/store";
 import { ru, itemsCount } from "@/lib/i18n/ru";
 import { Product } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
+import { getCrossSell } from "@/lib/api-client";
 
 interface CrossSellProduct {
   _id: string;
@@ -63,11 +64,8 @@ export default function CartPage() {
     params.set("maxPrice", String(maxPrice));
 
     try {
-      const res = await fetch(`/api/cross-sell?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setCrossSell(data.products || []);
-      }
+      const data = await getCrossSell(params);
+      setCrossSell((data.products || []) as CrossSellProduct[]);
     } catch {
       /* ignore */
     }
