@@ -7,12 +7,12 @@ import {
   OneToMany,
   Index,
 } from "typeorm";
-import { CartItemEntity } from "./CartItem";
-import { UserPreference } from "./UserPreference";
-import { ProductViewEntity } from "./ProductView";
-import { WishlistItemEntity } from "./WishlistItem";
-import { OrderEntity } from "./Order";
-import { PromoUsage } from "./PromoUsage";
+import type { CartItemEntity } from "./CartItem";
+import type { UserPreference } from "./UserPreference";
+import type { ProductViewEntity } from "./ProductView";
+import type { WishlistItemEntity } from "./WishlistItem";
+import type { OrderEntity } from "./Order";
+import type { PromoUsage } from "./PromoUsage";
 
 export enum UserStatus {
   ROOKIE = "ROOKIE",
@@ -86,22 +86,22 @@ export class User {
   @Column({ type: "boolean", default: false })
   abandonedCartNotified!: boolean;
 
-  @OneToMany(() => OrderEntity, (order) => order.user)
+  @OneToMany("OrderEntity", "user")
   orders!: OrderEntity[];
 
-  @OneToMany(() => PromoUsage, (usage) => usage.user)
+  @OneToMany("PromoUsage", "user")
   promoUsages!: PromoUsage[];
 
-  @OneToMany(() => CartItemEntity, (item) => item.user)
+  @OneToMany("CartItemEntity", "user")
   cartItemsRel!: CartItemEntity[];
 
-  @OneToMany(() => UserPreference, (pref) => pref.user)
+  @OneToMany("UserPreference", "user")
   userPreferences!: UserPreference[];
 
-  @OneToMany(() => ProductViewEntity, (view) => view.user)
+  @OneToMany("ProductViewEntity", "user")
   productViews!: ProductViewEntity[];
 
-  @OneToMany(() => WishlistItemEntity, (item) => item.user)
+  @OneToMany("WishlistItemEntity", "user")
   wishlistItems!: WishlistItemEntity[];
 
   @CreateDateColumn()

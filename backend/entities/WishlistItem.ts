@@ -8,7 +8,7 @@ import {
   Unique,
   JoinColumn,
 } from "typeorm";
-import { User } from "./User";
+import type { User } from "./User";
 
 @Entity("wishlist_items")
 @Unique(["userId", "productId"])
@@ -20,7 +20,7 @@ export class WishlistItemEntity {
   @Column()
   userId!: number;
 
-  @ManyToOne(() => User, (user) => user.wishlistItems, { onDelete: "CASCADE" })
+  @ManyToOne("User", "wishlistItems", { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user!: User;
 

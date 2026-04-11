@@ -18,6 +18,7 @@ import {
   PromoUsage,
   Supplier,
 } from "./entities";
+import { InitialSchema1713400000000 } from "./migrations/1713400000000-InitialSchema";
 
 const entities = [
   Brand,
@@ -38,6 +39,8 @@ const entities = [
   Supplier,
 ];
 
+const migrations = [InitialSchema1713400000000];
+
 function createDataSource() {
   return new DataSource({
     type: "mysql",
@@ -47,7 +50,9 @@ function createDataSource() {
     password: process.env.MYSQL_PASSWORD || "",
     database: process.env.MYSQL_DATABASE || "freewayz",
     entities,
-    synchronize: process.env.NODE_ENV !== "production",
+    migrations,
+    synchronize: false,
+    migrationsRun: process.env.TYPEORM_MIGRATIONS_RUN === "true",
     logging: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
     charset: "utf8mb4_unicode_ci",
   });

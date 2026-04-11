@@ -7,7 +7,7 @@ import {
   OneToMany,
   Index,
 } from "typeorm";
-import { Product } from "./Product";
+import type { Product } from "./Product";
 
 @Entity("categories")
 export class Category {
@@ -27,7 +27,7 @@ export class Category {
   @Column({ type: "simple-json", nullable: true })
   subtypes!: string[] | null;
 
-  @OneToMany(() => Product, (product) => product.category)
+  @OneToMany("Product", "category")
   products!: Product[];
 
   @CreateDateColumn()

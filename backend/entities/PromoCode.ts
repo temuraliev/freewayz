@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from "typeorm";
-import { PromoUsage } from "./PromoUsage";
+import type { PromoUsage } from "./PromoUsage";
 
 export enum PromoType {
   DISCOUNT_PERCENT = "discount_percent",
@@ -46,7 +46,7 @@ export class PromoCode {
   @Column({ type: "datetime", nullable: true })
   expiresAt!: Date | null;
 
-  @OneToMany(() => PromoUsage, (usage) => usage.promoCode)
+  @OneToMany("PromoUsage", "promoCode")
   usedBy!: PromoUsage[];
 
   @CreateDateColumn()

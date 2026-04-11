@@ -7,8 +7,8 @@ import {
   Unique,
   JoinColumn,
 } from "typeorm";
-import { PromoCode } from "./PromoCode";
-import { User } from "./User";
+import type { PromoCode } from "./PromoCode";
+import type { User } from "./User";
 
 @Entity("promo_usages")
 @Unique(["promoCodeId", "userId"])
@@ -19,14 +19,14 @@ export class PromoUsage {
   @Column()
   promoCodeId!: number;
 
-  @ManyToOne(() => PromoCode, (promo) => promo.usedBy)
+  @ManyToOne("PromoCode", "usedBy")
   @JoinColumn({ name: "promoCodeId" })
   promoCode!: PromoCode;
 
   @Column()
   userId!: number;
 
-  @ManyToOne(() => User, (user) => user.promoUsages)
+  @ManyToOne("User", "promoUsages")
   @JoinColumn({ name: "userId" })
   user!: User;
 

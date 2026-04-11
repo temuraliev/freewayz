@@ -9,11 +9,11 @@ import {
   Index,
   JoinColumn,
 } from "typeorm";
-import { Brand } from "./Brand";
-import { Category } from "./Category";
-import { Style } from "./Style";
-import { ProductImage } from "./ProductImage";
-import { ProductVideo } from "./ProductVideo";
+import type { Brand } from "./Brand";
+import type { Category } from "./Category";
+import type { Style } from "./Style";
+import type { ProductImage } from "./ProductImage";
+import type { ProductVideo } from "./ProductVideo";
 
 @Entity("products")
 @Index("ft_product_search", ["title", "description", "subtype"], { fulltext: true })
@@ -83,7 +83,7 @@ export class Product {
   @Column({ nullable: true })
   brandId!: number | null;
 
-  @ManyToOne(() => Brand, (brand) => brand.products, { nullable: true })
+  @ManyToOne("Brand", "products", { nullable: true })
   @JoinColumn({ name: "brandId" })
   brand!: Brand | null;
 
@@ -91,7 +91,7 @@ export class Product {
   @Column({ nullable: true })
   categoryId!: number | null;
 
-  @ManyToOne(() => Category, (category) => category.products, { nullable: true })
+  @ManyToOne("Category", "products", { nullable: true })
   @JoinColumn({ name: "categoryId" })
   category!: Category | null;
 
@@ -99,14 +99,14 @@ export class Product {
   @Column()
   styleId!: number;
 
-  @ManyToOne(() => Style, (style) => style.products)
+  @ManyToOne("Style", "products")
   @JoinColumn({ name: "styleId" })
   style!: Style;
 
-  @OneToMany(() => ProductImage, (image) => image.product, { cascade: true })
+  @OneToMany("ProductImage", "product", { cascade: true })
   images!: ProductImage[];
 
-  @OneToMany(() => ProductVideo, (video) => video.product, { cascade: true })
+  @OneToMany("ProductVideo", "product", { cascade: true })
   videos!: ProductVideo[];
 
   @CreateDateColumn()

@@ -7,7 +7,7 @@ import {
   OneToMany,
   Index,
 } from "typeorm";
-import { Product } from "./Product";
+import type { Product } from "./Product";
 
 @Entity("brands")
 export class Brand {
@@ -28,7 +28,7 @@ export class Brand {
   @Column({ type: "boolean", default: false })
   isFeatured!: boolean;
 
-  @OneToMany(() => Product, (product) => product.brand)
+  @OneToMany("Product", "brand")
   products!: Product[];
 
   @CreateDateColumn()

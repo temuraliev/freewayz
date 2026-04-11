@@ -9,7 +9,7 @@ import {
   Unique,
   JoinColumn,
 } from "typeorm";
-import { User } from "./User";
+import type { User } from "./User";
 
 @Entity("cart_items")
 @Unique(["userId", "productId", "size", "color"])
@@ -21,7 +21,7 @@ export class CartItemEntity {
   @Column()
   userId!: number;
 
-  @ManyToOne(() => User, (user) => user.cartItemsRel, { onDelete: "CASCADE" })
+  @ManyToOne("User", "cartItemsRel", { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user!: User;
 

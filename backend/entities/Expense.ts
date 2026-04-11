@@ -7,7 +7,7 @@ import {
   Index,
   JoinColumn,
 } from "typeorm";
-import { OrderEntity } from "./Order";
+import type { OrderEntity } from "./Order";
 
 export enum ExpenseCurrency {
   UZS = "UZS",
@@ -47,7 +47,7 @@ export class Expense {
   @Column({ nullable: true })
   orderId!: number | null;
 
-  @ManyToOne(() => OrderEntity, (order) => order.expenses, { nullable: true })
+  @ManyToOne("OrderEntity", "expenses", { nullable: true })
   @JoinColumn({ name: "orderId" })
   order!: OrderEntity | null;
 

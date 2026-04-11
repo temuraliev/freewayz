@@ -8,7 +8,7 @@ import {
   Unique,
   JoinColumn,
 } from "typeorm";
-import { User } from "./User";
+import type { User } from "./User";
 
 export enum PreferenceType {
   BRAND = "brand",
@@ -25,7 +25,7 @@ export class UserPreference {
   @Column()
   userId!: number;
 
-  @ManyToOne(() => User, (user) => user.userPreferences, { onDelete: "CASCADE" })
+  @ManyToOne("User", "userPreferences", { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user!: User;
 

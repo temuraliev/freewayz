@@ -9,8 +9,8 @@ import {
   Index,
   JoinColumn,
 } from "typeorm";
-import { User } from "./User";
-import { Expense } from "./Expense";
+import type { User } from "./User";
+import type { Expense } from "./Expense";
 
 export enum OrderStatus {
   NEW = "new",
@@ -33,7 +33,7 @@ export class OrderEntity {
   @Column()
   userId!: number;
 
-  @ManyToOne(() => User, (user) => user.orders)
+  @ManyToOne("User", "orders")
   @JoinColumn({ name: "userId" })
   user!: User;
 
@@ -84,7 +84,7 @@ export class OrderEntity {
   @Column({ type: "varchar", length: 200, nullable: true, unique: true })
   idempotencyKey!: string | null;
 
-  @OneToMany(() => Expense, (expense) => expense.order)
+  @OneToMany("Expense", "order")
   expenses!: Expense[];
 
   @Index()

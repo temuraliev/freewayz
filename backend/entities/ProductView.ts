@@ -7,7 +7,7 @@ import {
   Index,
   JoinColumn,
 } from "typeorm";
-import { User } from "./User";
+import type { User } from "./User";
 
 @Entity("product_views")
 @Index(["userId", "viewedAt"])
@@ -18,7 +18,7 @@ export class ProductViewEntity {
   @Column()
   userId!: number;
 
-  @ManyToOne(() => User, (user) => user.productViews, { onDelete: "CASCADE" })
+  @ManyToOne("User", "productViews", { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user!: User;
 
