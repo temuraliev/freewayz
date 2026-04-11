@@ -9,10 +9,10 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./"),
-      "@frontend": path.resolve(__dirname, "./frontend"),
-      "@backend": path.resolve(__dirname, "./backend"),
-      "@shared": path.resolve(__dirname, "./shared"),
+      "@": path.resolve(__dirname, "./src"),
+      "@frontend": path.resolve(__dirname, "./src/frontend"),
+      "@backend": path.resolve(__dirname, "./src/backend"),
+      "@shared": path.resolve(__dirname, "./src/shared"),
     },
   },
 });

@@ -23,16 +23,16 @@
     ],
     "paths": {
       "@/*": [
-        "./*"
+        "./src/*"
       ],
       "@frontend/*": [
-        "./frontend/*"
+        "./src/frontend/*"
       ],
       "@backend/*": [
-        "./backend/*"
+        "./src/backend/*"
       ],
       "@shared/*": [
-        "./shared/*"
+        "./src/shared/*"
       ]
     },
     "target": "ES2017",
