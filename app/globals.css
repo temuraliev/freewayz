@@ -110,7 +110,7 @@
     text-transform: uppercase;
     color: #fff;
     opacity: 0.55;
-    font-family: var(--font-mono), monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
 
   .hero-title-xl {
@@ -135,7 +135,7 @@
     letter-spacing: 0.22em;
     text-transform: uppercase;
     color: theme('colors.muted.foreground');
-    font-family: var(--font-mono), monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     margin-bottom: 2px;
   }
 
@@ -217,7 +217,7 @@
     @apply border border-border bg-transparent text-muted-foreground;
     @apply transition-all duration-200 cursor-pointer whitespace-nowrap;
     border-radius: 2px;
-    font-family: var(--font-mono), monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     letter-spacing: 0.12em;
   }
 

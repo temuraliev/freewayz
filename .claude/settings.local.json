@@ -10,7 +10,8 @@
       "Bash(grep -n \"params.*Promise\\\\|params.*{.*{\" /f/PROG/Freewayz/.claude/worktrees/eloquent-johnson/app/api/admin/products/[id]/upload-image/route.ts)",
       "Bash(xargs ls:*)",
       "Bash(npx tsc:*)",
-      "Bash(grep -n \"import.*mutate\" 'F:\\\\PROG\\\\Freewayz\\\\.claude\\\\worktrees\\\\eloquent-johnson'/app/admin/*/page.tsx)"
+      "Bash(grep -n \"import.*mutate\" 'F:\\\\PROG\\\\Freewayz\\\\.claude\\\\worktrees\\\\eloquent-johnson'/app/admin/*/page.tsx)",
+      "Bash(find . -path ./node_modules -prune -o -name \"*.tsx\" -type f -exec grep -l \"TierThemeProvider\" {} \\\\;)"
     ]
   }
 }

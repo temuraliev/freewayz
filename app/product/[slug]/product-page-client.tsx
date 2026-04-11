@@ -223,8 +223,7 @@ export function ProductPageClient({ product, initialEditMode }: ProductPageClien
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.14 }}
               className="bg-black/50 px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-white/70 backdrop-blur-sm"
-              style={{ fontFamily: "var(--font-mono)" }}
-            >
+                         >
               {styleName}
             </motion.span>
           )}
@@ -243,7 +242,7 @@ export function ProductPageClient({ product, initialEditMode }: ProductPageClien
       {/* 3D model */}
       {product.model3d && (
         <div className="px-4 pt-4">
-          <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground" style={{ fontFamily: "var(--font-mono)" }}>
+          <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
             {ru.view3D}
           </p>
           <ModelViewer3d src={product.model3d} alt={product.title} />
@@ -260,7 +259,7 @@ export function ProductPageClient({ product, initialEditMode }: ProductPageClien
         {/* Brand + Name + Price */}
         <div>
           {brandName && (
-            <p className="mb-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-muted-foreground" style={{ fontFamily: "var(--font-mono)" }}>
+            <p className="mb-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-muted-foreground">
               {brandName}
             </p>
           )}
@@ -295,7 +294,7 @@ export function ProductPageClient({ product, initialEditMode }: ProductPageClien
         {/* Description */}
         {product.description && (
           <div className="border-t border-border pt-5">
-            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/90" style={{ fontFamily: "var(--font-mono)" }}>
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/90">
               {ru.description}
             </p>
             <div className="text-[15px] leading-7 text-foreground/90 tracking-tight">

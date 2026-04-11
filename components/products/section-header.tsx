@@ -29,8 +29,7 @@ export function SectionHeader({ title, eyebrow, href }: SectionHeaderProps) {
       {href && (
         <Link
           href={href}
-          className="flex items-center gap-1 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
-          style={{ fontFamily: "var(--font-mono)" }}
+          className="flex items-center gap-1 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground font-mono"
         >
           {ru.viewAll}
           <ArrowRight className="h-3 w-3" />

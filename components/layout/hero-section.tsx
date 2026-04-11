@@ -56,9 +56,8 @@ export function HeroSection() {
                     <div className="mb-4 inline-flex items-center gap-2">
                         <span className="h-px w-8" style={{ background: "rgba(255,255,255,0.4)" }} />
                         <span
-                            className="text-[9px] font-bold uppercase tracking-[0.22em]"
+                            className="text-[9px] font-bold uppercase tracking-[0.22em] font-mono"
                             style={{
-                                fontFamily: "var(--font-mono)",
                                 color: "rgba(255,255,255,0.5)",
                             }}
                         >

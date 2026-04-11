@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Product } from "@/lib/types";
-import { formatPrice, cn } from "@/lib/utils";
+import { formatPrice, cn, optimizeImage } from "@/lib/utils";
 import { client } from "@/lib/sanity/client";
 import { AdminEditButton } from "@/components/admin/admin-edit-button";
 
@@ -101,7 +101,7 @@ export function InfiniteProductCarousel({
                                 <AdminEditButton product={product} className="left-2 top-2 right-auto" />
                                 {product.images?.[0] ? (
                                     <Image
-                                        src={product.images[0]}
+                                        src={optimizeImage(product.images[0], isLarge ? 380 : 320)}
                                         alt={product.title}
                                         fill
                                         className="object-cover transition-transform duration-500 hover:scale-105"

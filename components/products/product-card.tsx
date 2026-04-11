@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Product } from "@/lib/types";
-import { formatPrice, optimizeImage } from "@/lib/utils";
+import { formatPrice, optimizeImage, BLUR_PLACEHOLDER } from "@/lib/utils";
 import { useQuickViewStore, useWishlistStore, useCartStore } from "@/lib/store";
 import { ru } from "@/lib/i18n/ru";
 import { AdminEditButton } from "@/components/admin/admin-edit-button";
@@ -70,6 +70,8 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
                 sizes="(max-width: 768px) 50vw, 33vw"
                 priority={priority}
                 fetchPriority={priority ? "high" : "auto"}
+                placeholder="blur"
+                blurDataURL={BLUR_PLACEHOLDER}
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">

@@ -2,7 +2,11 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { RevenueChart } from "./revenue-chart";
+import dynamic from "next/dynamic";
+const RevenueChart = dynamic(() => import("./revenue-chart").then((m) => m.RevenueChart), {
+  ssr: false,
+  loading: () => <div className="h-60 w-full animate-pulse rounded-lg bg-secondary/40" />,
+});
 
 interface Expense {
   _id: string;

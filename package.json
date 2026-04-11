@@ -48,7 +48,6 @@
     "react-dom": "^19.0.0",
     "react-remove-scroll": "^2.7.2",
     "sanity": "^4.22.0",
-    "styled-components": "^6.3.8",
     "swr": "^2.3.0",
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",

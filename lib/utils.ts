@@ -8,12 +8,15 @@ export function cn(...inputs: ClassValue[]) {
 export function optimizeImage(url: string, width: number = 800) {
   if (!url) return url;
   if (url.includes('cdn.sanity.io')) {
-    // Check if it already has query params
     const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}w=${width}&q=80&fit=max&auto=format`;
+    return `${url}${separator}w=${width}&q=75&fit=max&auto=format`;
   }
   return url;
 }
+
+/** Tiny 1x1 transparent SVG used as blur placeholder while images load */
+export const BLUR_PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'%3E%3Crect fill='%23111' width='1' height='1'/%3E%3C/svg%3E";
 
 /** Uzbekistan so'm (UZS). Set NEXT_PUBLIC_PRICES_IN_USD=true if CMS stores prices in USD. */
 const UZS_LOCALE = "ru-UZ";
