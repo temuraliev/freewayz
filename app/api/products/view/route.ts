@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { User } from "@backend/entities/User";
+import { ProductViewEntity } from "@backend/entities/ProductView";
 import { validateUserInitData } from "@backend/auth/validate-user";
+import { MoreThanOrEqual } from "typeorm";
 import {
   withErrorHandler,
   ValidationError,
@@ -34,7 +37,11 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     return NextResponse.json({ ok: true, tracked: false });
   }
 
-  const userDoc = await prisma.user.findUnique({
+  const ds = await getDataSource();
+  const userRepo = ds.getRepository(User);
+  const viewRepo = ds.getRepository(ProductViewEntity);
+
+  const userDoc = await userRepo.findOne({
     where: { telegramId: String(user.id) },
     select: { id: true },
   });
@@ -43,11 +50,11 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   }
 
   // Dedupe: skip if last view of this product is recent
-  const recent = await prisma.productView.findFirst({
+  const recent = await viewRepo.findOne({
     where: {
       userId: userDoc.id,
       productId: parsed.data.productId,
-      viewedAt: { gte: new Date(Date.now() - RECENT_VIEW_WINDOW_MS) },
+      viewedAt: MoreThanOrEqual(new Date(Date.now() - RECENT_VIEW_WINDOW_MS)),
     },
     select: { id: true },
   });
@@ -56,14 +63,13 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     return NextResponse.json({ ok: true, tracked: false, deduped: true });
   }
 
-  await prisma.productView.create({
-    data: {
-      userId: userDoc.id,
-      productId: parsed.data.productId,
-      brandSlug: parsed.data.brandSlug ?? null,
-      styleSlug: parsed.data.styleSlug ?? null,
-    },
+  const view = viewRepo.create({
+    userId: userDoc.id,
+    productId: parsed.data.productId,
+    brandSlug: parsed.data.brandSlug ?? null,
+    styleSlug: parsed.data.styleSlug ?? null,
   });
+  await viewRepo.save(view);
 
   return NextResponse.json({ ok: true, tracked: true });
 });

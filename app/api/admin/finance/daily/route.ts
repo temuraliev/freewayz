@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@backend/db";
-import { Prisma } from "@prisma/client";
+import { getDataSource } from "@backend/data-source";
+import { OrderStatus } from "@backend/entities/Order";
 import { validateAdminInitData } from "@backend/auth/admin-auth";
 import { withErrorHandler, UnauthorizedError } from "@backend/middleware/with-error-handler";
 
@@ -10,9 +10,9 @@ import { withErrorHandler, UnauthorizedError } from "@backend/middleware/with-er
  */
 
 interface DailyRow {
-  day: Date;
+  day: string;
   revenue: number;
-  order_count: bigint;
+  order_count: string;
 }
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
@@ -27,24 +27,31 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   since.setDate(since.getDate() - days);
   since.setHours(0, 0, 0, 0);
 
-  const rows = await prisma.$queryRaw<DailyRow[]>`
-    SELECT
-      DATE_TRUNC('day', "createdAt") AS day,
-      COALESCE(SUM(total), 0)::float AS revenue,
+  const ds = await getDataSource();
+
+  // MySQL uses DATE() instead of DATE_TRUNC, and doesn't need ::float cast
+  const rows: DailyRow[] = await ds.query(
+    `SELECT
+      DATE(createdAt) AS day,
+      COALESCE(SUM(total), 0) AS revenue,
       COUNT(*) AS order_count
-    FROM "Order"
-    WHERE "createdAt" >= ${since}
-      AND status != 'cancelled'
-    GROUP BY day
-    ORDER BY day ASC
-  `;
+    FROM orders
+    WHERE createdAt >= ?
+      AND status != ?
+    GROUP BY DATE(createdAt)
+    ORDER BY day ASC`,
+    [since, OrderStatus.CANCELLED]
+  );
 
   // Fill in missing days with zeros
   const dayMap = new Map<string, { revenue: number; orderCount: number }>();
   for (const row of rows) {
-    const key = new Date(row.day).toISOString().slice(0, 10);
+    // MySQL DATE() returns a string like "2024-01-15"
+    const key = typeof row.day === "string"
+      ? row.day.slice(0, 10)
+      : new Date(row.day).toISOString().slice(0, 10);
     dayMap.set(key, {
-      revenue: row.revenue,
+      revenue: Number(row.revenue),
       orderCount: Number(row.order_count),
     });
   }
@@ -59,9 +66,6 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     result.push({ date: key, revenue: entry.revenue, orderCount: entry.orderCount });
     cursor.setDate(cursor.getDate() + 1);
   }
-
-  // Sanity: silence unused import warning
-  void Prisma;
 
   return NextResponse.json({ days, data: result });
 });

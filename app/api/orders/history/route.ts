@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { User } from "@backend/entities/User";
+import { OrderEntity } from "@backend/entities/Order";
 import { validateUserInitData } from "@backend/auth/validate-user";
 import { withErrorHandler } from "@backend/middleware/with-error-handler";
 
@@ -10,7 +12,11 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     return NextResponse.json({ orders: [] });
   }
 
-  const userDoc = await prisma.user.findUnique({
+  const ds = await getDataSource();
+  const userRepo = ds.getRepository(User);
+  const orderRepo = ds.getRepository(OrderEntity);
+
+  const userDoc = await userRepo.findOne({
     where: { telegramId: String(user.id) },
     select: { id: true },
   });
@@ -18,9 +24,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     return NextResponse.json({ orders: [] });
   }
 
-  const orders = await prisma.order.findMany({
+  const orders = await orderRepo.find({
     where: { userId: userDoc.id },
-    orderBy: { createdAt: "desc" },
+    order: { createdAt: "DESC" },
     select: {
       orderId: true,
       status: true,

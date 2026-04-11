@@ -1,21 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@backend/db";
-import { createClient } from "@sanity/client";
+import { getDataSource } from "@backend/data-source";
+import { User } from "@backend/entities/User";
+import { UserPreference } from "@backend/entities/UserPreference";
 import { validateUserInitData } from "@backend/auth/validate-user";
 import { withErrorHandler, UnauthorizedError } from "@backend/middleware/with-error-handler";
-
-const sanity = createClient({
-  projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
-  apiVersion: "2024-01-01",
-  useCdn: true,
-});
-
-interface Ref {
-  _id: string;
-  title: string;
-  slug: { current: string };
-}
+import { Brand } from "@backend/entities/Brand";
+import { Style } from "@backend/entities/Style";
+import { toFrontendBrand, toFrontendStyle } from "@backend/repositories/product-repository";
+import { In } from "typeorm";
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
@@ -26,53 +18,47 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
   const telegramId = String(user.id);
 
-  let userDoc = await prisma.user.findUnique({
+  const ds = await getDataSource();
+  const userRepo = ds.getRepository(User);
+  const prefRepo = ds.getRepository(UserPreference);
+
+  let userDoc = await userRepo.findOne({
     where: { telegramId },
-    include: {
-      userPreferences: { select: { preferenceType: true, externalId: true } },
-    },
   });
 
   if (!userDoc) {
-    userDoc = await prisma.user.create({
-      data: {
-        telegramId,
-        firstName: user.first_name,
-        username: user.username || null,
-      },
-      include: {
-        userPreferences: { select: { preferenceType: true, externalId: true } },
-      },
+    userDoc = userRepo.create({
+      telegramId,
+      firstName: user.first_name,
+      username: user.username || null,
     });
+    userDoc = await userRepo.save(userDoc);
   }
 
+  const userPreferences = await prefRepo.find({
+    where: { userId: userDoc.id },
+    select: { preferenceType: true, externalId: true },
+  });
+
   // Use normalized prefs if present, fall back to legacy fields
-  const normalizedBrandIds = userDoc.userPreferences
+  const normalizedBrandIds = userPreferences
     .filter((p) => p.preferenceType === "brand")
     .map((p) => p.externalId);
-  const normalizedStyleIds = userDoc.userPreferences
+  const normalizedStyleIds = userPreferences
     .filter((p) => p.preferenceType === "style")
     .map((p) => p.externalId);
 
   const brandIds = normalizedBrandIds.length > 0 ? normalizedBrandIds : (userDoc.preferredBrandIds ?? []);
   const styleIds = normalizedStyleIds.length > 0 ? normalizedStyleIds : (userDoc.preferredStyleIds ?? []);
 
-  // Resolve preferred brands/styles from Sanity (parallel)
+  // Resolve preferred brands/styles from MySQL
   const [preferredBrands, preferredStyles] = await Promise.all([
-    brandIds.length
-      ? sanity
-          .fetch<Ref[]>(`*[_type == "brand" && _id in $ids] { _id, title, slug }`, {
-            ids: brandIds,
-          })
-          .catch(() => [] as Ref[])
-      : Promise.resolve([] as Ref[]),
-    styleIds.length
-      ? sanity
-          .fetch<Ref[]>(`*[_type == "style" && _id in $ids] { _id, title, slug }`, {
-            ids: styleIds,
-          })
-          .catch(() => [] as Ref[])
-      : Promise.resolve([] as Ref[]),
+    brandIds.length > 0
+      ? ds.getRepository(Brand).find({ where: { id: In(brandIds.map(Number).filter((n) => !isNaN(n))) } }).then((b) => b.map(toFrontendBrand)).catch(() => [])
+      : Promise.resolve([]),
+    styleIds.length > 0
+      ? ds.getRepository(Style).find({ where: { id: In(styleIds.map(Number).filter((n) => !isNaN(n))) } }).then((s) => s.map(toFrontendStyle)).catch(() => [])
+      : Promise.resolve([]),
   ]);
 
   return NextResponse.json({

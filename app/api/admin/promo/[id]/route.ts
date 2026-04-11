@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { PromoCode } from "@backend/entities/PromoCode";
+import { PromoUsage } from "@backend/entities/PromoUsage";
 import { validateAdminInitData } from "@backend/auth/admin-auth";
 import {
   withErrorHandler,
@@ -21,13 +23,16 @@ export const PATCH = withErrorHandler(async (
   const numId = parseInt(id, 10);
   if (isNaN(numId)) throw new NotFoundError();
 
-  const promo = await prisma.promoCode.findUnique({ where: { id: numId } });
+  const ds = await getDataSource();
+  const promoRepo = ds.getRepository(PromoCode);
+
+  const promo = await promoRepo.findOne({ where: { id: numId } });
   if (!promo) throw new NotFoundError("Промокод не найден");
 
   const update: Record<string, unknown> = {};
   if (typeof body.isActive === "boolean") update.isActive = body.isActive;
 
-  await prisma.promoCode.update({ where: { id: numId }, data: update });
+  await promoRepo.update(numId, update);
 
   return NextResponse.json({ ok: true });
 });
@@ -45,9 +50,11 @@ export const DELETE = withErrorHandler(async (
   const numId = parseInt(id, 10);
   if (isNaN(numId)) throw new NotFoundError();
 
+  const ds = await getDataSource();
+
   // Delete usage records first, then the code
-  await prisma.promoUsage.deleteMany({ where: { promoCodeId: numId } });
-  await prisma.promoCode.delete({ where: { id: numId } });
+  await ds.getRepository(PromoUsage).delete({ promoCodeId: numId });
+  await ds.getRepository(PromoCode).delete({ id: numId });
 
   return NextResponse.json({ ok: true });
 });

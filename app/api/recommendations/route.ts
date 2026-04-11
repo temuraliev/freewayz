@@ -1,37 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@sanity/client";
-import groq from "groq";
 import { validateUserInitData } from "@backend/auth/validate-user";
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { User } from "@backend/entities/User";
+import { UserPreference } from "@backend/entities/UserPreference";
+import { OrderEntity, OrderStatus } from "@backend/entities/Order";
+import { ProductViewEntity } from "@backend/entities/ProductView";
+import { Not } from "typeorm";
 import { withErrorHandler } from "@backend/middleware/with-error-handler";
-
-const sanity = createClient({
-  projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
-  apiVersion: "2024-01-01",
-  token: process.env.SANITY_API_TOKEN!,
-  useCdn: true,
-});
-
-const PRODUCT_PROJECTION = `{
-  _id,
-  title,
-  slug,
-  price,
-  originalPrice,
-  "images": images[0...2].asset->url,
-  "category": category->{ _id, title, slug },
-  "style": style->{ _id, title, slug },
-  "brand": brand->{ _id, title, slug },
-  subtype,
-  isHotDrop,
-  isOnSale,
-  isNewArrival
-}`;
+import {
+  findByBrandSlugs,
+  findByPreferenceIds,
+  findHotDrops,
+  findFreshArrivals,
+  findSale,
+} from "@backend/repositories/product-repository";
 
 const LIMIT = 20;
 
-type SanityProduct = { _id: string };
+type FrontendProduct = { _id: string };
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
@@ -40,31 +26,36 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   let telegramId = request.nextUrl.searchParams.get("telegramId");
   if (user) telegramId = String(user.id);
 
-  let products: SanityProduct[] = [];
+  let products: FrontendProduct[] = [];
   let tier = 3;
 
   if (telegramId && telegramId !== "0") {
-    const userDoc = await prisma.user.findUnique({
+    const ds = await getDataSource();
+    const userRepo = ds.getRepository(User);
+    const prefRepo = ds.getRepository(UserPreference);
+    const orderRepo = ds.getRepository(OrderEntity);
+    const viewRepo = ds.getRepository(ProductViewEntity);
+
+    const userDoc = await userRepo.findOne({
       where: { telegramId },
       select: {
         id: true,
         onboardingDone: true,
-        // Legacy fields — kept as fallback during migration
         preferredBrandIds: true,
         preferredStyleIds: true,
-        // New normalized model
-        userPreferences: {
-          select: { preferenceType: true, externalId: true },
-        },
       },
     });
 
     if (userDoc) {
-      // Prefer normalized table; fall back to legacy fields if empty
-      const normalizedBrandIds = userDoc.userPreferences
+      const userPreferences = await prefRepo.find({
+        where: { userId: userDoc.id },
+        select: { preferenceType: true, externalId: true },
+      });
+
+      const normalizedBrandIds = userPreferences
         .filter((p) => p.preferenceType === "brand")
         .map((p) => p.externalId);
-      const normalizedStyleIds = userDoc.userPreferences
+      const normalizedStyleIds = userPreferences
         .filter((p) => p.preferenceType === "style")
         .map((p) => p.externalId);
       const effectiveBrandIds = normalizedBrandIds.length > 0
@@ -74,76 +65,61 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         ? normalizedStyleIds
         : (userDoc.preferredStyleIds ?? []);
 
-      const orders = await prisma.order.findMany({
-        where: { userId: userDoc.id, status: { not: "cancelled" } },
+      const orders = await orderRepo.find({
+        where: { userId: userDoc.id, status: Not("cancelled" as OrderStatus) },
         select: { items: true },
       });
 
-      const purchasedIds = new Set<string>();
+      const purchasedIds = new Set<number>();
       const purchasedBrandSlugs = new Set<string>();
       for (const o of orders) {
         const items = o.items as { productId?: string; brand?: string }[];
         for (const item of items || []) {
-          if (item.productId) purchasedIds.add(item.productId);
+          if (item.productId) purchasedIds.add(Number(item.productId));
           if (item.brand) purchasedBrandSlugs.add(item.brand.toLowerCase());
         }
       }
 
-      // Tier 0.5: extract brands from recent product views — boosts new users
-      const recentViews = await prisma.productView.findMany({
+      const recentViews = await viewRepo.find({
         where: { userId: userDoc.id },
-        orderBy: { viewedAt: "desc" },
+        order: { viewedAt: "DESC" },
         take: 50,
         select: { productId: true, brandSlug: true },
       });
       const viewedBrandSlugs = new Set<string>();
-      const viewedProductIds = new Set<string>();
+      const viewedProductIds = new Set<number>();
       for (const v of recentViews) {
         if (v.brandSlug) viewedBrandSlugs.add(v.brandSlug.toLowerCase());
-        viewedProductIds.add(v.productId);
+        viewedProductIds.add(Number(v.productId));
       }
 
       // Tier 1: user has orders — recommend from same brands
       if (purchasedIds.size > 0) {
         tier = 1;
-        products = await sanity.fetch<SanityProduct[]>(
-          groq`*[_type == "product" && !(_id in $excludeIds) && brand->slug.current in $brands]
-            | order(_createdAt desc) [0...$limit] ${PRODUCT_PROJECTION}`,
-          {
-            excludeIds: Array.from(purchasedIds),
-            brands: Array.from(purchasedBrandSlugs),
-            limit: LIMIT,
-          }
+        const excludeIds = Array.from(purchasedIds);
+        products = await findByBrandSlugs(
+          Array.from(purchasedBrandSlugs),
+          excludeIds,
+          LIMIT
         );
       }
 
-      // Tier 1.5: not enough orders → fall back to recently viewed brands
+      // Tier 1.5: not enough orders — fall back to recently viewed brands
       if (products.length < LIMIT && viewedBrandSlugs.size > 0) {
         if (products.length === 0) tier = 1;
-        const existingIds = new Set(products.map((p) => p._id));
+        const existingIds = new Set(products.map((p) => Number(p._id)));
         const remaining = LIMIT - products.length;
         const excludeIds = Array.from(
-          new Set([
-            ...Array.from(purchasedIds),
-            ...Array.from(viewedProductIds),
-            ...Array.from(existingIds),
-          ])
+          new Set([...Array.from(purchasedIds), ...Array.from(viewedProductIds), ...Array.from(existingIds)])
         );
 
-        const viewed = await sanity.fetch<SanityProduct[]>(
-          groq`*[_type == "product" && !(_id in $excludeIds) && brand->slug.current in $brands]
-            | order(_createdAt desc) [0...$remaining] ${PRODUCT_PROJECTION}`,
-          {
-            excludeIds,
-            brands: Array.from(viewedBrandSlugs),
-            remaining,
-          }
+        const viewed = await findByBrandSlugs(
+          Array.from(viewedBrandSlugs),
+          excludeIds,
+          remaining
         );
 
-        products = [...products, ...viewed.filter((p) => !existingIds.has(p._id))].slice(
-          0,
-          LIMIT
-        );
+        products = [...products, ...viewed.filter((p) => !existingIds.has(Number(p._id)))].slice(0, LIMIT);
       }
 
       // Tier 2: has preferences but not enough results
@@ -153,60 +129,46 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         (effectiveBrandIds.length > 0 || effectiveStyleIds.length > 0)
       ) {
         tier = products.length === 0 ? 2 : tier;
-        const existingIds = new Set(products.map((p) => p._id));
+        const existingIds = new Set(products.map((p) => Number(p._id)));
         const remaining = LIMIT - products.length;
+        const excludeIds = Array.from(
+          new Set([...Array.from(purchasedIds), ...Array.from(existingIds)])
+        );
 
-        const prefProducts = await sanity.fetch<SanityProduct[]>(
-          groq`*[_type == "product" && !(_id in $excludeIds) && (
-            brand._ref in $brandIds || style._ref in $styleIds
-          )] | order(_createdAt desc) [0...$remaining] ${PRODUCT_PROJECTION}`,
-          {
-            excludeIds: Array.from(new Set([...Array.from(purchasedIds), ...Array.from(existingIds)])),
-            brandIds: effectiveBrandIds,
-            styleIds: effectiveStyleIds,
-            remaining,
-          }
+        const prefProducts = await findByPreferenceIds(
+          effectiveBrandIds.map(Number),
+          effectiveStyleIds.map(Number),
+          excludeIds,
+          remaining
         );
 
         products = [
           ...products,
-          ...prefProducts.filter((p) => !existingIds.has(p._id)),
+          ...prefProducts.filter((p) => !existingIds.has(Number(p._id))),
         ].slice(0, LIMIT);
       }
     }
   }
 
-  // Tier 3: new user / not enough results — curated mix (parallel fetch)
+  // Tier 3: new user / not enough results — curated mix
   if (products.length < LIMIT) {
     tier = products.length === 0 ? 3 : tier;
-    const existingIds = products.map((p) => p._id);
+    const existingIds = new Set(products.map((p) => Number(p._id)));
     const needed = LIMIT - products.length;
 
     const [hot, fresh, sale] = await Promise.all([
-      sanity.fetch<SanityProduct[]>(
-        groq`*[_type == "product" && isHotDrop == true && !(_id in $ex)]
-          | order(_createdAt desc) [0...7] ${PRODUCT_PROJECTION}`,
-        { ex: existingIds }
-      ),
-      sanity.fetch<SanityProduct[]>(
-        groq`*[_type == "product" && isNewArrival == true && !(_id in $ex)]
-          | order(_createdAt desc) [0...7] ${PRODUCT_PROJECTION}`,
-        { ex: existingIds }
-      ),
-      sanity.fetch<SanityProduct[]>(
-        groq`*[_type == "product" && isOnSale == true && !(_id in $ex)]
-          | order(_createdAt desc) [0...6] ${PRODUCT_PROJECTION}`,
-        { ex: existingIds }
-      ),
+      findHotDrops(0, 7),
+      findFreshArrivals(0, 7),
+      findSale(0, 6),
     ]);
 
-    // Dedupe filler results
-    const seen = new Set(existingIds);
-    const filler: SanityProduct[] = [];
+    const seen = new Set(Array.from(existingIds));
+    const filler: FrontendProduct[] = [];
     for (const p of [...hot, ...fresh, ...sale]) {
-      if (!seen.has(p._id)) {
+      const id = Number(p._id);
+      if (!seen.has(id)) {
         filler.push(p);
-        seen.add(p._id);
+        seen.add(id);
         if (filler.length >= needed) break;
       }
     }

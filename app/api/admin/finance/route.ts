@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { Expense } from "@backend/entities/Expense";
+import { OrderEntity, OrderStatus } from "@backend/entities/Order";
+import { FindOptionsWhere, MoreThanOrEqual, LessThanOrEqual } from "typeorm";
 import { validateAdminInitData } from "@backend/auth/admin-auth";
 import {
   withErrorHandler,
@@ -31,42 +34,56 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
   const { from, to } = parsed.data;
 
-  const expenseWhere: { date?: { gte?: Date; lte?: Date } } = {};
-  if (from) expenseWhere.date = { ...(expenseWhere.date ?? {}), gte: new Date(from) };
+  const ds = await getDataSource();
+  const expenseRepo = ds.getRepository(Expense);
+  const orderRepo = ds.getRepository(OrderEntity);
+
+  const expenseWhere: FindOptionsWhere<Expense> = {};
+  if (from) {
+    expenseWhere.date = MoreThanOrEqual(new Date(from));
+  }
   if (to) {
     const toEnd = new Date(to);
     toEnd.setHours(23, 59, 59, 999);
-    expenseWhere.date = { ...(expenseWhere.date ?? {}), lte: toEnd };
+    expenseWhere.date = LessThanOrEqual(toEnd);
   }
 
-  const orderWhere: {
-    status: { not: "cancelled" };
-    createdAt?: { gte?: Date; lte?: Date };
-  } = { status: { not: "cancelled" } };
-  if (from) orderWhere.createdAt = { ...(orderWhere.createdAt ?? {}), gte: new Date(from) };
+  // For expenses with both from and to, use query builder for range
+  let expensesPromise: Promise<Expense[]>;
+  if (from && to) {
+    const toEnd = new Date(to);
+    toEnd.setHours(23, 59, 59, 999);
+    expensesPromise = expenseRepo
+      .createQueryBuilder("e")
+      .where("e.date >= :from", { from: new Date(from) })
+      .andWhere("e.date <= :to", { to: toEnd })
+      .orderBy("e.date", "DESC")
+      .getMany();
+  } else {
+    expensesPromise = expenseRepo.find({
+      where: expenseWhere,
+      order: { date: "DESC" },
+    });
+  }
+
+  // Build order where for revenue calculation
+  const orderQb = orderRepo
+    .createQueryBuilder("o")
+    .select(["o.total", "o.cost"])
+    .where("o.status != :cancelled", { cancelled: OrderStatus.CANCELLED });
+
+  if (from) {
+    orderQb.andWhere("o.createdAt >= :from", { from: new Date(from) });
+  }
   if (to) {
     const toEnd = new Date(to);
     toEnd.setHours(23, 59, 59, 999);
-    orderWhere.createdAt = { ...(orderWhere.createdAt ?? {}), lte: toEnd };
+    orderQb.andWhere("o.createdAt <= :to", { to: toEnd });
   }
 
   const [expenses, orders] = await Promise.all([
-    prisma.expense.findMany({
-      where: expenseWhere,
-      orderBy: { date: "desc" },
-      select: {
-        id: true,
-        date: true,
-        amount: true,
-        currency: true,
-        category: true,
-        description: true,
-      },
-    }),
-    prisma.order.findMany({
-      where: orderWhere,
-      select: { total: true, cost: true },
-    }),
+    expensesPromise,
+    orderQb.getMany(),
   ]);
 
   const revenue = orders.reduce((s, o) => s + (o.total || 0), 0);
@@ -77,8 +94,17 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   }, 0);
   const profit = revenue - costOfGoods - totalExpense;
 
+  const expensesFormatted = expenses.map((e) => ({
+    id: e.id,
+    date: e.date,
+    amount: e.amount,
+    currency: e.currency,
+    category: e.category,
+    description: e.description,
+  }));
+
   return NextResponse.json({
-    expenses,
+    expenses: expensesFormatted,
     revenue,
     costOfGoods,
     totalExpense,
@@ -103,15 +129,18 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   const auth = validateAdminInitData(parsed.data.initData, request.headers.get("host"));
   if (!auth.ok) throw new UnauthorizedError();
 
-  await prisma.expense.create({
-    data: {
-      date: new Date(parsed.data.date),
-      amount: parsed.data.amount,
-      currency: parsed.data.currency,
-      category: parsed.data.category,
-      description: parsed.data.description ?? null,
-    },
+  const ds = await getDataSource();
+  const expenseRepo = ds.getRepository(Expense);
+
+  const expense = expenseRepo.create({
+    date: new Date(parsed.data.date),
+    amount: parsed.data.amount,
+    currency: parsed.data.currency as Expense["currency"],
+    category: parsed.data.category as Expense["category"],
+    description: parsed.data.description ?? null,
   });
+
+  await expenseRepo.save(expense);
 
   return NextResponse.json({ ok: true });
 });

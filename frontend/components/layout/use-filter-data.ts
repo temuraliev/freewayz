@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { client } from "@shared/sanity/client";
-import { brandsQuery, categoriesQuery, stylesQuery } from "@shared/sanity/queries";
 import { Brand, Category, Style } from "@shared/types";
 
 const FALLBACK_CATEGORIES: Category[] = [
@@ -15,8 +13,8 @@ const FALLBACK_CATEGORIES: Category[] = [
 ];
 
 /**
- * Fetches categories, styles, and brands from Sanity for filter UI.
- * Falls back to hardcoded categories if Sanity is unreachable.
+ * Fetches categories, styles, and brands from the API for filter UI.
+ * Falls back to hardcoded categories if API is unreachable.
  */
 export function useFilterData() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -29,9 +27,9 @@ export function useFilterData() {
     const load = async () => {
       try {
         const [catData, styleData, brandData] = await Promise.all([
-          client.fetch<Category[]>(categoriesQuery),
-          client.fetch<Style[]>(stylesQuery),
-          client.fetch<Brand[]>(brandsQuery),
+          fetch("/api/catalog/categories").then((r) => r.json()),
+          fetch("/api/catalog/styles").then((r) => r.json()),
+          fetch("/api/catalog/brands").then((r) => r.json()),
         ]);
         if (cancelled) return;
         setCategories(Array.isArray(catData) && catData.length > 0 ? catData : FALLBACK_CATEGORIES);

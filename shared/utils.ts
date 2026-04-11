@@ -5,13 +5,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function optimizeImage(url: string, width: number = 800) {
-  if (!url) return url;
-  if (url.includes('cdn.sanity.io')) {
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}w=${width}&q=75&fit=max&auto=format`;
-  }
-  return url;
+export function optimizeImage(url: string, _width: number = 800) {
+  // Images are served from R2 and optimized by Next.js Image component
+  return url || "";
 }
 
 /** Tiny 1x1 transparent SVG used as blur placeholder while images load */

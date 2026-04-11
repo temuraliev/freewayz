@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { client } from "@shared/sanity/client";
 import { useFilterStore, useAdminStore } from "@frontend/stores";
-import { distinctSubtypesQuery } from "@shared/sanity/queries";
 
 export function useSubtypes() {
   const [subtypes, setSubtypes] = useState<string[]>([]);
@@ -20,25 +18,17 @@ export function useSubtypes() {
 
     const fetchSubtypes = async () => {
       try {
-        const data = await client.fetch(distinctSubtypesQuery, {
-          saleOnly: !!saleOnly,
-          style: style || "",
-          brand: brand || "",
-          category: category || "",
-          minPrice: minPrice ?? 0,
-          maxPrice: maxPrice ?? 999_999_999,
-        });
-        const raw = Array.isArray(data) ? data : [];
-        const subtypeCounts = new Map<string, number>();
-        for (const p of raw) {
-          const st = (p as { subtype?: string | null }).subtype;
-          if (st && typeof st === "string")
-            subtypeCounts.set(st, (subtypeCounts.get(st) ?? 0) + 1);
-        }
-        const sorted = [...subtypeCounts.keys()].sort(
-          (a, b) => (subtypeCounts.get(b) ?? 0) - (subtypeCounts.get(a) ?? 0)
-        );
-        setSubtypes(sorted);
+        const params = new URLSearchParams();
+        if (saleOnly) params.set("saleOnly", "true");
+        if (style) params.set("style", style);
+        if (brand) params.set("brand", brand);
+        if (category) params.set("category", category);
+        if (minPrice != null && minPrice > 0) params.set("minPrice", String(minPrice));
+        if (maxPrice != null && maxPrice < 999_999_999) params.set("maxPrice", String(maxPrice));
+
+        const res = await fetch(`/api/products/subtypes?${params.toString()}`);
+        const data = await res.json();
+        setSubtypes(Array.isArray(data) ? data : []);
       } catch {
         setSubtypes([]);
       }

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { OrderEntity } from "@backend/entities/Order";
 import { validateAdminInitData } from "@backend/auth/admin-auth";
 import { withErrorHandler, UnauthorizedError } from "@backend/middleware/with-error-handler";
 
-type OrderStatus = "new" | "paid" | "ordered" | "shipped" | "delivered" | "cancelled";
+type OrderStatusFilter = "new" | "paid" | "ordered" | "shipped" | "delivered" | "cancelled";
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
@@ -13,42 +14,38 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   const status = request.nextUrl.searchParams.get("status") || "";
   const search = request.nextUrl.searchParams.get("q") || "";
 
-  const where: {
-    status?: OrderStatus;
-    OR?: Array<
-      | { orderId: { contains: string; mode: "insensitive" } }
-      | { user: { username: { contains: string; mode: "insensitive" } } }
-    >;
-  } = {};
+  const ds = await getDataSource();
+  const orderRepo = ds.getRepository(OrderEntity);
+
+  // Build query for orders
+  const qb = orderRepo
+    .createQueryBuilder("o")
+    .leftJoinAndSelect("o.user", "u")
+    .orderBy("o.createdAt", "DESC")
+    .take(200);
 
   if (status && status !== "all") {
-    where.status = status as OrderStatus;
+    qb.andWhere("o.status = :status", { status: status as OrderStatusFilter });
   }
 
   if (search) {
-    where.OR = [
-      { orderId: { contains: search, mode: "insensitive" } },
-      { user: { username: { contains: search, mode: "insensitive" } } },
-    ];
+    qb.andWhere("(o.orderId LIKE :search OR u.username LIKE :search)", {
+      search: `%${search}%`,
+    });
   }
 
-  const [orders, counts, total] = await Promise.all([
-    prisma.order.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: 200,
-      include: {
-        user: {
-          select: { id: true, telegramId: true, username: true, firstName: true },
-        },
-      },
-    }),
-    prisma.order.groupBy({
-      by: ["status"],
-      _count: { status: true },
-    }),
-    prisma.order.count(),
+  const [orders, total] = await Promise.all([
+    qb.getMany(),
+    orderRepo.count(),
   ]);
+
+  // Status counts
+  const countRows = await orderRepo
+    .createQueryBuilder("o")
+    .select("o.status", "status")
+    .addSelect("COUNT(*)", "cnt")
+    .groupBy("o.status")
+    .getRawMany<{ status: string; cnt: string }>();
 
   const statusCounts: Record<string, number> = {
     all: total,
@@ -59,8 +56,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     delivered: 0,
     cancelled: 0,
   };
-  for (const c of counts) {
-    statusCounts[c.status] = c._count.status;
+  for (const c of countRows) {
+    statusCounts[c.status] = Number(c.cnt);
   }
 
   const formatted = orders.map((o) => ({

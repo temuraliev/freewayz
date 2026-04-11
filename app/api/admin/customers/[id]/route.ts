@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { User } from "@backend/entities/User";
 import { validateAdminInitData } from "@backend/auth/admin-auth";
 import {
   withErrorHandler,
@@ -31,7 +32,10 @@ export const PATCH = withErrorHandler(async (
   const numId = parseInt(id, 10);
   if (isNaN(numId)) throw new NotFoundError();
 
-  const user = await prisma.user.findUnique({ where: { id: numId } });
+  const ds = await getDataSource();
+  const userRepo = ds.getRepository(User);
+
+  const user = await userRepo.findOne({ where: { id: numId } });
   if (!user) throw new NotFoundError("Пользователь не найден");
 
   const update: Record<string, unknown> = {};
@@ -39,7 +43,7 @@ export const PATCH = withErrorHandler(async (
   if (parsed.data.phone !== undefined) update.phone = parsed.data.phone || null;
   if (parsed.data.address !== undefined) update.address = parsed.data.address || null;
 
-  await prisma.user.update({ where: { id: numId }, data: update });
+  await userRepo.update(numId, update);
 
   return NextResponse.json({ ok: true });
 });

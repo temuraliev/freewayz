@@ -1,4 +1,6 @@
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { CartItemEntity } from "@backend/entities/CartItem";
+import { User } from "@backend/entities/User";
 
 /**
  * Cart service using the normalized CartItem model.
@@ -20,45 +22,54 @@ export interface CartItemInput {
 }
 
 export async function getCart(userId: number) {
-  return prisma.cartItem.findMany({
+  const ds = await getDataSource();
+  const cartRepo = ds.getRepository(CartItemEntity);
+  return cartRepo.find({
     where: { userId },
-    orderBy: { addedAt: "desc" },
+    order: { addedAt: "DESC" },
   });
 }
 
 export async function syncCart(userId: number, items: CartItemInput[]) {
+  const ds = await getDataSource();
+
   // Replace entire cart in a single transaction
-  await prisma.$transaction([
-    prisma.cartItem.deleteMany({ where: { userId } }),
-    ...items.map((item) =>
-      prisma.cartItem.create({
-        data: {
-          userId,
-          productId: item.productId,
-          title: item.title ?? null,
-          brand: item.brand ?? null,
-          size: item.size,
-          color: item.color ?? null,
-          price: item.price,
-          quantity: item.quantity,
-          imageUrl: item.imageUrl ?? null,
-        },
-      })
-    ),
-    prisma.user.update({
-      where: { id: userId },
-      data: {
-        cartUpdatedAt: items.length > 0 ? new Date() : null,
-        abandonedCartNotified: false,
-      },
-    }),
-  ]);
+  await ds.transaction(async (manager) => {
+    const cartRepo = manager.getRepository(CartItemEntity);
+    const userRepo = manager.getRepository(User);
+
+    await cartRepo.delete({ userId });
+
+    for (const item of items) {
+      const entity = cartRepo.create({
+        userId,
+        productId: item.productId,
+        title: item.title ?? null,
+        brand: item.brand ?? null,
+        size: item.size,
+        color: item.color ?? null,
+        price: item.price,
+        quantity: item.quantity,
+        imageUrl: item.imageUrl ?? null,
+      });
+      await cartRepo.save(entity);
+    }
+
+    await userRepo.update(userId, {
+      cartUpdatedAt: items.length > 0 ? new Date() : null,
+      abandonedCartNotified: false,
+    });
+  });
 }
 
 export async function clearCart(userId: number) {
-  await prisma.cartItem.deleteMany({ where: { userId } });
-  await prisma.user.update({
-    where: { id: userId },
-    data: { cartUpdatedAt: null, abandonedCartNotified: false },
+  const ds = await getDataSource();
+  const cartRepo = ds.getRepository(CartItemEntity);
+  const userRepo = ds.getRepository(User);
+
+  await cartRepo.delete({ userId });
+  await userRepo.update(userId, {
+    cartUpdatedAt: null,
+    abandonedCartNotified: false,
   });
 }

@@ -11,8 +11,8 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'cdn.sanity.io',
-        pathname: '/images/**',
+        hostname: process.env.R2_PUBLIC_URL ? new URL(process.env.R2_PUBLIC_URL).hostname : 'images.freewayz.uz',
+        pathname: '/**',
       },
       {
         protocol: 'https',

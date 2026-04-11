@@ -2,12 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Product } from "@shared/types";
-import { client } from "@shared/sanity/client";
 import { useFilterStore, useAdminStore } from "@frontend/stores";
-import {
-  productsByFilterQuery,
-  productsByFilterCountQuery,
-} from "@shared/sanity/queries";
 
 export function useFilteredProducts() {
   const [filteredProducts, setFilteredProducts] = useState<Product[] | null>(null);
@@ -38,12 +33,20 @@ export function useFilteredProducts() {
     const fetchFiltered = async () => {
       setLoading(true);
       try {
-        const [data, count] = await Promise.all([
-          client.fetch(productsByFilterQuery, filterParams),
-          client.fetch(productsByFilterCountQuery, filterParams),
-        ]);
-        setFilteredProducts(Array.isArray(data) ? data : []);
-        setFilteredCount(typeof count === "number" ? count : 0);
+        const params = new URLSearchParams();
+        if (filterParams.style) params.set("style", filterParams.style);
+        if (filterParams.brand) params.set("brand", filterParams.brand);
+        if (filterParams.category) params.set("category", filterParams.category);
+        if (filterParams.subtype) params.set("subtype", filterParams.subtype);
+        if (filterParams.saleOnly) params.set("saleOnly", "true");
+        if (filterParams.minPrice > 0) params.set("minPrice", String(filterParams.minPrice));
+        if (filterParams.maxPrice < 999_999_999) params.set("maxPrice", String(filterParams.maxPrice));
+        params.set("limit", "20");
+
+        const res = await fetch(`/api/products?${params.toString()}`);
+        const data = await res.json();
+        setFilteredProducts(Array.isArray(data.products) ? data.products : []);
+        setFilteredCount(typeof data.total === "number" ? data.total : 0);
       } catch (error) {
         console.log("Filter error:", error);
         setFilteredProducts([]);

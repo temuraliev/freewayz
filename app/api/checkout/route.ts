@@ -3,7 +3,7 @@ import { checkoutSchema } from "@backend/validations";
 import { checkCsrf } from "@backend/security/csrf";
 import { rateLimit } from "@backend/security/rate-limit";
 import { logSecurityEvent } from "@backend/security/security-logger";
-import { client } from "@shared/sanity/client";
+import { findByTitles } from "@backend/repositories/product-repository";
 import { sanitizeInput } from "@backend/security/sanitize";
 import { generateCheckoutMessage, getTelegramCheckoutUrl } from "@shared/utils";
 
@@ -79,10 +79,7 @@ export async function POST(request: NextRequest) {
     // ── Verify prices against Sanity ────────────────────────────
     try {
         const productTitles = items.map((item) => item.title);
-        const products = await client.fetch(
-            `*[_type == "product" && title in $titles]{ title, price }`,
-            { titles: productTitles }
-        );
+        const products = await findByTitles(productTitles);
 
         const priceMap = new Map<string, number>();
         for (const p of products) {
@@ -118,7 +115,7 @@ export async function POST(request: NextRequest) {
             priceAdjusted: verifiedTotal !== total,
         });
     } catch (error) {
-        console.error("[checkout] Sanity fetch error:", error);
+        console.error("[checkout] DB fetch error:", error);
         const message = generateCheckoutMessage(
             sanitizeInput(username),
             items,

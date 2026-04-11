@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { User } from "@backend/entities/User";
+import { PromoCode } from "@backend/entities/PromoCode";
+import { PromoUsage } from "@backend/entities/PromoUsage";
 import { validateUserInitData } from "@backend/auth/validate-user";
 import {
   withErrorHandler,
@@ -31,13 +34,14 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   const upperCode = parsed.data.code.trim().toUpperCase();
   const telegramId = String(user.id);
 
-  const promo = await prisma.promoCode.findUnique({
+  const ds = await getDataSource();
+  const promoRepo = ds.getRepository(PromoCode);
+  const promoUsageRepo = ds.getRepository(PromoUsage);
+  const userRepo = ds.getRepository(User);
+
+  const promo = await promoRepo.findOne({
     where: { code: upperCode },
-    include: {
-      usedBy: {
-        include: { user: { select: { telegramId: true } } },
-      },
-    },
+    relations: ["usedBy", "usedBy.user"],
   });
 
   if (!promo) throw new NotFoundError("Промокод не найден");
@@ -56,7 +60,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
   // Handle balance_topup immediately
   if (promo.type === "balance_topup") {
-    const userDoc = await prisma.user.findUnique({
+    const userDoc = await userRepo.findOne({
       where: { telegramId },
       select: { id: true, cashbackBalance: true },
     });
@@ -65,19 +69,19 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
     const newBalance = (userDoc.cashbackBalance || 0) + promo.value;
 
-    await prisma.$transaction([
-      prisma.user.update({
-        where: { id: userDoc.id },
-        data: { cashbackBalance: newBalance },
-      }),
-      prisma.promoCode.update({
-        where: { id: promo.id },
-        data: { usedCount: { increment: 1 } },
-      }),
-      prisma.promoUsage.create({
-        data: { promoCodeId: promo.id, userId: userDoc.id },
-      }),
-    ]);
+    await ds.transaction(async (manager) => {
+      await manager.getRepository(User).update(userDoc.id, {
+        cashbackBalance: newBalance,
+      });
+      await manager.getRepository(PromoCode).update(promo.id, {
+        usedCount: () => "usedCount + 1",
+      });
+      const usage = manager.getRepository(PromoUsage).create({
+        promoCodeId: promo.id,
+        userId: userDoc.id,
+      });
+      await manager.getRepository(PromoUsage).save(usage);
+    });
 
     return NextResponse.json({
       ok: true,

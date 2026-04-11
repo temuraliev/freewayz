@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { OrderEntity, OrderStatus } from "@backend/entities/Order";
 import {
   parseTrackStatus,
   parseTrackEvents,
@@ -75,9 +76,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, skipped: "no number" });
     }
 
-    const order = await prisma.order.findFirst({
+    const ds = await getDataSource();
+    const orderRepo = ds.getRepository(OrderEntity);
+
+    const order = await orderRepo.findOne({
       where: { trackNumber },
-      include: { user: { select: { telegramId: true } } },
+      relations: ["user"],
     });
 
     if (!order) {
@@ -105,15 +109,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (Object.keys(updateData).length > 0) {
-      await prisma.order.update({ where: { id: order.id }, data: updateData });
+      await orderRepo.update(order.id, updateData);
     }
 
     const orderStatus = newStatus ? mapTrackStatusToOrderStatus(newStatus) : null;
     if (orderStatus && orderStatus !== order.status) {
-      await prisma.order.update({
-        where: { id: order.id },
-        data: { status: orderStatus as "new" | "paid" | "ordered" | "shipped" | "delivered" | "cancelled" },
-      });
+      await orderRepo.update(order.id, { status: orderStatus as OrderStatus });
     }
 
     const latestEvent = events[0];

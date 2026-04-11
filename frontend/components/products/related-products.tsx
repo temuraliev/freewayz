@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Product } from "@shared/types";
-import { client } from "@shared/sanity/client";
-import { relatedProductsQuery } from "@shared/sanity/queries";
 import { ProductCard } from "@frontend/components/products/product-card";
 import { SectionHeader } from "@frontend/components/products/section-header";
 import { ru } from "@shared/i18n/ru";
@@ -27,12 +25,13 @@ export function RelatedProducts({ currentProductId, brandId, styleId, categoryId
       }
 
       try {
-        const data = await client.fetch(relatedProductsQuery, {
-          currentProductId,
-          brandId: brandId || "",
-          styleId: styleId || "",
-          categoryId: categoryId || "",
-        });
+        const params = new URLSearchParams();
+        params.set("excludeId", currentProductId);
+        if (brandId) params.set("brandId", brandId);
+        if (styleId) params.set("styleId", styleId);
+        if (categoryId) params.set("categoryId", categoryId);
+        const res = await fetch(`/api/products/related?${params.toString()}`);
+        const data = await res.json();
         
         setProducts(Array.isArray(data) ? data : []);
       } catch (error) {

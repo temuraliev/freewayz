@@ -1,9 +1,7 @@
 import { ImageResponse } from "next/og";
-import { client } from "@shared/sanity/client";
-import { productBySlugQuery } from "@shared/sanity/queries";
+import { findBySlug } from "@backend/repositories/product-repository";
 import { Product } from "@shared/types";
 
-export const runtime = "edge";
 export const alt = "FreeWayz";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -15,7 +13,7 @@ function formatUZS(price: number): string {
 export default async function OgImage({ params }: { params: { slug: string } }) {
   let product: Product | null = null;
   try {
-    product = await client.fetch<Product | null>(productBySlugQuery, { slug: params.slug });
+    product = await findBySlug(params.slug) as Product | null;
   } catch {
     // fallthrough to default image
   }
@@ -150,7 +148,7 @@ export default async function OgImage({ params }: { params: { slug: string } }) 
               }}
             >
               {product.title.length > 40
-                ? product.title.slice(0, 40) + "…"
+                ? product.title.slice(0, 40) + "..."
                 : product.title}
             </div>
           </div>

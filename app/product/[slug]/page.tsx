@@ -1,6 +1,5 @@
 import { ProductPageClient } from "./product-page-client";
-import { client } from "@shared/sanity/client";
-import { productBySlugQuery } from "@shared/sanity/queries";
+import { findBySlug, findAllSlugs } from "@backend/repositories/product-repository";
 import { Product } from "@shared/types";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
@@ -29,16 +28,10 @@ export const revalidate = 60; // Revalidate every 60 seconds
 
 export async function generateStaticParams() {
   try {
-    const products = await client.fetch<{ slug: { current: string } }[]>(
-      `*[_type == "product"]{ slug }`
-    );
-    return products
-      .filter((p) => p.slug?.current)
-      .map((p) => ({
-        slug: p.slug.current,
-      }));
+    const slugs = await findAllSlugs();
+    return slugs.map((slug) => ({ slug }));
   } catch (error) {
-    console.warn("generateStaticParams: failed to fetch products from Sanity. Skipping pre-render:", error);
+    console.warn("generateStaticParams: failed to fetch products. Skipping pre-render:", error);
     return [];
   }
 }
@@ -46,7 +39,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const { slug } = await params;
-    const product = await client.fetch<Product | null>(productBySlugQuery, { slug });
+    const product = await findBySlug(slug) as Product | null;
     if (!product) return { title: "Товар не найден | FreeWayz" };
 
     const safe = normalizeProduct(product);
@@ -71,9 +64,9 @@ export default async function ProductPage({ params, searchParams }: Props) {
 
   let product: Product | null = null;
   try {
-    product = await client.fetch<Product | null>(productBySlugQuery, { slug });
+    product = await findBySlug(slug) as Product | null;
   } catch (error) {
-    console.error("Sanity fetch failed:", error);
+    console.error("DB fetch failed:", error);
   }
 
   if (!product) {

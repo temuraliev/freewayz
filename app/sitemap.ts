@@ -1,9 +1,8 @@
 import { MetadataRoute } from "next";
-import { client } from "@shared/sanity/client";
+import { findAllSlugsWithDates } from "@backend/repositories/product-repository";
 
 /**
  * Dynamic sitemap for all product pages + static pages.
- * Google/Yandex will discover all 15,000+ products for indexing.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://freewayz.uz";
@@ -33,18 +32,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Dynamic product pages
   let productPages: MetadataRoute.Sitemap = [];
   try {
-    const products = await client.fetch<
-      { slug: { current: string }; _updatedAt: string }[]
-    >(`*[_type == "product"]{ slug, _updatedAt } | order(_updatedAt desc)`);
+    const products = await findAllSlugsWithDates();
 
-    productPages = products
-      .filter((p) => p.slug?.current)
-      .map((p) => ({
-        url: `${baseUrl}/product/${p.slug.current}`,
-        lastModified: new Date(p._updatedAt),
-        changeFrequency: "weekly" as const,
-        priority: 0.8,
-      }));
+    productPages = products.map((p) => ({
+      url: `${baseUrl}/product/${p.slug}`,
+      lastModified: new Date(p.updatedAt),
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    }));
   } catch (error) {
     console.error("Sitemap: failed to fetch products", error);
   }

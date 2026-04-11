@@ -2,10 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Product } from "@shared/types";
-import { client } from "@shared/sanity/client";
 import { useFilterStore } from "@frontend/stores";
-import { searchProductsQuery } from "@shared/sanity/queries";
-import { buildSearchTerms } from "@frontend/lib/search-utils";
 
 export function useSearchProducts() {
   const [searchProducts, setSearchProducts] = useState<Product[]>([]);
@@ -23,13 +20,8 @@ export function useSearchProducts() {
     const t = setTimeout(async () => {
       setLoading(true);
       try {
-        const searchTerms = buildSearchTerms(searchQuery);
-        if (searchTerms.length === 0) {
-          setSearchProducts([]);
-          setLoading(false);
-          return;
-        }
-        const data = await client.fetch(searchProductsQuery, { searchTerms });
+        const res = await fetch(`/api/products/search?q=${encodeURIComponent(searchQuery)}`);
+        const data = await res.json();
         setSearchProducts(Array.isArray(data) ? data : []);
       } catch {
         setSearchProducts([]);

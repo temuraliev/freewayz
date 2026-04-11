@@ -11,11 +11,6 @@ import { SectionHeader } from "@frontend/components/products/section-header";
 import { SectionErrorBoundary } from "@frontend/components/ui/section-error-boundary";
 import { useFilterStore } from "@frontend/stores";
 import { Product } from "@shared/types";
-import {
-  hotDropsPaginatedQuery,
-  saleProductsPaginatedQuery,
-  freshArrivalsPaginatedQuery,
-} from "@shared/sanity/queries";
 import { cn } from "@shared/utils";
 import { ru } from "@shared/i18n/ru";
 
@@ -180,21 +175,21 @@ function CuratedView({
       <SectionErrorBoundary>
         <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <SectionHeader eyebrow="TRENDING" title={ru.sectionHotDrops} />
-          <InfiniteProductCarousel initialProducts={hotDrops} query={hotDropsPaginatedQuery} cardSize="large" />
+          <InfiniteProductCarousel initialProducts={hotDrops} endpoint="/api/products/hot-drops" cardSize="large" />
         </motion.section>
       </SectionErrorBoundary>
 
       <SectionErrorBoundary>
         <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <SectionHeader eyebrow="SALE" title={ru.sectionSaleSteal} />
-          <InfiniteProductCarousel initialProducts={saleProducts} query={saleProductsPaginatedQuery} showSalePrice cardSize="large" />
+          <InfiniteProductCarousel initialProducts={saleProducts} endpoint="/api/products/sale" showSalePrice cardSize="large" />
         </motion.section>
       </SectionErrorBoundary>
 
       <SectionErrorBoundary>
         <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <SectionHeader eyebrow="JUST IN" title={ru.sectionFreshArrivals} />
-          <InfiniteProductGrid initialProducts={freshArrivals} query={freshArrivalsPaginatedQuery} />
+          <InfiniteProductGrid initialProducts={freshArrivals} endpoint="/api/products/fresh" />
         </motion.section>
       </SectionErrorBoundary>
     </div>

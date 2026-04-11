@@ -2,13 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Product } from "@shared/types";
-import { client } from "@shared/sanity/client";
 import { useAdminStore } from "@frontend/stores";
-import {
-  hotDropsPaginatedQuery,
-  saleProductsPaginatedQuery,
-  freshArrivalsPaginatedQuery,
-} from "@shared/sanity/queries";
 
 interface CuratedSections {
   hotDrops: Product[];
@@ -28,11 +22,10 @@ export function useCuratedSections(initial: CuratedSections) {
 
     const fetchProducts = async () => {
       try {
-        const params = { offset: 0, limit: 20 };
         const [hotData, saleData, freshData] = await Promise.all([
-          client.fetch<Product[]>(hotDropsPaginatedQuery, params),
-          client.fetch<Product[]>(saleProductsPaginatedQuery, params),
-          client.fetch<Product[]>(freshArrivalsPaginatedQuery, params),
+          fetch("/api/products/hot-drops?offset=0&limit=20").then((r) => r.json()),
+          fetch("/api/products/sale?offset=0&limit=20").then((r) => r.json()),
+          fetch("/api/products/fresh?offset=0&limit=20").then((r) => r.json()),
         ]);
         setHotDrops(hotData || []);
         setSaleProducts(saleData || []);

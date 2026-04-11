@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@sanity/client";
-import imageUrlBuilder from "@sanity/image-url";
 import { isAdminRequest } from "@backend/auth/admin-gate";
 import { compressImageToMaxBytes } from "@backend/integrations/compress-image";
+import { uploadImage } from "@backend/integrations/r2-storage";
+import { getDataSource } from "@backend/data-source";
+import { Product } from "@backend/entities/Product";
+import { ProductImage } from "@backend/entities/ProductImage";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const docId = decodeURIComponent(id);
+  const productId = Number(id);
 
   const formData = await request.formData();
   const initData = (formData.get("initData") as string | null) ?? "";
@@ -23,40 +25,39 @@ export async function POST(
     return NextResponse.json({ error: "image file required" }, { status: 400 });
   }
 
-  const token = process.env.SANITY_API_TOKEN;
-  if (!token) {
-    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-  }
+  const ds = await getDataSource();
 
-  const client = createClient({
-    projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-    dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
-    apiVersion: "2024-01-01",
-    useCdn: false,
-    token,
-  });
+  // Verify product exists
+  const product = await ds.getRepository(Product).findOne({ where: { id: productId } });
+  if (!product) {
+    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+  }
 
   try {
     const rawBuffer = Buffer.from(await file.arrayBuffer());
     const buffer = await compressImageToMaxBytes(rawBuffer, 500 * 1024);
-    const asset = await client.assets.upload("image", buffer, {
-      filename: file.name || "admin-upload.jpg",
-      contentType: "image/jpeg",
+
+    // Upload to R2
+    const { url, r2Key } = await uploadImage(buffer, productId);
+
+    // Get current max sort order
+    const maxSort = await ds.getRepository(ProductImage)
+      .createQueryBuilder("img")
+      .select("MAX(img.sortOrder)", "max")
+      .where("img.productId = :productId", { productId })
+      .getRawOne();
+    const sortOrder = (maxSort?.max ?? -1) + 1;
+
+    // Create ProductImage record
+    const img = ds.getRepository(ProductImage).create({
+      productId,
+      url,
+      r2Key,
+      sortOrder,
     });
-    const doc = await client.getDocument(docId);
-    if (!doc) {
-      return NextResponse.json({ error: "Product not found" }, { status: 404 });
-    }
-    const images = Array.isArray(doc.images) ? [...doc.images] : [];
-    images.push({
-      _key: `img-${Date.now()}-${asset._id.slice(-6)}`,
-      _type: "image",
-      asset: { _type: "reference", _ref: asset._id },
-    });
-    await client.patch(docId).set({ images }).commit();
-    const builder = imageUrlBuilder(client);
-    const url = builder.image(asset._id).width(800).url();
-    return NextResponse.json({ ok: true, assetId: asset._id, url });
+    await ds.getRepository(ProductImage).save(img);
+
+    return NextResponse.json({ ok: true, id: img.id, url });
   } catch (e) {
     console.error("Upload error:", e);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });

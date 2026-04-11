@@ -6,21 +6,20 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Product } from "@shared/types";
 import { formatPrice, cn, optimizeImage } from "@shared/utils";
-import { client } from "@shared/sanity/client";
 import { AdminEditButton } from "@frontend/components/admin/admin-edit-button";
 
 const PAGE_SIZE = 20;
 
 interface InfiniteProductCarouselProps {
     initialProducts: Product[];
-    query: string; // paginated GROQ: $offset, $limit
+    endpoint: string; // API endpoint, e.g. "/api/products/hot-drops"
     cardSize?: "default" | "large";
     showSalePrice?: boolean;
 }
 
 export function InfiniteProductCarousel({
     initialProducts,
-    query,
+    endpoint,
     cardSize = "large",
     showSalePrice = false,
 }: InfiniteProductCarouselProps) {
@@ -36,10 +35,8 @@ export function InfiniteProductCarousel({
         setLoading(true);
         try {
             const offset = offsetRef.current;
-            const newItems = await client.fetch<Product[]>(query, {
-                offset,
-                limit: offset + PAGE_SIZE,
-            });
+            const res = await fetch(`${endpoint}?offset=${offset}&limit=${PAGE_SIZE}`);
+            const newItems = await res.json() as Product[];
             if (!Array.isArray(newItems) || newItems.length === 0) {
                 setHasMore(false);
             } else {
@@ -51,7 +48,7 @@ export function InfiniteProductCarousel({
             setHasMore(false);
         }
         setLoading(false);
-    }, [loading, hasMore, query]);
+    }, [loading, hasMore, endpoint]);
 
     useEffect(() => {
         if (!sentinelRef.current) return;

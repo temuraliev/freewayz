@@ -1,36 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@sanity/client";
 import { isAdminRequest } from "@backend/auth/admin-gate";
+import { getDataSource } from "@backend/data-source";
+import { Supplier } from "@backend/entities/Supplier";
 import {
   withErrorHandler,
   UnauthorizedError,
   ValidationError,
-  ApiError,
 } from "@backend/middleware/with-error-handler";
-
-function getSanityClient() {
-  const token = process.env.SANITY_API_TOKEN;
-  if (!token) throw new ApiError("Sanity token not configured", 500, "CONFIG_ERROR");
-  return createClient({
-    projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-    dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
-    apiVersion: "2024-01-01",
-    useCdn: false,
-    token,
-  });
-}
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
   const auth = isAdminRequest(request, initData);
   if (!auth.ok) throw new UnauthorizedError();
 
-  const client = getSanityClient();
-  const list = await client.fetch(
-    `*[_type == "yupooSupplier"] | order(name asc) { _id, name, url, lastCheckedAt, lastAlbumCount, isActive }`
+  const ds = await getDataSource();
+  const list = await ds.getRepository(Supplier).find({
+    order: { name: "ASC" },
+  });
+
+  return NextResponse.json(
+    list.map((s) => ({
+      _id: String(s.id),
+      name: s.name,
+      url: s.url,
+      lastCheckedAt: s.lastCheckedAt,
+      lastAlbumCount: s.lastAlbumCount,
+      isActive: s.isActive,
+    }))
   );
-  return NextResponse.json(list ?? []);
 });
 
 const createSchema = z.object({
@@ -47,12 +45,13 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   const auth = isAdminRequest(request, parsed.data.initData ?? "");
   if (!auth.ok) throw new UnauthorizedError();
 
-  const client = getSanityClient();
-  const doc = await client.create({
-    _type: "yupooSupplier",
+  const ds = await getDataSource();
+  const supplier = ds.getRepository(Supplier).create({
     name: parsed.data.name.trim(),
     url: parsed.data.url.trim(),
     isActive: true,
   });
-  return NextResponse.json({ ok: true, id: doc._id });
+  const saved = await ds.getRepository(Supplier).save(supplier);
+
+  return NextResponse.json({ ok: true, id: saved.id });
 });

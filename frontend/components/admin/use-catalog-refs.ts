@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { client } from "@shared/sanity/client";
-import { brandsQuery, categoriesQuery, stylesQuery } from "@shared/sanity/queries";
 
 export interface CatalogRef {
   _id: string;
@@ -23,9 +21,9 @@ export function useCatalogRefs(enabled: boolean) {
     if (!enabled) return;
     let cancelled = false;
     Promise.all([
-      client.fetch<CatalogRef[]>(brandsQuery),
-      client.fetch<CategoryRef[]>(categoriesQuery),
-      client.fetch<CatalogRef[]>(stylesQuery),
+      fetch("/api/catalog/brands").then((r) => r.json()),
+      fetch("/api/catalog/categories").then((r) => r.json()),
+      fetch("/api/catalog/styles").then((r) => r.json()),
     ]).then(([b, c, s]) => {
       if (cancelled) return;
       setBrands(b ?? []);

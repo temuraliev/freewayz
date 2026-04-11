@@ -3,20 +3,21 @@
 import { useCallback } from "react";
 import { Product } from "@shared/types";
 import { ProductCard } from "@frontend/components/products/product-card";
-import { client } from "@shared/sanity/client";
 import { useInfiniteScroll, PAGE_SIZE } from "./use-infinite-scroll";
 import { ru } from "@shared/i18n/ru";
 
 interface InfiniteProductGridProps {
     initialProducts: Product[];
-    query: string;
+    endpoint: string; // API endpoint, e.g. "/api/products/fresh"
 }
 
-export function InfiniteProductGrid({ initialProducts, query }: InfiniteProductGridProps) {
+export function InfiniteProductGrid({ initialProducts, endpoint }: InfiniteProductGridProps) {
     const fetchPage = useCallback(
-        async (offset: number) =>
-            client.fetch<Product[]>(query, { offset, limit: offset + PAGE_SIZE }),
-        [query]
+        async (offset: number) => {
+            const res = await fetch(`${endpoint}?offset=${offset}&limit=${PAGE_SIZE}`);
+            return res.json() as Promise<Product[]>;
+        },
+        [endpoint]
     );
 
     const { items: products, loading, hasMore, sentinelRef } = useInfiniteScroll<Product>({

@@ -7,8 +7,6 @@ import { Check } from "lucide-react";
 
 import { Button } from "@frontend/components/ui/button";
 import { useUserStore } from "@frontend/stores";
-import { client } from "@shared/sanity/client";
-import { brandsQuery, stylesQuery } from "@shared/sanity/queries";
 
 interface Item {
   _id: string;
@@ -30,8 +28,8 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     Promise.all([
-      client.fetch<Item[]>(brandsQuery),
-      client.fetch<Item[]>(stylesQuery),
+      fetch("/api/catalog/brands").then((r) => r.json()),
+      fetch("/api/catalog/styles").then((r) => r.json()),
     ]).then(([b, s]) => {
       setBrands(b || []);
       setStyles(s || []);

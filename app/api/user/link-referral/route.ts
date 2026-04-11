@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { User } from "@backend/entities/User";
+import { OrderEntity } from "@backend/entities/Order";
 import { validateUserInitData } from "@backend/auth/validate-user";
 import {
   withErrorHandler,
@@ -29,29 +31,29 @@ export const POST = withErrorHandler(async (req: NextRequest) => {
     throw new ApiError("Self-referral not allowed", 400, "SELF_REFERRAL");
   }
 
-  const user = await prisma.user.findUnique({ where: { telegramId } });
+  const ds = await getDataSource();
+  const userRepo = ds.getRepository(User);
+  const orderRepo = ds.getRepository(OrderEntity);
+
+  const user = await userRepo.findOne({ where: { telegramId } });
 
   if (user) {
-    const hasOrders = await prisma.order.count({ where: { userId: user.id } });
+    const hasOrders = await orderRepo.count({ where: { userId: user.id } });
     if (hasOrders > 0 || user.referredBy) {
       return NextResponse.json({
         success: true,
         message: "User already established or referred",
       });
     }
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { referredBy: referrerId },
-    });
+    await userRepo.update(user.id, { referredBy: referrerId });
   } else {
-    await prisma.user.create({
-      data: {
-        telegramId,
-        firstName: userData.first_name,
-        username: userData.username || null,
-        referredBy: referrerId,
-      },
+    const newUser = userRepo.create({
+      telegramId,
+      firstName: userData.first_name,
+      username: userData.username || null,
+      referredBy: referrerId,
     });
+    await userRepo.save(newUser);
   }
 
   return NextResponse.json({ success: true });

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { User } from "@backend/entities/User";
+import { OrderEntity, OrderStatus } from "@backend/entities/Order";
+import { PromoCode } from "@backend/entities/PromoCode";
+import { PromoUsage } from "@backend/entities/PromoUsage";
 import { validateTelegramInitData } from "@backend/auth/telegram-auth";
 import { z } from "zod";
 
@@ -56,24 +60,31 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const ds = await getDataSource();
+    const userRepo = ds.getRepository(User);
+    const orderRepo = ds.getRepository(OrderEntity);
+    const promoRepo = ds.getRepository(PromoCode);
+    const promoUsageRepo = ds.getRepository(PromoUsage);
+
     const telegramId = String(tgUser.id);
 
-    const userDoc = await prisma.user.upsert({
-      where: { telegramId },
-      update: {},
-      create: {
+    // Upsert user: find or create
+    let userDoc = await userRepo.findOne({ where: { telegramId } });
+    if (!userDoc) {
+      userDoc = userRepo.create({
         telegramId,
         username: tgUser.username || null,
         firstName: tgUser.first_name,
-      },
-    });
+      });
+      userDoc = await userRepo.save(userDoc);
+    }
 
     // Idempotency check: if the client sends the same key, return existing order
     const idempotencyKey = parsed.data.idempotencyKey || request.headers.get("X-Idempotency-Key");
     if (idempotencyKey) {
-      const existing = await prisma.order.findUnique({
+      const existing = await orderRepo.findOne({
         where: { idempotencyKey },
-        select: { orderId: true },
+        select: { id: true, orderId: true },
       });
       if (existing) {
         return NextResponse.json({ ok: true, orderId: existing.orderId });
@@ -91,41 +102,42 @@ export async function POST(request: NextRequest) {
       quantity: it.quantity,
     }));
 
-    await prisma.order.create({
-      data: {
-        orderId,
-        userId: userDoc.id,
-        items,
-        total: parsed.data.total,
-        status: "new",
-        promoCode: parsed.data.promoCode ?? null,
-        discount: parsed.data.discount ?? null,
-        ...(idempotencyKey ? { idempotencyKey } : {}),
-      },
+    const newOrder = orderRepo.create({
+      orderId,
+      userId: userDoc.id,
+      items,
+      total: parsed.data.total,
+      status: OrderStatus.NEW,
+      promoCode: parsed.data.promoCode ?? null,
+      discount: parsed.data.discount ?? null,
+      ...(idempotencyKey ? { idempotencyKey } : {}),
     });
+    await orderRepo.save(newOrder);
 
     // Record promo code usage if applied
     // Uses unique constraint on (promoCodeId, userId) to prevent race conditions
     if (parsed.data.promoCode) {
       try {
         const upperCode = parsed.data.promoCode.trim().toUpperCase();
-        const promo = await prisma.promoCode.findUnique({ where: { code: upperCode } });
+        const promo = await promoRepo.findOne({ where: { code: upperCode } });
         if (promo) {
-          await prisma.$transaction([
-            prisma.promoCode.update({
-              where: { id: promo.id },
-              data: { usedCount: { increment: 1 } },
-            }),
-            prisma.promoUsage.create({
-              data: { promoCodeId: promo.id, userId: userDoc.id },
-            }),
-          ]);
+          await ds.transaction(async (manager) => {
+            await manager.getRepository(PromoCode).update(promo.id, {
+              usedCount: () => "usedCount + 1",
+            });
+            const usage = manager.getRepository(PromoUsage).create({
+              promoCodeId: promo.id,
+              userId: userDoc.id,
+            });
+            await manager.getRepository(PromoUsage).save(usage);
+          });
         }
       } catch (promoErr: unknown) {
-        // P2002 = unique constraint violation = already used, which is fine
-        const isPrismaUniqueError =
-          promoErr && typeof promoErr === "object" && "code" in promoErr && promoErr.code === "P2002";
-        if (!isPrismaUniqueError) {
+        // ER_DUP_ENTRY = unique constraint violation = already used, which is fine
+        const isDuplicateError =
+          promoErr && typeof promoErr === "object" && "code" in promoErr &&
+          (promoErr.code === "ER_DUP_ENTRY" || promoErr.code === "23505");
+        if (!isDuplicateError) {
           console.error("Failed to record promo usage:", promoErr);
         }
       }

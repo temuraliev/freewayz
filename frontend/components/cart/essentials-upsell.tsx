@@ -5,8 +5,6 @@ import Link from "next/link";
 import { Plus, ShoppingBag } from "lucide-react";
 import { motion } from "framer-motion";
 import useSWR from "swr";
-import { client } from "@shared/sanity/client";
-import { essentialsQuery } from "@shared/sanity/queries";
 import { useCartStore } from "@frontend/stores";
 import { formatPrice } from "@shared/utils";
 import { Product } from "@shared/types";
@@ -23,7 +21,8 @@ interface EssentialProduct {
 }
 
 async function fetchEssentials(): Promise<EssentialProduct[]> {
-  return client.fetch<EssentialProduct[]>(essentialsQuery);
+  const res = await fetch("/api/products/essentials");
+  return res.json();
 }
 
 export function EssentialsUpsell() {

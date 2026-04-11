@@ -1,58 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@sanity/client";
-import imageUrlBuilder from "@sanity/image-url";
 import { isAdminRequest } from "@backend/auth/admin-gate";
-import { normalizeSubtype } from "@backend/sanity/normalize-subtype";
+import { getDataSource } from "@backend/data-source";
+import { Product } from "@backend/entities/Product";
 import { z } from "zod";
 
-function getSanityClient() {
-  const token = process.env.SANITY_API_TOKEN;
-  if (!token) return null;
-  return createClient({
-    projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-    dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
-    apiVersion: "2024-01-01",
-    useCdn: false,
-    token,
-  });
-}
-
-/** GET: fetch product with image refs + URLs for admin overlay (reorder/add photos). */
+/** GET: fetch product with images for admin overlay. */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const docId = decodeURIComponent(id);
+  const productId = Number(id);
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
   const auth = isAdminRequest(request, initData);
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const client = getSanityClient();
-  if (!client) {
-    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-  }
+
   try {
-    const doc = await client.getDocument(docId);
-    if (!doc) {
+    const ds = await getDataSource();
+    const product = await ds.getRepository(Product).findOne({
+      where: { id: productId },
+      relations: ["brand", "category", "style", "images"],
+    });
+    if (!product) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
-    const builder = imageUrlBuilder(client);
-    const images = Array.isArray(doc.images)
-      ? (doc.images as { asset?: { _ref?: string }; _key?: string }[]).map((img) => {
-          const ref = img.asset?._ref;
-          const url = ref ? builder.image(ref).width(400).url() : "";
-          return { _ref: ref ?? "", url };
-        })
-      : [];
+
+    const images = (product.images || [])
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((img) => ({ id: img.id, url: img.url, r2Key: img.r2Key }));
+
     return NextResponse.json({
-      _id: doc._id,
-      title: doc.title,
-      slug: doc.slug,
-      description: doc.description,
-      price: doc.price,
-      originalPrice: doc.originalPrice,
+      _id: String(product.id),
+      title: product.title,
+      slug: product.slug,
+      description: product.description,
+      price: Number(product.price),
+      originalPrice: product.originalPrice ? Number(product.originalPrice) : null,
       images,
     });
   } catch (e) {
@@ -73,10 +58,9 @@ const bodySchema = z.object({
   isNewArrival: z.boolean().optional(),
   sizes: z.array(z.string()).optional(),
   colors: z.array(z.string()).optional(),
-  brandId: z.string().nullable().optional(),
-  categoryId: z.string().nullable().optional(),
-  styleId: z.string().nullable().optional(),
-  imageRefs: z.array(z.string()).optional(),
+  brandId: z.union([z.string(), z.number()]).nullable().optional(),
+  categoryId: z.union([z.string(), z.number()]).nullable().optional(),
+  styleId: z.union([z.string(), z.number()]).nullable().optional(),
 });
 
 export async function PATCH(
@@ -84,7 +68,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const docId = decodeURIComponent(id);
+  const productId = Number(id);
 
   let body: unknown;
   try {
@@ -103,56 +87,37 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const client = getSanityClient();
-  if (!client) {
-    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+  const ds = await getDataSource();
+  const repo = ds.getRepository(Product);
+  const product = await repo.findOne({ where: { id: productId } });
+  if (!product) {
+    return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
 
-  const patch: Record<string, unknown> = {};
-  if (parsed.data.title !== undefined) patch.title = parsed.data.title;
-  if (parsed.data.description !== undefined) patch.description = parsed.data.description;
-  if (parsed.data.price !== undefined) patch.price = parsed.data.price;
-  if (parsed.data.originalPrice !== undefined) patch.originalPrice = parsed.data.originalPrice;
-  if (parsed.data.subtype !== undefined) patch.subtype = normalizeSubtype(parsed.data.subtype) ?? null;
-  if (parsed.data.isHotDrop !== undefined) patch.isHotDrop = parsed.data.isHotDrop;
-  if (parsed.data.isOnSale !== undefined) patch.isOnSale = parsed.data.isOnSale;
-  if (parsed.data.isNewArrival !== undefined) patch.isNewArrival = parsed.data.isNewArrival;
-  if (parsed.data.sizes !== undefined) patch.sizes = parsed.data.sizes;
-  if (parsed.data.colors !== undefined) patch.colors = parsed.data.colors;
-  if (parsed.data.brandId !== undefined) patch.brand = parsed.data.brandId ? { _type: "reference", _ref: parsed.data.brandId } : null;
-  if (parsed.data.categoryId !== undefined) patch.category = parsed.data.categoryId ? { _type: "reference", _ref: parsed.data.categoryId } : null;
-  if (parsed.data.styleId !== undefined) patch.style = parsed.data.styleId ? { _type: "reference", _ref: parsed.data.styleId } : null;
+  const update: Partial<Product> = {};
+  if (parsed.data.title !== undefined) update.title = parsed.data.title;
+  if (parsed.data.description !== undefined) update.description = parsed.data.description;
+  if (parsed.data.price !== undefined) update.price = parsed.data.price;
+  if (parsed.data.originalPrice !== undefined) update.originalPrice = parsed.data.originalPrice;
+  if (parsed.data.subtype !== undefined) update.subtype = parsed.data.subtype;
+  if (parsed.data.isHotDrop !== undefined) update.isHotDrop = parsed.data.isHotDrop;
+  if (parsed.data.isOnSale !== undefined) update.isOnSale = parsed.data.isOnSale;
+  if (parsed.data.isNewArrival !== undefined) update.isNewArrival = parsed.data.isNewArrival;
+  if (parsed.data.sizes !== undefined) update.sizes = parsed.data.sizes;
+  if (parsed.data.colors !== undefined) update.colors = parsed.data.colors;
+  if (parsed.data.brandId !== undefined) update.brandId = parsed.data.brandId ? Number(parsed.data.brandId) : null;
+  if (parsed.data.categoryId !== undefined) update.categoryId = parsed.data.categoryId ? Number(parsed.data.categoryId) : null;
+  if (parsed.data.styleId !== undefined) update.styleId = Number(parsed.data.styleId);
 
-  if (parsed.data.imageRefs !== undefined) {
-    const doc = await client.getDocument(docId);
-    if (!doc) {
-      return NextResponse.json({ error: "Product not found" }, { status: 404 });
-    }
-    const currentImages = (Array.isArray(doc.images) ? doc.images : []) as { _key?: string; asset?: { _ref?: string } }[];
-    const refToKey = new Map<string, string>();
-    for (const img of currentImages) {
-      const ref = img.asset?._ref;
-      if (ref && img._key) refToKey.set(ref, img._key);
-    }
-    const newImages = parsed.data.imageRefs
-      .filter(Boolean)
-      .map((ref) => ({
-        _key: refToKey.get(ref) ?? `img-${Date.now()}-${ref.slice(-6)}`,
-        _type: "image" as const,
-        asset: { _type: "reference" as const, _ref: ref },
-      }));
-    patch.images = newImages;
-  }
-
-  if (Object.keys(patch).length === 0) {
+  if (Object.keys(update).length === 0) {
     return NextResponse.json({ ok: true, message: "Nothing to update" });
   }
 
   try {
-    await client.patch(docId).set(patch).commit();
+    await repo.update(productId, update);
     return NextResponse.json({ ok: true });
   } catch (e) {
-    console.error("Sanity patch error:", e);
+    console.error("Product update error:", e);
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
   }
 }

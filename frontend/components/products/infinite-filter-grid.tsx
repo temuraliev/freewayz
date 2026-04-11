@@ -3,8 +3,6 @@
 import { useCallback } from "react";
 import { Product } from "@shared/types";
 import { ProductCard } from "@frontend/components/products/product-card";
-import { client } from "@shared/sanity/client";
-import { productsByFilterPaginatedQuery } from "@shared/sanity/queries";
 import { useInfiniteScroll, PAGE_SIZE } from "./use-infinite-scroll";
 import { ru } from "@shared/i18n/ru";
 
@@ -30,12 +28,22 @@ export function InfiniteFilterGrid({
   totalCount,
 }: InfiniteFilterGridProps) {
   const fetchPage = useCallback(
-    async (offset: number) =>
-      client.fetch<Product[]>(productsByFilterPaginatedQuery, {
-        offset,
-        limit: offset + PAGE_SIZE,
-        ...filterParams,
-      }),
+    async (offset: number) => {
+      const params = new URLSearchParams();
+      if (filterParams.style) params.set("style", filterParams.style);
+      if (filterParams.brand) params.set("brand", filterParams.brand);
+      if (filterParams.category) params.set("category", filterParams.category);
+      if (filterParams.subtype) params.set("subtype", filterParams.subtype);
+      if (filterParams.saleOnly) params.set("saleOnly", "true");
+      if (filterParams.minPrice > 0) params.set("minPrice", String(filterParams.minPrice));
+      if (filterParams.maxPrice < 999_999_999) params.set("maxPrice", String(filterParams.maxPrice));
+      params.set("offset", String(offset));
+      params.set("limit", String(PAGE_SIZE));
+
+      const res = await fetch(`/api/products?${params.toString()}`);
+      const data = await res.json();
+      return (data.products ?? []) as Product[];
+    },
     [filterParams]
   );
 

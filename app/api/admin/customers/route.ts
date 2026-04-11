@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { User } from "@backend/entities/User";
 import { validateAdminInitData } from "@backend/auth/admin-auth";
 import { withErrorHandler, UnauthorizedError } from "@backend/middleware/with-error-handler";
-import { Prisma } from "@prisma/client";
 
-// Single-query version: uses raw SQL to avoid N+1 (one query per user for last order)
+// Single-query version: uses QueryBuilder to avoid N+1 (one query per user for last order)
 interface CustomerRow {
   id: number;
   telegramId: string;
@@ -17,7 +17,7 @@ interface CustomerRow {
   totalSpent: number;
   status: string;
   cashbackBalance: number;
-  orderCount: bigint;
+  orderCount: number;
   lastOrderDate: Date | null;
 }
 
@@ -29,41 +29,51 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   }
 
   const search = (request.nextUrl.searchParams.get("q") || "").trim();
-  const searchPattern = `%${search}%`;
+
+  const ds = await getDataSource();
 
   // Single query: join with aggregated order stats. No N+1.
-  const rows = await prisma.$queryRaw<CustomerRow[]>`
-    SELECT
-      u.id,
-      u."telegramId",
-      u.username,
-      u."firstName",
-      u."lastName",
-      u.phone,
-      u.address,
-      u."adminNotes",
-      u."totalSpent",
-      u.status::text AS status,
-      u."cashbackBalance",
-      COALESCE(o.order_count, 0) AS "orderCount",
-      o.last_order_date AS "lastOrderDate"
-    FROM "User" u
-    LEFT JOIN (
-      SELECT
-        "userId",
-        COUNT(*) AS order_count,
-        MAX("createdAt") AS last_order_date
-      FROM "Order"
-      GROUP BY "userId"
-    ) o ON o."userId" = u.id
-    ${search
-      ? Prisma.sql`WHERE u.username ILIKE ${searchPattern}
-                   OR u."firstName" ILIKE ${searchPattern}
-                   OR u."telegramId" = ${search}`
-      : Prisma.empty}
-    ORDER BY u."totalSpent" DESC
-    LIMIT 200
-  `;
+  // MySQL uses LIKE which is case-insensitive by default with utf8mb4 collation.
+  const qb = ds
+    .getRepository(User)
+    .createQueryBuilder("u")
+    .select([
+      "u.id AS id",
+      "u.telegramId AS telegramId",
+      "u.username AS username",
+      "u.firstName AS firstName",
+      "u.lastName AS lastName",
+      "u.phone AS phone",
+      "u.address AS address",
+      "u.adminNotes AS adminNotes",
+      "u.totalSpent AS totalSpent",
+      "u.status AS status",
+      "u.cashbackBalance AS cashbackBalance",
+      "COALESCE(o.order_count, 0) AS orderCount",
+      "o.last_order_date AS lastOrderDate",
+    ])
+    .leftJoin(
+      (subQuery) =>
+        subQuery
+          .select("ord.userId", "userId")
+          .addSelect("COUNT(*)", "order_count")
+          .addSelect("MAX(ord.createdAt)", "last_order_date")
+          .from("orders", "ord")
+          .groupBy("ord.userId"),
+      "o",
+      "o.userId = u.id"
+    );
+
+  if (search) {
+    qb.where(
+      "(u.username LIKE :pattern OR u.firstName LIKE :pattern OR u.telegramId = :exact)",
+      { pattern: `%${search}%`, exact: search }
+    );
+  }
+
+  qb.orderBy("u.totalSpent", "DESC").limit(200);
+
+  const rows: CustomerRow[] = await qb.getRawMany();
 
   const formatted = rows.map((u) => ({
     id: u.id,

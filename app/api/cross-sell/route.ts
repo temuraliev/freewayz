@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@sanity/client";
-import groq from "groq";
 import { withErrorHandler } from "@backend/middleware/with-error-handler";
-
-const sanity = createClient({
-  projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
-  apiVersion: "2024-01-01",
-  useCdn: true,
-});
+import {
+  findCrossSell,
+  findCrossSellFallback,
+} from "@backend/repositories/product-repository";
 
 const CROSS_SELL_MAP: Record<string, string[]> = {
   кроссовки: ["носки", "шнурки", "сумки"],
@@ -26,21 +21,7 @@ const CROSS_SELL_MAP: Record<string, string[]> = {
   шорты: ["футболка", "кепки"],
 };
 
-const PROJECTION = `{
-  _id,
-  title,
-  slug,
-  price,
-  originalPrice,
-  "images": images[0...1].asset->url,
-  "brand": brand->{ _id, title, slug },
-  subtype,
-  isOnSale
-}`;
-
 const TARGET = 5;
-
-type SanityProduct = { _id: string };
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
   const params = request.nextUrl.searchParams;
@@ -52,7 +33,11 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  const exclude = (params.get("exclude") || "").split(",").filter(Boolean);
+  const exclude = (params.get("exclude") || "")
+    .split(",")
+    .filter(Boolean)
+    .map(Number)
+    .filter((n) => !isNaN(n));
   const maxPrice = Number(params.get("maxPrice")) || 99999999;
 
   const complementarySubtypes = new Set<string>();
@@ -61,40 +46,25 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     if (matches) matches.forEach((m) => complementarySubtypes.add(m));
   }
 
-  let products: SanityProduct[] = [];
-
-  if (complementarySubtypes.size > 0) {
-    products = await sanity.fetch<SanityProduct[]>(
-      groq`*[_type == "product" && !(_id in $exclude) && lower(subtype) in $subtypes]
-        | order(brand->slug.current in $brands desc, _createdAt desc)
-        [0...$limit] ${PROJECTION}`,
-      {
-        exclude,
-        subtypes: Array.from(complementarySubtypes),
-        brands,
-        limit: TARGET,
-      }
-    );
-  }
+  let products = await findCrossSell(
+    Array.from(complementarySubtypes),
+    brands,
+    exclude,
+    maxPrice,
+    TARGET
+  );
 
   // Fallback: same brand, different subtype, cheaper
   if (products.length < TARGET && brands.length > 0) {
-    const existingIds = [...exclude, ...products.map((p) => p._id)];
+    const existingIds = [...exclude, ...products.map((p) => Number(p._id))];
     const remaining = TARGET - products.length;
 
-    const fallback = await sanity.fetch<SanityProduct[]>(
-      groq`*[_type == "product" && !(_id in $exclude)
-        && brand->slug.current in $brands
-        && !(lower(subtype) in $cartSubtypes)
-        && price <= $maxPrice
-      ] | order(_createdAt desc) [0...$remaining] ${PROJECTION}`,
-      {
-        exclude: existingIds,
-        brands,
-        cartSubtypes: subtypes,
-        maxPrice,
-        remaining,
-      }
+    const fallback = await findCrossSellFallback(
+      brands,
+      subtypes,
+      existingIds,
+      maxPrice,
+      remaining
     );
 
     products = [...products, ...fallback].slice(0, TARGET);

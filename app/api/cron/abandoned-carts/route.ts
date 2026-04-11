@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { User } from "@backend/entities/User";
+import { LessThan, Not, IsNull } from "typeorm";
 import {
   withErrorHandler,
   UnauthorizedError,
@@ -73,10 +75,13 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "");
   const cutoff = new Date(Date.now() - ABANDONED_THRESHOLD_MS);
 
-  const users = await prisma.user.findMany({
+  const ds = await getDataSource();
+  const userRepo = ds.getRepository(User);
+
+  const users = await userRepo.find({
     where: {
-      cartItems: { not: null },
-      cartUpdatedAt: { lt: cutoff },
+      cartItems: Not(IsNull()),
+      cartUpdatedAt: LessThan(cutoff),
       abandonedCartNotified: false,
     },
     select: {
@@ -117,10 +122,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     );
 
     if (ok) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { abandonedCartNotified: true },
-      });
+      await userRepo.update(user.id, { abandonedCartNotified: true });
       sent++;
     } else {
       failed++;

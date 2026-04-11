@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { OrderEntity } from "@backend/entities/Order";
 import { validateAdminInitData } from "@backend/auth/admin-auth";
+import { FindOptionsWhere, MoreThanOrEqual, LessThanOrEqual } from "typeorm";
 
 /**
  * GET /api/admin/orders/export[?status=&from=&to=]
  * Returns CSV with all orders matching filters.
- * Not wrapped in withErrorHandler — returns raw Response (CSV), not JSON.
+ * Not wrapped in withErrorHandler -- returns raw Response (CSV), not JSON.
  */
 
 function csvEscape(value: unknown): string {
@@ -34,32 +36,52 @@ export async function GET(request: NextRequest) {
   const from = params.get("from");
   const to = params.get("to");
 
-  const where: {
-    status?: "new" | "paid" | "ordered" | "shipped" | "delivered" | "cancelled";
-    createdAt?: { gte?: Date; lte?: Date };
-  } = {};
+  const ds = await getDataSource();
+  const orderRepo = ds.getRepository(OrderEntity);
+
+  const where: FindOptionsWhere<OrderEntity> = {};
 
   if (status && status !== "all") {
-    where.status = status as typeof where.status;
+    where.status = status as OrderEntity["status"];
   }
   if (from) {
-    where.createdAt = { ...(where.createdAt ?? {}), gte: new Date(from) };
+    where.createdAt = MoreThanOrEqual(new Date(from));
   }
   if (to) {
     const toEnd = new Date(to);
     toEnd.setHours(23, 59, 59, 999);
-    where.createdAt = { ...(where.createdAt ?? {}), lte: toEnd };
+    // If both from and to, we need a query builder for range
+    if (from) {
+      // Use query builder for date range
+      const qb = orderRepo
+        .createQueryBuilder("o")
+        .leftJoinAndSelect("o.user", "u")
+        .where("o.createdAt >= :from", { from: new Date(from) })
+        .andWhere("o.createdAt <= :to", { to: toEnd })
+        .orderBy("o.createdAt", "DESC")
+        .take(10000);
+
+      if (status && status !== "all") {
+        qb.andWhere("o.status = :status", { status });
+      }
+
+      const orders = await qb.getMany();
+      return buildCsvResponse(orders);
+    }
+    where.createdAt = LessThanOrEqual(toEnd);
   }
 
-  const orders = await prisma.order.findMany({
+  const orders = await orderRepo.find({
     where,
-    orderBy: { createdAt: "desc" },
-    include: {
-      user: { select: { username: true, firstName: true, telegramId: true } },
-    },
+    order: { createdAt: "DESC" },
+    relations: ["user"],
     take: 10000,
   });
 
+  return buildCsvResponse(orders);
+}
+
+function buildCsvResponse(orders: OrderEntity[]) {
   const headers = [
     "Order ID",
     "Status",

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { User } from "@backend/entities/User";
+import { OrderEntity, OrderStatus } from "@backend/entities/Order";
+import { Not, LessThan } from "typeorm";
 import { validateAdminInitData } from "@backend/auth/admin-auth";
 import { withErrorHandler, UnauthorizedError } from "@backend/middleware/with-error-handler";
 
@@ -7,6 +10,10 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
   const auth = validateAdminInitData(initData, request.headers.get("host"));
   if (!auth.ok) throw new UnauthorizedError();
+
+  const ds = await getDataSource();
+  const orderRepo = ds.getRepository(OrderEntity);
+  const userRepo = ds.getRepository(User);
 
   const now = new Date();
   const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -16,35 +23,38 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     ordersWithoutTrack,
     abandonedCartsCount,
     totalOrders,
-    totalRevenue,
+    totalRevenueResult,
     ordersInTransit,
     totalCustomers,
   ] = await Promise.all([
     // New orders waiting for confirmation
-    prisma.order.count({ where: { status: "new" } }),
+    orderRepo.count({ where: { status: OrderStatus.NEW } }),
     // Confirmed orders without tracking number
-    prisma.order.count({
-      where: { status: "ordered", trackNumber: null },
-    }),
+    orderRepo
+      .createQueryBuilder("o")
+      .where("o.status = :status", { status: OrderStatus.ORDERED })
+      .andWhere("o.trackNumber IS NULL")
+      .getCount(),
     // Abandoned carts in last 24h
-    prisma.user.count({
+    userRepo.count({
       where: {
-        cartItems: { not: null },
-        cartUpdatedAt: { lt: twentyFourHoursAgo },
+        cartItems: Not(""),
+        cartUpdatedAt: LessThan(twentyFourHoursAgo),
         abandonedCartNotified: false,
       },
     }),
     // Total orders
-    prisma.order.count(),
+    orderRepo.count(),
     // Total revenue (non-cancelled)
-    prisma.order.aggregate({
-      _sum: { total: true },
-      where: { status: { not: "cancelled" } },
-    }),
+    orderRepo
+      .createQueryBuilder("o")
+      .select("COALESCE(SUM(o.total), 0)", "sum")
+      .where("o.status != :status", { status: OrderStatus.CANCELLED })
+      .getRawOne<{ sum: number }>(),
     // Orders in transit
-    prisma.order.count({ where: { status: "shipped" } }),
+    orderRepo.count({ where: { status: OrderStatus.SHIPPED } }),
     // Total customers
-    prisma.user.count(),
+    userRepo.count(),
   ]);
 
   return NextResponse.json({
@@ -61,7 +71,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     ],
     stats: {
       totalOrders,
-      totalRevenue: totalRevenue._sum.total ?? 0,
+      totalRevenue: totalRevenueResult?.sum ?? 0,
       ordersInTransit,
       totalCustomers,
       newOrdersCount,

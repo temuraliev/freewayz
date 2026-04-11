@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@backend/db";
+import { getDataSource } from "@backend/data-source";
+import { User } from "@backend/entities/User";
 import { validateUserInitData } from "@backend/auth/validate-user";
 import { syncCart } from "@backend/services/cart-service";
 import {
@@ -37,7 +38,10 @@ export const POST = withErrorHandler(async (req: NextRequest) => {
 
   const telegramId = String(userData.id);
 
-  const user = await prisma.user.findUnique({
+  const ds = await getDataSource();
+  const userRepo = ds.getRepository(User);
+
+  const user = await userRepo.findOne({
     where: { telegramId },
     select: { id: true },
   });
@@ -52,13 +56,10 @@ export const POST = withErrorHandler(async (req: NextRequest) => {
 
   // Write to both legacy JSON field and new CartItem model
   // (legacy will be removed once the new model is verified in production)
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      cartItems: cartItemsStr,
-      cartUpdatedAt,
-      abandonedCartNotified: false,
-    },
+  await userRepo.update(user.id, {
+    cartItems: cartItemsStr,
+    cartUpdatedAt,
+    abandonedCartNotified: false,
   });
 
   // Sync to new CartItem table — non-blocking, errors don't fail the request
