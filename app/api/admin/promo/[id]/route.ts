@@ -17,7 +17,7 @@ export const PATCH = withErrorHandler(async (
   const body = await request.json();
   const initData = body?.initData ?? request.headers.get("X-Telegram-Init-Data") ?? "";
 
-  const auth = validateAdminInitData(initData, request.headers.get("host"));
+  const auth = await validateAdminInitData(initData, request.headers.get("host"));
   if (!auth.ok) throw new UnauthorizedError();
 
   const numId = parseInt(id, 10);
@@ -44,7 +44,7 @@ export const DELETE = withErrorHandler(async (
   const { id } = await params;
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
 
-  const auth = validateAdminInitData(initData, request.headers.get("host"));
+  const auth = await validateAdminInitData(initData, request.headers.get("host"));
   if (!auth.ok) throw new UnauthorizedError();
 
   const numId = parseInt(id, 10);

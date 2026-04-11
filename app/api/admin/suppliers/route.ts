@@ -11,7 +11,7 @@ import {
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
-  const auth = isAdminRequest(request, initData);
+  const auth = await isAdminRequest(request, initData);
   if (!auth.ok) throw new UnauthorizedError();
 
   const ds = await getDataSource();
@@ -42,7 +42,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) throw new ValidationError("Invalid supplier payload");
 
-  const auth = isAdminRequest(request, parsed.data.initData ?? "");
+  const auth = await isAdminRequest(request, parsed.data.initData ?? "");
   if (!auth.ok) throw new UnauthorizedError();
 
   const ds = await getDataSource();

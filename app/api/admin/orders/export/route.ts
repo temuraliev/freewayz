@@ -26,7 +26,7 @@ function formatDate(d: Date | null | undefined): string {
 
 export async function GET(request: NextRequest) {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
-  const auth = validateAdminInitData(initData, request.headers.get("host"));
+  const auth = await validateAdminInitData(initData, request.headers.get("host"));
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

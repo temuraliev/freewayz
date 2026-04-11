@@ -16,10 +16,8 @@ async function notifyAdminBot(text: string) {
   )
     .replace(/\r\n?|\n/g, "")
     .trim();
-  const adminIds = (process.env.ADMIN_TELEGRAM_IDS || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const { getAdminTelegramIds } = await import("@backend/auth/admin-auth");
+  const adminIds = await getAdminTelegramIds();
 
   if (!botToken || adminIds.length === 0) return;
 

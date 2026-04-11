@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const result = validateAdminInitData(initData);
+  const result = await validateAdminInitData(initData);
   if (!result.ok) {
     return NextResponse.json(
       { error: "Unauthorized", reason: result.reason },

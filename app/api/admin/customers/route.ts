@@ -23,7 +23,7 @@ interface CustomerRow {
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
-  const auth = validateAdminInitData(initData, request.headers.get("host"));
+  const auth = await validateAdminInitData(initData, request.headers.get("host"));
   if (!auth.ok) {
     throw new UnauthorizedError();
   }

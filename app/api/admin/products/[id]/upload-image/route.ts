@@ -15,7 +15,7 @@ export async function POST(
 
   const formData = await request.formData();
   const initData = (formData.get("initData") as string | null) ?? "";
-  const auth = isAdminRequest(request, initData);
+  const auth = await isAdminRequest(request, initData);
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

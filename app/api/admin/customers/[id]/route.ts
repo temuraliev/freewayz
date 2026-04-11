@@ -26,7 +26,7 @@ export const PATCH = withErrorHandler(async (
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) throw new ValidationError("Invalid payload");
 
-  const auth = validateAdminInitData(parsed.data.initData, request.headers.get("host"));
+  const auth = await validateAdminInitData(parsed.data.initData, request.headers.get("host"));
   if (!auth.ok) throw new UnauthorizedError();
 
   const numId = parseInt(id, 10);

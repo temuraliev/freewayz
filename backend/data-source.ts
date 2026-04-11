@@ -17,8 +17,10 @@ import {
   PromoCode,
   PromoUsage,
   Supplier,
+  UserRole,
 } from "./entities";
 import { InitialSchema1713400000000 } from "./migrations/1713400000000-InitialSchema";
+import { AddUserRoles1713400001000 } from "./migrations/1713400001000-AddUserRoles";
 
 const entities = [
   Brand,
@@ -37,9 +39,10 @@ const entities = [
   PromoCode,
   PromoUsage,
   Supplier,
+  UserRole,
 ];
 
-const migrations = [InitialSchema1713400000000];
+const migrations = [InitialSchema1713400000000, AddUserRoles1713400001000];
 
 function createDataSource() {
   return new DataSource({

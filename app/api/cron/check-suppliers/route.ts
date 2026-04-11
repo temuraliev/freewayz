@@ -138,7 +138,8 @@ export async function GET(request: NextRequest) {
   const supplierRepo = ds.getRepository(Supplier);
 
   const botToken = (process.env.ADMIN_BOT_TOKEN || process.env.BOT_TOKEN || "").replace(/\r\n?|\n/g, "").trim();
-  const adminIds = (process.env.ADMIN_TELEGRAM_IDS || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const { getAdminTelegramIds } = await import("@backend/auth/admin-auth");
+  const adminIds = await getAdminTelegramIds();
 
   if (!botToken || adminIds.length === 0) {
     return NextResponse.json({ ok: true, skipped: "no bot token or admin ids" });

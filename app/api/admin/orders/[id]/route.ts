@@ -55,7 +55,7 @@ export async function GET(
 ) {
   const { id } = await params;
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
-  const auth = validateAdminInitData(initData, request.headers.get("host"));
+  const auth = await validateAdminInitData(initData, request.headers.get("host"));
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -114,7 +114,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Validation failed" }, { status: 400 });
   }
 
-  const auth = validateAdminInitData(parsed.data.initData ?? "", request.headers.get("host"));
+  const auth = await validateAdminInitData(parsed.data.initData ?? "", request.headers.get("host"));
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

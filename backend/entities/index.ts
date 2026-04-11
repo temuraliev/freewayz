@@ -19,5 +19,8 @@ export { Expense, ExpenseCurrency, ExpenseCategory } from "./Expense";
 export { PromoCode, PromoType } from "./PromoCode";
 export { PromoUsage } from "./PromoUsage";
 
+// Auth & roles
+export { UserRole } from "./UserRole";
+
 // Operations
 export { Supplier } from "./Supplier";

@@ -12,7 +12,7 @@ export async function GET(
   const { id } = await params;
   const productId = Number(id);
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
-  const auth = isAdminRequest(request, initData);
+  const auth = await isAdminRequest(request, initData);
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -82,7 +82,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const auth = isAdminRequest(request, parsed.data.initData ?? "");
+  const auth = await isAdminRequest(request, parsed.data.initData ?? "");
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

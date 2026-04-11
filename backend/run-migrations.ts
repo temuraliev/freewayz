@@ -11,9 +11,10 @@ import { DataSource } from "typeorm";
 import {
   Brand, Category, Style, Product, ProductImage, ProductVideo,
   User, CartItemEntity, UserPreference, ProductViewEntity,
-  WishlistItemEntity, OrderEntity, Expense, PromoCode, PromoUsage, Supplier,
+  WishlistItemEntity, OrderEntity, Expense, PromoCode, PromoUsage, Supplier, UserRole,
 } from "./entities";
 import { InitialSchema1713400000000 } from "./migrations/1713400000000-InitialSchema";
+import { AddUserRoles1713400001000 } from "./migrations/1713400001000-AddUserRoles";
 
 async function main() {
   const ds = new DataSource({
@@ -26,9 +27,9 @@ async function main() {
     entities: [
       Brand, Category, Style, Product, ProductImage, ProductVideo,
       User, CartItemEntity, UserPreference, ProductViewEntity,
-      WishlistItemEntity, OrderEntity, Expense, PromoCode, PromoUsage, Supplier,
+      WishlistItemEntity, OrderEntity, Expense, PromoCode, PromoUsage, Supplier, UserRole,
     ],
-    migrations: [InitialSchema1713400000000],
+    migrations: [InitialSchema1713400000000, AddUserRoles1713400001000],
     logging: true,
   });
 

@@ -143,10 +143,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const adminIds = (process.env.ADMIN_TELEGRAM_IDS || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const { getAdminTelegramIds } = await import("@backend/auth/admin-auth");
+    const adminIds = await getAdminTelegramIds();
 
     const botToken = adminBotToken || customerBotToken;
     if (botToken && adminIds.length > 0) {

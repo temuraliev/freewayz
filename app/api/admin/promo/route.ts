@@ -11,7 +11,7 @@ import {
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
   const initData = request.headers.get("X-Telegram-Init-Data") ?? "";
-  const auth = validateAdminInitData(initData, request.headers.get("host"));
+  const auth = await validateAdminInitData(initData, request.headers.get("host"));
   if (!auth.ok) throw new UnauthorizedError();
 
   const ds = await getDataSource();
@@ -53,7 +53,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) throw new ValidationError("Invalid promo payload");
 
-  const auth = validateAdminInitData(parsed.data.initData, request.headers.get("host"));
+  const auth = await validateAdminInitData(parsed.data.initData, request.headers.get("host"));
   if (!auth.ok) throw new UnauthorizedError();
 
   const ds = await getDataSource();

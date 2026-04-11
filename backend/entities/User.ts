@@ -13,6 +13,7 @@ import type { ProductViewEntity } from "./ProductView";
 import type { WishlistItemEntity } from "./WishlistItem";
 import type { OrderEntity } from "./Order";
 import type { PromoUsage } from "./PromoUsage";
+import type { UserRole } from "./UserRole";
 
 export enum UserStatus {
   ROOKIE = "ROOKIE",
@@ -103,6 +104,9 @@ export class User {
 
   @OneToMany("WishlistItemEntity", "user")
   wishlistItems!: WishlistItemEntity[];
+
+  @OneToMany("UserRole", "user")
+  roles!: UserRole[];
 
   @CreateDateColumn()
   createdAt!: Date;
